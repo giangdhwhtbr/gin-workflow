@@ -2,14 +2,18 @@
 
 This page lists what changed in each release of gin-workflow and its add-ons (gin-qa, gin-orchestrator, gin-ba), newest first. Releases before 3.1.0 are on the [GitHub releases page](https://github.com/giangdhwhtbr/gin-workflow/releases).
 
-## Unreleased
+## [3.2.0] - 2026-11-20
 
-In team mode a member now works a lane, the tracks of one plan that share a `Lane:` line, on one branch and in one pull request, instead of a pull request per track. A team plan may also declare lanes and leave each lane's tracks to its owner, who writes them in a lane plan.
+In team mode a member now works a lane, the tracks of one plan that share a `Lane:` line, on one branch and in one pull request, instead of a pull request per track. A team plan may also declare lanes and leave each lane's tracks to its owner, who writes them in a lane plan. The SRS export gains the document matter a customer expects, requirement types, and diagrams that draw offline. gin-qa re-runs only the manual cases that are due. Roadmap epics are sized in story points.
 
 ### Upgrade notes
 
 - A track bead without a `Lane:` line keeps its own branch `feat/<topic>-t<N>` and its worktree `.planning/worktrees/<bead>`, so open work needs no step.
 - Add `- **Lane**: <name>` to every track of a team plan. `gin team check-plan` fails a track without it.
+- Update gin on each machine. No other project step is needed, and `.ginrc` stays as it is: raise it only when a project needs gin 3.2.0.
+- A recorded gin-qa result now carries a `Checked:` stamp. A `passed`, `failed`, or `blocked` result that has none reads `outdated` only when a pinned requirement changed or was removed. Run the case again to record a stamp.
+- `gin milestone estimate` refuses an epic that has story points. Use `gin milestone points EPIC N --reason TEXT` for it.
+- On Windows, rerun `install.ps1` without `-NoModifyPath` if `gin` still runs `Get-ComputerInfo` in PowerShell. See [Troubleshooting](reference/troubleshooting.md).
 
 ### Added
 
@@ -20,13 +24,38 @@ In team mode a member now works a lane, the tracks of one plan that share a `Lan
 - A technical question for one lane is written `- TQ-<n> (lane <name>): <question>`. `gin record plan-approved` accepts it open when the plan declares the lane, and `gin team check-plan <lane plan>` fails until the lane plan answers it.
 - `gin team deps` closes `external: <plan>#lane-<name>` placeholders once the lane's beads, its lane bead included, are closed and every track of that lane has merged.
 - `gin goal` prints `No goal: lane <name> has no tracks yet; run /plan for it.` when you have a lane bead to plan and no open track.
+- `gin specs export` adds a revision history, a sign-off table, a glossary, an Actors section, and a traceability matrix. Revisions come from the archived changes, the glossary from the confirmed rows of `11-GLOSSARY.md`, and the matrix lists use cases, test files, and QA cases per requirement.
+- A use case is cited as `<capability>/<slug>` in the SRS. The optional `<specs>/actors.md` table describes actors, and `gin specs lint` checks it.
+- A requirement block takes an optional `Type:` of `functional`, `non-functional`, or `business-rule`, a `Category:` for a non-functional one, and a `Measure:`. The SRS adds a Non-functional requirements and a Business rules section and a Type column in the matrix.
+- `gin specs reqs` rows carry `type` and `category`.
+- A use case may reference another capability as `<capability>/<slug>` in `Includes:` and `Extends:`, and a `Specializes:` line names a use case it is a special case of. The use case diagram draws them.
+- An `Is a` column in `actors.md` names the parent of an actor. The SRS opens the Actors section with a context diagram of the capabilities and their actors.
+- `gin specs lint` warns about an activity diagram that an archived technical change added and no feature change cites, so a project can delete the diagrams that earlier versions asked for.
+- `gin milestone points EPIC N --reason TEXT [--stage roadmap|discuss|close]` sets the story points of a roadmap epic on the scale 1, 2, 3, 5, 8, 13, 21. `/roadmap` scores each epic, `/discuss` re-scores it, and `/milestone-close` corrects it.
+- `gin milestone list` and `show` report `days_per_point`, and each milestone reports `velocity` with `committed_points`, `completed_points`, `added_points`, `say_do`, and `accuracy`. `gin milestone kickstart` stores the committed points.
+- `gin-qa cases due <capability> [--change CHANGE] [--all]` lists the manual cases to run, each with the reason `todo`, `regression`, or `all`. `/gin-qa:run` walks that list.
+- The `## Manual runs` section of the gin-qa guidelines takes a `- Regression: none | high | high+medium` line that picks the cases re-run whatever changed.
+- `gin-qa cases renumber CAP [--dry-run]` closes the gaps in the TC-IDs of a capability and rewrites the case files, e2e specs, test markers, and e2e evidence. `gin-qa cases next-id CAP` prints the lowest free number.
+- `install.ps1` removes PowerShell's `gin` alias in the user profiles, so `gin` reaches `gin.cmd`. `-NoModifyPath` leaves the profiles unchanged.
 
 ### Changed
 
-- `gin team claim`, `reassign`, `handoff`, and `takeover` act on every open track of the lane. A claim restarts the lane branch from the default branch after its pull request merged.
+- `gin-qa cases export` adds `checked` and `effective_result` to each case, and `gin-qa report` shows the effective result and the last recorded one when they differ.
+- With a story-pointed epic, the schedule plans `ceil(points * days_per_point)` working days. `days_per_point` is measured over the 10 latest closed roadmap epics with points, else read from the roadmap's `- Days per point:` line, else 1.
+- The SRS chapter groups its requirements under type headings when the capability has a non-functional requirement or a business rule. A non-functional requirement asks for no activity diagram.
+- `gin specs explain` and `gin specs export` embed the vendored Mermaid library only when a file holds a diagram, so the pages draw their diagrams offline. A missing vendored file stops the export with an error that names its path.
+- The SRS shows each header field of a use case on its own row.
+- `gin team` calls to `bd dolt pull` and `bd dolt push` wait up to 1000 seconds and print a `bd dolt <step> (up to 1000s)...` line on stderr first. A `bd` call that times out is a clear error.
+- `gin team claim`, `reassign`, `handoff`, and `takeover` act on every open track of the lane. A claim restarts the lane branch from the default branch after its pull request merged, also when the lane is checked out again after its worktree was removed or in another clone.
 - `gin team pending` lists one branch per lane with an open track. `gin team deps` and `gin team complete` read the `Tracks:` line of merged pull requests.
 - `gin team claim`, `ready`, `pending`, and `complete` treat a lane bead and the tracks of a lane plan as part of the lane of their lead plan; `<topic>` leaves out `.lane-<lane>`.
 - With `plan_approved: area_lead`, the lead of each declared lane's area approves the plan.
+
+### Fixed
+
+- On Windows the knowledge reminders of `gin` name `.planning/knowledge` with forward slashes.
+- On Windows the PowerShell hook and warning call `gin.cmd`, since `gin` is the alias of `Get-ComputerInfo` there.
+- A timed-out `bd dolt push` in team mode keeps the local write and reports `run gin team sync`.
 
 ## [3.1.2] - 2026-11-15
 

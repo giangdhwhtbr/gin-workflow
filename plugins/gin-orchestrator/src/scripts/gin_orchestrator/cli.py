@@ -47,7 +47,7 @@ from .worker_dispatch import REQUIRED_RESULT_FIELDS, WorkerRequest
 from .worker_scheduler import run_with_retries
 
 CONTRACT_VERSION = 2
-ORCHESTRATOR_VERSION = "3.1.2"
+ORCHESTRATOR_VERSION = "3.2.0"
 REQUIRES_GIN_WORKFLOW = ">=3.0,<4"
 CAPABILITIES = ["health", "models", "routes", "reviewer", "doctor", "dispatch"]
 HEALTH = {

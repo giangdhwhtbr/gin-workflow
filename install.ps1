@@ -15,9 +15,9 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-$LauncherVersion = '3.1.2'
-$QaLauncherVersion = '3.1.2'
-$OrchLauncherVersion = '3.1.2'
+$LauncherVersion = '3.2.0'
+$QaLauncherVersion = '3.2.0'
+$OrchLauncherVersion = '3.2.0'
 $ScriptRoot = $PSScriptRoot
 $UserHome = $env:HOME
 if ([string]::IsNullOrWhiteSpace($UserHome)) {
