@@ -31,7 +31,7 @@ Mọi thứ gin-qa ghi nằm trong một thư mục, QA home:
 
 QA home chứa `cases/`, `guidelines.md`, `evidence/` và `e2e/`. `evidence/` nằm cạnh thư mục e2e, mà mặc định nằm trong QA home. gin-qa thêm `evidence/` vào `.gitignore` của repository chứa QA home.
 
-`e2e/` là Playwright project: có `package.json` riêng, `playwright.config.ts`, và các spec. `gin-qa e2e init` tạo `e2e/package.json` khi chưa có. npm và `npx` chạy trong `e2e/`, và lockfile được đọc ở đó.
+`e2e/` là Playwright project: có `package.json` riêng, `playwright.config.ts`, và các spec. `gin-qa e2e init` tạo `e2e/package.json` khi chưa có. Lệnh của trình quản lý gói chạy trong `e2e/`; lockfile được tìm từ đó lên tới gốc repo.
 
 `qa.cases`, `qa.e2e` và `qa.guidelines` tường minh là tương đối so với repository chứa QA home. Một thiết lập cũ không bị di chuyển: repository đơn có `playwright.config.*` hoặc script `e2e` trong `package.json` ở gốc, và không có `qa.dir`, giữ Playwright ở gốc.
 
@@ -131,7 +131,7 @@ Skill không bao giờ sửa file case và không bao giờ commit.
 - `gin-qa e2e run` chạy chúng; mỗi lần chạy để lại một screenshot cho mỗi bước và một `result.json` cho mỗi case (và cho mỗi Playwright project khi config có đặt tên project) dưới `evidence/` trong QA home. Nó ghi kết quả của từng case vào file case và liệt kê chúng dưới `recorded` trong đầu ra JSON.
 - `gin-qa e2e check --run <folder>` kiểm tra evidence của một lần chạy; `gin-qa e2e export --run <folder> --format json` xuất nó.
 
-`gin-qa e2e init --install` còn cài `@playwright/test` và chromium bằng trình quản lý gói của lockfile (pnpm, yarn, nếu không thì npm) và thêm script `e2e` vào `package.json` của Playwright project. Không có cờ, `init` chỉ nêu các bước đó. Với fixture chưa có `ariaSnapshot`, `init` gộp snapshot từng bước khi fixture khớp template. Nếu không, nó bảo bạn gộp bằng tay.
+`gin-qa e2e init --install` còn cài `@playwright/test` và chromium bằng trình quản lý gói của lockfile gần nhất (pnpm, yarn hoặc npm; npm khi không có) và thêm script `e2e` vào `package.json` của Playwright project. Không có cờ, `init` chỉ nêu các bước đó. Với fixture chưa có `ariaSnapshot`, `init` gộp snapshot từng bước khi fixture khớp template. Nếu không, nó bảo bạn gộp bằng tay.
 
 Dự án của bạn cung cấp `@playwright/test` 1.49 trở lên. `init` ghi một Playwright config khởi đầu một lần; sau đó config là của bạn (`baseURL`, trình duyệt, video, trace, `webServer`), và `init` không bao giờ ghi đè nó.
 

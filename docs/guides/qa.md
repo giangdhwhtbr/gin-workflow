@@ -31,7 +31,7 @@ Everything gin-qa writes lives in one folder, the QA home:
 
 The QA home holds `cases/`, `guidelines.md`, `evidence/`, and `e2e/`. `evidence/` sits next to the e2e folder, which is in the QA home by default. gin-qa adds `evidence/` to the `.gitignore` of the repository that holds the QA home.
 
-`e2e/` is the Playwright project: its own `package.json`, `playwright.config.ts`, and the specs. `gin-qa e2e init` creates `e2e/package.json` when it is missing. npm and `npx` run in `e2e/`, and the lockfile is read there.
+`e2e/` is the Playwright project: its own `package.json`, `playwright.config.ts`, and the specs. `gin-qa e2e init` creates `e2e/package.json` when it is missing. Package manager commands run in `e2e/`; the lockfile is looked up from there to the repository root.
 
 Explicit `qa.cases`, `qa.e2e`, and `qa.guidelines` are relative to the repository that holds the QA home. An existing setup is not moved: a single repository with a `playwright.config.*` or a `package.json` `e2e` script at the root, and no `qa.dir`, keeps Playwright at the root.
 
@@ -133,7 +133,7 @@ The skill never edits case files and never commits.
 - `gin-qa e2e run` runs them; each run leaves a screenshot per step and a `result.json` per case (and per Playwright project when the config names projects) under `evidence/` in the QA home. It records each case's result in its case file and lists them under `recorded` in the JSON output.
 - `gin-qa e2e check --run <folder>` checks a run's evidence; `gin-qa e2e export --run <folder> --format json` exports it.
 
-`gin-qa e2e init --install` also installs `@playwright/test` and chromium with the package manager of the lockfile (pnpm, yarn, else npm) and adds the `e2e` script to the Playwright project's `package.json`. Without the flag, `init` only names those steps. On a fixture without `ariaSnapshot`, `init` merges the step snapshots when the fixture matches the template. Otherwise it tells you to merge by hand.
+`gin-qa e2e init --install` also installs `@playwright/test` and chromium with the package manager of the nearest lockfile (pnpm, yarn, or npm; npm when none) and adds the `e2e` script to the Playwright project's `package.json`. Without the flag, `init` only names those steps. On a fixture without `ariaSnapshot`, `init` merges the step snapshots when the fixture matches the template. Otherwise it tells you to merge by hand.
 
 Your project provides `@playwright/test` 1.49 or later. `init` writes a starting Playwright config once; after that the config is yours (`baseURL`, browsers, video, trace, `webServer`), and `init` never overwrites it.
 
