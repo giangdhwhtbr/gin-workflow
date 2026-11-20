@@ -64,4 +64,4 @@ Cho mỗi session một worktree riêng ngay từ phút đầu. Một checkout c
   Về sau `/gin:orchestrate` rẽ nhánh worktree của từng track từ `feat/<topic>` như thường lệ.
 - Chạy các session nền hoặc theo lịch có sửa file trong một worktree, không bao giờ sửa trực tiếp tại chỗ.
 - Nhớ những gì các worktree vẫn dùng chung: các branch (một branch chỉ được checkout trong một worktree tại một thời điểm), stash (không bao giờ chạy `git stash pop` trần), cơ sở dữ liệu Beads, và các plugin đã cài. Chạy `install.sh` sau khi một epic ship sẽ đổi các skill mà mọi session đang chạy sử dụng.
-- Ship từng epic một. Merge vào base branch cần một checkout của nó, và hook `pre-push` chạy toàn bộ test suite ở mỗi lần push.
+- Ship từng epic một. Merge vào base branch cần một checkout của nó, và hook `pre-push` chạy test suite ở mỗi lần push.

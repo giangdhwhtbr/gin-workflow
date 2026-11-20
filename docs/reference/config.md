@@ -102,7 +102,7 @@ Where the full suite (`test`, `build`, `e2e`) runs: `track` after each track, `p
 
 ### `verify.checks`
 
-`lint`, `typecheck`, `test`, `build`, `e2e`: shell commands. The git hooks ([`gin hooks`](cli.md#gin-hooks)) and `/quick` run the ones the rigor requires. Empty commands are skipped. `gin setup doctor` reports missing ones.
+`lint`, `typecheck`, `test`, `build`, `e2e`: shell commands. The git hooks ([`gin hooks`](cli.md#gin-hooks)) and `/quick` run the ones the rigor requires. Empty commands are skipped. `gin setup doctor` reports missing ones. A `project.packages` entry may carry its own `verify.checks`; the git hooks run them only for the packages a change touches, as [`gin hooks run`](cli.md#gin-hooks) describes.
 
 ### `quick`
 

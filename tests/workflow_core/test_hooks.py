@@ -315,6 +315,149 @@ class TestHooksRun(unittest.TestCase):
         self.assertEqual(0, hooks.run(root, "pre-push", [push_ref(root)]))
         self.assertTrue((root / "pkg-ran").exists())
 
+    def monorepo(self, name, paths=("web", "api")):
+        """A package per path as written in the config; each check leaves `<check>-<directory>` at the root,
+        the root `test` leaves `test-root`."""
+        root = self.repo(name, test="touch test-root")
+        packages = "".join(f"    - path: {path}\n      shape: library\n      verify:\n        checks:\n"
+                           f"          lint: \"touch ../lint-{Path(path).name}\"\n"
+                           f"          test: \"touch ../test-{Path(path).name}\"\n" for path in paths)
+        config = root / ".agent-workflow/config.yaml"
+        config.write_text(config.read_text().replace("  rigor: standard\n", "  rigor: standard\n  packages:\n" + packages))
+        for path in paths:
+            (root / path).mkdir()
+            (root / path / "x.txt").write_text("x")
+        git(root, "add", "-A")
+        git(root, "commit", "-qm", "packages", "--no-verify")
+        return root
+
+    def commit_change(self, root, *paths):
+        """Commit a change to `paths`; the pre-push line of a push from the commit before it to the new HEAD."""
+        before = git(root, "rev-parse", "HEAD")
+        for path in paths:
+            (root / path).write_text("changed")
+        git(root, "add", *paths)
+        git(root, "commit", "-qm", "change", "--no-verify")
+        return f"refs/heads/main {git(root, 'rev-parse', 'HEAD')} refs/heads/main {before}"
+
+    def ran(self, root, check):
+        """Where `check` ran since the last call; the marker files are removed so the next run starts clean."""
+        found = sorted(path.name[len(check) + 1:] for path in root.glob(f"{check}-*"))
+        for path in root.glob(f"{check}-*"):
+            path.unlink()
+        return found
+
+    def test_pre_push_runs_only_the_package_a_change_touches(self):
+        root = self.monorepo("a")
+        ref = self.commit_change(root, "web/x.txt")
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            self.assertEqual(0, hooks.run(root, "pre-push", [ref]))
+        self.assertEqual(["root", "web"], self.ran(root, "test"))
+        self.assertIn("gin pre-push: skipped api (no changed files)", err.getvalue())
+        found, _ = verification.check(root, "HEAD")
+        self.assertEqual(["test", "web:test"], found["commands"])
+
+    def test_pre_push_runs_every_package_a_change_touches(self):
+        root = self.monorepo("a")
+        with contextlib.redirect_stderr(io.StringIO()):
+            self.assertEqual(0, hooks.run(root, "pre-push", [self.commit_change(root, "web/x.txt", "api/x.txt")]))
+        self.assertEqual(["api", "root", "web"], self.ran(root, "test"))
+
+    def test_a_changed_file_outside_every_package_runs_all_packages(self):
+        root = self.monorepo("a")
+        with contextlib.redirect_stderr(io.StringIO()):
+            self.assertEqual(0, hooks.run(root, "pre-push", [self.commit_change(root, "web/x.txt", "f.txt")]))
+        self.assertEqual(["api", "root", "web"], self.ran(root, "test"))
+
+    def test_an_unknown_pushed_range_runs_all_packages(self):
+        root = self.monorepo("a")
+        head = git(root, "rev-parse", "HEAD")
+        for remote in (ZERO, "b" * 40):
+            with self.subTest(remote=remote), contextlib.redirect_stderr(io.StringIO()):
+                self.assertEqual(0, hooks.run(root, "pre-push", [f"refs/heads/main {head} refs/heads/main {remote}"]))
+                self.assertEqual(["api", "root", "web"], self.ran(root, "test"))
+                (root / ".agent-workflow/runtime/events.jsonl").unlink()
+
+    def test_evidence_run_runs_all_packages_and_covers_a_later_scoped_push(self):
+        root = self.monorepo("a")
+        ref = self.commit_change(root, "web/x.txt")
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            self.assertEqual(0, verification.run(root))
+            self.assertEqual(["api", "root", "web"], self.ran(root, "test"))
+            self.assertEqual(0, hooks.run(root, "pre-push", [ref]))
+        self.assertEqual([], self.ran(root, "test"))
+        self.assertIn("test, web:test already passed on this tree", err.getvalue())
+
+    def test_pre_commit_runs_only_the_packages_with_staged_files(self):
+        root = self.monorepo("a")
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            self.assertEqual(0, hooks.run(root, "pre-commit"))
+            self.assertEqual([], self.ran(root, "lint"))
+            (root / "api/x.txt").write_text("changed")
+            git(root, "add", "api/x.txt")
+            self.assertEqual(0, hooks.run(root, "pre-commit"))
+        self.assertEqual(["api"], self.ran(root, "lint"))
+        self.assertIn("gin pre-commit: skipped web (no changed files)", err.getvalue())
+
+    def test_package_paths_match_as_directories_however_written(self):
+        root = self.monorepo("a", paths=("web/", "./api", "webapp"))
+        for change, expected in (("webapp/x.txt", ["webapp"]), ("web/x.txt", ["web"]), ("api/x.txt", ["api"])):
+            with contextlib.redirect_stderr(io.StringIO()):
+                self.assertEqual(0, hooks.run(root, "pre-push", [self.commit_change(root, change)]))
+            self.assertEqual(sorted(["root", *expected]), self.ran(root, "test"), change)
+
+    def gin_env(self):
+        """The environment of a git command whose hooks find `gin` on PATH."""
+        bin_dir = self.base / "bin"
+        bin_dir.mkdir(exist_ok=True)
+        wrapper = bin_dir / "gin"
+        wrapper.write_text(f'#!/bin/sh\nexec python3 "{SCRIPTS / "gin"}" "$@"\n')
+        wrapper.chmod(0o755)
+        return {**os.environ, "PATH": f"{bin_dir}:{os.environ['PATH']}"}
+
+    def test_real_git_commit_runs_only_the_packages_in_the_index_it_commits(self):
+        root, env = self.monorepo("a"), self.gin_env()
+        hooks.install(root)
+        (root / "web/x.txt").write_text("changed")
+        committed = subprocess.run(["git", "commit", "-qam", "web"], cwd=root, env=env, capture_output=True, text=True)
+        self.assertEqual(0, committed.returncode, committed.stderr)
+        self.assertEqual(["web"], self.ran(root, "lint"))
+        self.assertIn("gin pre-commit: skipped api (no changed files)", committed.stderr)
+        (root / "web/x.txt").write_text("again")
+        (root / "api/x.txt").write_text("changed")
+        committed = subprocess.run(["git", "commit", "-qm", "api", "--", "api/x.txt"], cwd=root, env=env,
+                                   capture_output=True, text=True)
+        self.assertEqual(0, committed.returncode, committed.stderr)
+        self.assertEqual(["api"], self.ran(root, "lint"))
+
+    def test_hooks_status_lists_every_package_check(self):
+        root = self.monorepo("a")
+        self.commit_change(root, "web/x.txt")
+        self.assertEqual(["api:lint", "api:test", "lint", "test", "web:lint", "web:test"],
+                         hooks.status_report(root)["verify_commands"])
+
+    def test_real_git_push_runs_only_the_packages_the_pushed_commits_touch(self):
+        bin_dir = self.base / "bin"
+        bin_dir.mkdir()
+        wrapper = bin_dir / "gin"
+        wrapper.write_text(f'#!/bin/sh\nexec python3 "{SCRIPTS / "gin"}" "$@"\n')
+        wrapper.chmod(0o755)
+        env = {**os.environ, "PATH": f"{bin_dir}:{os.environ['PATH']}"}
+        root = self.monorepo("a")
+        git(self.base, "init", "-q", "--bare", str(self.base / "a.git"))
+        git(root, "remote", "add", "origin", str(self.base / "a.git"))
+        hooks.install(root)
+        for change, expected in ((None, ["api", "root", "web"]), ("api/x.txt", ["api", "root"])):
+            if change:
+                self.commit_change(root, change)
+            pushed = subprocess.run(["git", "push", "-q", "origin", "HEAD:refs/heads/main"], cwd=root, env=env,
+                                    capture_output=True, text=True)
+            self.assertEqual(0, pushed.returncode, pushed.stderr)
+            self.assertEqual(expected, self.ran(root, "test"), change)
+
     def test_real_git_commit_is_blocked_by_installed_hook(self):
         root = self.repo("a", lint="false")
         bin_dir = self.base / "bin"

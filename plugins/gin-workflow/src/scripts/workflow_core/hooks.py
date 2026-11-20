@@ -5,11 +5,11 @@ from __future__ import annotations
 import argparse
 import json
 import os
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import re
 import subprocess
 import sys
-from typing import Any, Mapping, Sequence
+from typing import Any, Collection, Mapping, Sequence
 
 from .atomic import atomic_write_many
 from .configuration import resolve_effective_config
@@ -101,10 +101,18 @@ def findings(root: Path, install: str = "gin hooks install") -> tuple[dict[str, 
     return states, actions
 
 
-def _scoped(root: Path, hook: str | None) -> tuple[list[tuple[Path, list[tuple[str, str]]]], Path, str]:
-    """(cwd, [(name, command)]) groups for `hook` (every check when None), the events root, and `verify.run_at`.
+def _under(name: str, path: str) -> bool:
+    return name == path or name.startswith(path + "/")
 
-    With `run_at: host` the pre-push checks are the host CI's, so "every check" is the pre-commit ones."""
+
+def _scoped(root: Path, hook: str | None, changed: Collection[str] | None = None
+            ) -> tuple[list[tuple[Path, list[tuple[str, str]]]], Path, str, list[str]]:
+    """(cwd, [(name, command)]) groups for `hook` (every check when None), the events root, `verify.run_at`,
+    and the package paths left out because no file in `changed` is in them.
+
+    `changed` holds repository-relative paths; None means unknown, and every package runs. A changed file outside
+    every package (a lockfile, root config) also runs every package. With `run_at: host` the pre-push checks are
+    the host CI's, so "every check" is the pre-commit ones."""
     located = workspace.locate(Path(root))
     settings = project_settings(resolve_effective_config(located.root, write=False).config.to_dict())
     if hook is None:
@@ -114,33 +122,61 @@ def _scoped(root: Path, hook: str | None) -> tuple[list[tuple[Path, list[tuple[s
     if located.entry is not None:
         checks = located.entry.checks
         return ([(Path(root), [(f"{located.entry.path}:{name}", checks[name]) for name in names if checks.get(name)])],
-                located.root, settings.run_at)
+                located.root, settings.run_at, [])
+    paths = [PurePosixPath(package["path"]).as_posix() for package in settings.packages]
+    every = changed is None or any(not any(_under(name, path) for path in paths) for name in changed)
     scoped = [(root, [(name, settings.verify_commands[name]) for name in names if settings.verify_commands.get(name)])]
-    for package in settings.packages:
+    skipped: list[str] = []
+    for package, path in zip(settings.packages, paths):
         checks = (package.get("verify") or {}).get("checks") or {}
-        scoped.append((root / package["path"],
-                       [(f"{package['path']}:{name}", checks[name]) for name in names if checks.get(name)]))
-    return scoped, root, settings.run_at
+        commands = [(f"{package['path']}:{name}", checks[name]) for name in names if checks.get(name)]
+        if every or any(_under(name, path) for name in changed):
+            scoped.append((root / package["path"], commands))
+        elif commands:
+            skipped.append(package["path"])
+    return scoped, root, settings.run_at, skipped
 
 
 def status_report(root: Path) -> dict[str, Any]:
     """What `ship` checks: every hook installed and at least one verify command to run."""
-    scoped, _, run_at = _scoped(Path(root), None)
+    scoped, _, run_at, _ = _scoped(Path(root), None)
     hooks = status(root)
     names = sorted(name for _, commands in scoped for name, _ in commands)
     return {"hooks": hooks, "verify_commands": names, "run_at": run_at,
             "ok": all(state == "ok" for state in hooks.values()) and (run_at == "host" or bool(names))}
 
 
-def _pushes_head(root: Path, refs: Sequence[str]) -> bool:
-    """True when a pushed ref is a non-delete branch (or `HEAD` pushed to a branch) whose local sha is the checked-out HEAD."""
+def _head_pushes(root: Path, refs: Sequence[str]) -> list[tuple[str, str]]:
+    """(local sha, remote sha) of each pushed ref that is a non-delete branch (or `HEAD` pushed to a branch)
+    whose local sha is the checked-out HEAD."""
     head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=root, text=True, capture_output=True,
                           check=False).stdout.strip()
+    pushes = []
     for line in refs:
         parts = line.split()
         if len(parts) == 4 and (parts[0] if parts[0] != "HEAD" else parts[2]).startswith("refs/heads/") and parts[1] == head and set(parts[1]) != {"0"}:
-            return True
-    return False
+            pushes.append((parts[1], parts[3]))
+    return pushes
+
+
+def _changed_files(root: Path, *diff_args: str) -> set[str] | None:
+    """Repository-relative paths `git diff` names for `diff_args`; None when git cannot tell (a commit it lacks)."""
+    # Keeps git's environment, unlike the check commands: under `git commit -a` or `git commit <path>`,
+    # GIT_INDEX_FILE names the index being committed, which `--cached` must read.
+    done = subprocess.run(["git", "diff", "--name-only", "-z", "--no-renames", *diff_args], cwd=root,
+                          encoding="utf-8", errors="replace", capture_output=True, check=False)
+    return None if done.returncode else {name for name in done.stdout.split("\0") if name}
+
+
+def _pushed_files(root: Path, pushes: Sequence[tuple[str, str]]) -> set[str] | None:
+    """Files the pushed commits change; None when a push has no remote base (a new branch) or git cannot diff it."""
+    changed: set[str] = set()
+    for local, remote in pushes:
+        files = None if set(remote) == {"0"} else _changed_files(root, remote, local)
+        if files is None:
+            return None
+        changed |= files
+    return changed
 
 
 _ENV_PREFIX = re.compile(r"^([A-Za-z_][A-Za-z0-9_]*)=([^\s\"'$`;|&<>()\\]*)\s+")
@@ -167,22 +203,31 @@ def _run_commands(hook: str, commands: Sequence[tuple[str, str]], cwd: Path, env
 
 
 def run(root: Path, hook: str, refs: Sequence[str] = ()) -> int:
+    """Package checks run for the staged files (pre-commit) or the files the pushed commits change (pre-push)."""
     root = Path(root)
-    if hook == "pre-push" and not _pushes_head(root, refs):
+    if hook != "pre-push":
+        return verify(root, hook, _changed_files(root, "--cached"))
+    pushes = _head_pushes(root, refs)
+    if not pushes:
         print("gin: pre-push tested nothing (no pushed branch at the checked-out HEAD)", file=sys.stderr)
         return 0
-    return verify(root, hook)
+    return verify(root, hook, _pushed_files(root, pushes))
 
 
-def verify(root: Path, hook: str) -> int:
-    """Run the hook's verify commands; a passing pre-push on a clean tree is recorded."""
+def verify(root: Path, hook: str, changed: Collection[str] | None = None) -> int:
+    """Run the hook's verify commands; a passing pre-push on a clean tree is recorded.
+
+    Package checks run only for packages that `changed` touches; None (unknown changes) runs them all."""
     root = Path(root)
-    scoped, events_root, run_at = _scoped(root, hook)
+    scoped, events_root, run_at, skipped = _scoped(root, hook, changed)
     if hook == "pre-push" and run_at == "host":
         print("gin pre-push: the host CI runs the tests (verify.run_at: host); nothing to run", file=sys.stderr)
         return 0
+    if skipped:
+        print(f"gin {hook}: skipped {', '.join(skipped)} (no changed files)", file=sys.stderr)
     if not any(commands for _, commands in scoped):
-        print(f"gin: no verify commands configured for {hook}; nothing to run", file=sys.stderr)
+        if not skipped:
+            print(f"gin: no verify commands configured for {hook}; nothing to run", file=sys.stderr)
         return 0
     # Taken before the commands run, so the record names the tree they tested.
     tree = verification.clean_tree(root) if hook == "pre-push" else None
