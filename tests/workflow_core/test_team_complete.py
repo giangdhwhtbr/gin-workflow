@@ -96,6 +96,47 @@ class TestTeamComplete(unittest.TestCase):
             {"argv": ["pr", "list"], "stdout": []},
         ])
 
+    LANE_PLAN = LOGIN_PLAN.replace(".md", ".lane-be.md")
+
+    def lane_with_track(self, close_lane: bool = True) -> tuple[str, str]:
+        lane = create(self.root, "Lane be: login API", parent=self.epic,
+                      description=f"Plan: {LOGIN_PLAN}, Lane be\nLane: be")
+        track = create(self.root, "Lane track 1", parent=self.epic,
+                       description=f"Plan: {self.LANE_PLAN}, Track 1\nLane: be")
+        bd(self.root, "close", track)
+        if close_lane:
+            bd(self.root, "close", lane)
+        return lane, track
+
+    def test_a_lane_plan_track_is_delivered_by_a_pull_request_naming_the_lane_plan(self):
+        self.lane_with_track()
+        self.gh({"argv": ["pr", "list", "--state", "merged"], "stdout": [
+            {"url": "https://github.com/org/app/pull/1", "mergeCommit": {"oid": "m" * 40},
+             "body": f"Plan: {LOGIN_PLAN}\nTracks: 1, 2\n"},
+            {"url": "https://github.com/org/app/pull/3", "mergeCommit": {"oid": "m" * 40},
+             "body": f"Plan: {self.LANE_PLAN}\nTracks: 1\n"}]})
+        result = run_cli(self.root, "team", "complete", self.epic, env=self.env)
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        self.assertIn("merged https://github.com/org/app/pull/3", result.stdout)
+
+    def test_a_lane_plan_track_no_pull_request_lists_keeps_the_epic_open(self):
+        _lane, track = self.lane_with_track()
+        self.gh(merged_rule("https://github.com/org/app/pull/1", "1, 2"))
+        result = run_cli(self.root, "team", "complete", self.epic, env=self.env)
+        self.assertEqual(1, result.returncode)
+        self.assertIn(f"missing {track} ({self.LANE_PLAN}#1): no merged pull request lists it", result.stdout)
+
+    def test_an_open_lane_bead_keeps_the_epic_open(self):
+        lane, _track = self.lane_with_track(close_lane=False)
+        self.gh({"argv": ["pr", "list", "--state", "merged"], "stdout": [
+            {"url": "https://github.com/org/app/pull/1", "mergeCommit": {"oid": "m" * 40},
+             "body": f"Plan: {LOGIN_PLAN}\nTracks: 1, 2\n"},
+            {"url": "https://github.com/org/app/pull/3", "mergeCommit": {"oid": "m" * 40},
+             "body": f"Plan: {self.LANE_PLAN}\nTracks: 1\n"}]})
+        result = run_cli(self.root, "team", "complete", self.epic, env=self.env)
+        self.assertEqual(1, result.returncode)
+        self.assertIn(f"missing {lane} is open", result.stdout)
+
     def test_both_tracks_closed_and_both_pull_requests_merged(self):
         self.gh({"argv": ["pr", "list", "--state", "merged"], "stdout": [
             {"url": "https://github.com/org/app/pull/1", "mergeCommit": {"oid": "m" * 40},

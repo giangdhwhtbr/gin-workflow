@@ -1300,6 +1300,82 @@ class TestTeamLaneBeadClaim(LaneBeads, unittest.TestCase):
         self.assertEqual([], calls(self.bin))
 
 
+@unittest.skipUnless(HAS_BD, "bd is not installed")
+class TestTeamDepsLane(LaneBeads, unittest.TestCase):
+    """R9, US-4: `external: <plan>#lane-<name>` closes once lane <name> has no open bead and every track merged."""
+
+    def deps(self, *prs: tuple[str, str, str]) -> dict:
+        fake_cli(self.bin, "gh", [{"argv": ["pr", "list"], "stdout": [
+            {"url": url, "mergeCommit": {"oid": commit}, "body": f"Plan: {self.LANE_PLAN}\nTracks: {tracks}\n"}
+            for url, commit, tracks in prs]}])
+        result = run_cli(self.root, "team", "deps", "--format", "json", env=path_with(self.bin))
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        return json.loads(result.stdout)
+
+    def planned_lane(self, *open_tracks: int) -> tuple[str, str]:
+        """A closed lane bead, tracks 1 and 2 of the lane plan (closed unless listed), and the placeholder."""
+        lane = self.lane_bead()
+        bd(self.root, "close", lane)
+        for number in (1, 2):
+            track = self.lane_track(number)
+            if number not in open_tracks:
+                bd(self.root, "close", track)
+        return lane, create(self.root, f"external: {self.PLAN}#lane-be")
+
+    def test_a_merged_lane_closes_its_placeholder(self):
+        _lane, ext = self.planned_lane()
+        payload = self.deps((self.URL, "abc", "1, 2"))
+        self.assertEqual([{"id": ext, "pr": self.URL}], payload["closed"])
+        self.assertEqual(("closed", "abc"), (show(self.root, ext)["status"], show(self.root, ext)["metadata"]["merge_commit"]))
+
+    def test_a_lane_merged_in_two_pull_requests_records_both_commits(self):
+        _lane, ext = self.planned_lane()
+        second = "https://github.com/org/app/pull/10"
+        payload = self.deps((self.URL, "abc", "1"), (second, "def", "2"))
+        self.assertEqual([{"id": ext, "pr": f"{self.URL}, {second}"}], payload["closed"])
+        self.assertEqual("abc def", show(self.root, ext)["metadata"]["merge_commit"])
+
+    def test_an_open_track_or_lane_bead_keeps_it_waiting_with_a_reason(self):
+        _lane, ext = self.planned_lane(2)
+        payload = self.deps((self.URL, "abc", "1, 2"))
+        self.assertEqual([ext], payload["waiting"])
+        self.assertTrue(payload["reasons"][ext].startswith("lane be has open beads: "), payload["reasons"])
+        self.assertEqual("open", show(self.root, ext)["status"])
+
+    def test_a_lane_not_planned_yet_waits(self):
+        lane = self.lane_bead()
+        ext = create(self.root, f"external: {self.PLAN}#lane-be")
+        self.assertEqual(f"lane be has open beads: {lane}", self.deps()["reasons"][ext])
+        bd(self.root, "close", lane)
+        self.assertEqual("lane be has no track bead yet", self.deps()["reasons"][ext])
+        other = create(self.root, f"external: {self.PLAN}#lane-ops")
+        self.assertEqual(f"lane ops of {self.PLAN} has no bead", self.deps()["reasons"][other])
+
+    def test_a_track_no_merged_pull_request_lists_waits_without_a_reason(self):
+        _lane, ext = self.planned_lane()
+        payload = self.deps((self.URL, "abc", "1"))
+        self.assertEqual([ext], payload["waiting"])
+        self.assertNotIn(ext, payload["reasons"])
+
+    def test_the_bead_check_needs_every_recorded_commit(self):
+        git(self.root, "commit", "-q", "--allow-empty", "-m", "one")
+        first = git(self.root, "rev-parse", "HEAD").strip()
+        git(self.root, "commit", "-q", "--allow-empty", "-m", "two")
+        second = git(self.root, "rev-parse", "HEAD").strip()
+        work = create(self.root, "work", "area:backend")
+        ext = create(self.root, f"external: {self.PLAN}#lane-be")
+        bd(self.root, "update", ext, "--set-metadata", f"merge_commit={first} {second}")
+        bd(self.root, "close", ext)
+        bd(self.root, "dep", "add", work, ext)
+        result = run_cli(self.root, "team", "deps", "--bead", work, "--format", "json")
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        self.assertEqual([ext], json.loads(result.stdout)["ok"])
+        git(self.root, "checkout", "-q", "--detach", first)
+        result = run_cli(self.root, "team", "deps", "--bead", work)
+        self.assertEqual(1, result.returncode)
+        self.assertIn(second, result.stdout)
+
+
 if __name__ == "__main__":
     unittest.main()
 

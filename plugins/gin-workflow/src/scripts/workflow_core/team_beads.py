@@ -17,7 +17,7 @@ from .prep import is_prep
 from .team import Area, Member, TeamConfig, TeamError, lead_plan, plan_tracks
 from .team_pending import lane_bead, lane_branch, topic_of, track_lane
 
-_EXTERNAL = re.compile(r"^external: (\S+)#(\d+)$")
+_EXTERNAL = re.compile(r"^external: (\S+)#(\d+|lane-[a-z0-9][a-z0-9-]*)$")
 _PLAN_LINE = re.compile(r"^Plan:\s*`?([^`\s]+)`?\s*$", re.M)
 _REPO_LINE = re.compile(r"^Repo:\s*`?([^`\s]+)`?\s*$", re.M)
 _TRACKS_LINE = re.compile(r"^Tracks:\s*([\d,\s]+)$", re.M)
@@ -759,36 +759,82 @@ def _blocking_repo(root: Path, plan: str, number: int) -> tuple[Path, str | None
 
 
 def deps(root: Path, team: TeamConfig) -> dict[str, Any]:
+    """Close each open `external: <plan>#<N>` placeholder whose track a merged pull request lists, and each
+    `external: <plan>#lane-<name>` placeholder whose lane has no open bead and whose every track merged."""
     from .team_host import merged_with_text
 
     closed, waiting, unresolved, reasons = [], [], [], {}
+    beads: list[dict[str, Any]] | None = None  # every bead, read once for the first lane placeholder
     for issue in _bd_json(root, ["list", "--status", "open"]):
         match = _EXTERNAL.match(issue.get("title", ""))
         if not match:
             continue
-        plan, number = match.group(1), int(match.group(2))
+        plan, target = match.group(1), match.group(2)
         try:
-            repo_dir, repo = _blocking_repo(root, plan, number)
+            if target.startswith("lane-"):
+                if beads is None:
+                    beads = _bd_json(root, ["list", "--all", "--limit", "0"])
+                prs, repo = _lane_delivered(root, team, plan, target.removeprefix("lane-"), beads)
+            else:
+                repo_dir, repo = _blocking_repo(root, plan, int(target))
+                found = next((pr for pr in merged_with_text(team.host, plan, repo_dir)
+                              if _delivers(pr.body, plan, int(target))), None)
+                prs = [found] if found else []
         except SyncConflict as error:
             waiting.append(issue["id"])
             reasons[issue["id"]] = str(error)
             continue
-        found = next((pr for pr in merged_with_text(team.host, plan, repo_dir) if _delivers(pr.body, plan, number)), None)
-        if found is None:
+        if not prs:
             waiting.append(issue["id"])
             continue
-        if not found.merge_commit:
-            unresolved.append({"id": issue["id"], "pr": found.url})
+        without = [pr.url for pr in prs if not pr.merge_commit]
+        if without:
+            unresolved.append({"id": issue["id"], "pr": without[0]})
             continue
-        noted = _bd(root, ["update", issue["id"], "--set-metadata", f"merge_commit={found.merge_commit}"]
+        urls = ", ".join(pr.url for pr in prs)
+        commits = " ".join(dict.fromkeys(pr.merge_commit for pr in prs))
+        noted = _bd(root, ["update", issue["id"], "--set-metadata", f"merge_commit={commits}"]
                     + (["--set-metadata", f"repo={repo}"] if repo else []))
         if noted.returncode != 0:
             raise TeamError(f"bd update {issue['id']} failed: {noted.stderr.strip()}")
-        done = _bd(root, ["close", issue["id"], "--reason", f"{found.url} merged ({found.merge_commit})"])
+        done = _bd(root, ["close", issue["id"], "--reason", f"{urls} merged ({commits})"])
         if done.returncode != 0:
             raise TeamError(f"bd close {issue['id']} failed: {done.stderr.strip()}")
-        closed.append({"id": issue["id"], "pr": found.url})
+        closed.append({"id": issue["id"], "pr": urls})
     return {"closed": closed, "waiting": waiting, "unresolved": unresolved, "reasons": reasons}
+
+
+def _lane_delivered(root: Path, team: TeamConfig, plan: str, lane: str,
+                    beads: Sequence[Mapping[str, Any]]) -> tuple[list[Any], str | None]:
+    """The merged pull requests that list every track of `lane` of the lead plan `plan`, in any of its lane
+    plans (empty while a track is not listed), and the `repo` the placeholder records (`.` for the parent of a
+    workspace, None outside one). Raises SyncConflict while the lane has no bead, an open bead, or no track."""
+    from .team_host import merged_with_text
+
+    rows = [row for row in beads
+            if (found := _lane(row)) is not None and (lead_plan(found[0]), found[2]) == (plan, lane)]
+    if not rows:
+        raise SyncConflict(f"lane {lane} of {plan} has no bead")
+    still_open = [str(row["id"]) for row in rows if row.get("status") != "closed"]
+    if still_open:
+        raise SyncConflict(f"lane {lane} has open beads: {', '.join(still_open)}")
+    tracks = sorted((row for row in rows if not _is_lane_bead(row)), key=lambda row: _lane(row)[1])
+    if not tracks:
+        raise SyncConflict(f"lane {lane} has no track bead yet")
+    repo = (track_of(tracks[0])[2] or ".") if workspace.locate(root).workspace is not None else None
+    repo_dir = _track_repo(root, None if repo in (None, ".") else repo)[0]
+    merged: dict[str, list[Any]] = {}
+    prs: list[Any] = []
+    for row in tracks:
+        path, number = _lane(row)[0], _lane(row)[1]
+        if path not in merged:
+            merged[path] = merged_with_text(team.host, path, repo_dir)
+        found = next((pr for pr in merged[path] if _delivers(pr.body, path, number)), None)
+        if found is None:
+            return [], repo
+        if all(pr.url != found.url for pr in prs):
+            prs.append(found)
+    return prs, repo
 
 
 def _has_commit(repo: Path, commit: str, ref: str = "HEAD") -> bool:
@@ -817,7 +863,7 @@ def _reach_reason(root: Path, here: str | None, repo: str | None, commit: str, c
 
 
 def deps_for(root: Path, bead: str, cwd: Path | None = None) -> dict[str, Any]:
-    """The bead's `external:` placeholders: ok only when closed with its merge commit in this workspace."""
+    """The bead's `external:` placeholders: ok only when closed with each recorded merge commit in this workspace."""
     cwd = Path.cwd() if cwd is None else cwd
     entry = workspace.locate(cwd).entry
     here = entry.path if entry is not None else None
@@ -827,14 +873,15 @@ def deps_for(root: Path, bead: str, cwd: Path | None = None) -> dict[str, Any]:
         if not match:
             continue
         metadata = dep.get("metadata") or {}
-        commit = str(metadata.get("merge_commit", ""))
+        commits = str(metadata.get("merge_commit", "")).split()
         if dep.get("status") != "closed":
             missing.append({"id": dep["id"], "reason": f"{match.group(1)}#{match.group(2)} has not merged; run team deps"})
-        elif not commit:
+        elif not commits:
             missing.append({"id": dep["id"], "reason": "no merge commit recorded; run team deps"})
         else:
             try:
-                reason = _reach_reason(root, here, metadata.get("repo") or None, commit, cwd)
+                reason = next((found for commit in commits
+                               if (found := _reach_reason(root, here, metadata.get("repo") or None, commit, cwd))), "")
             except SyncConflict as error:
                 reason = str(error)
             if reason:
