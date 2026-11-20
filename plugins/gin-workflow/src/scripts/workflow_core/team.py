@@ -540,15 +540,15 @@ def check_lane_plan(team: TeamConfig, path: Path, root: Path) -> list[str]:
     spec = _SPEC_LINE.search(text)
     if spec is None:
         return errors + [f"{path}: missing Spec: <design doc path> line"]
-    design = Path(spec[1])
-    if not design.is_absolute():
-        design = (_git_top(Path(path).resolve().parent) or Path(root)) / design
+    top = (_git_top(Path(path).resolve().parent) or Path(root)).resolve()
+    design = (top / spec[1]).resolve()
+    if top not in design.parents:
+        return errors + [f"{path}: Spec: {spec[1]} is outside the repository"]
     if not design.is_file():
         return errors + [f"{path}: Spec: {spec[1]} is not a file"]
-    questions, _ = technical_questions(design, spec[1])
-    return errors + [f"{spec[1]}:{item.line}: {item.id} (lane {name}) has no Decision:"
-                     for item in questions if item.lane == name and not item.decision]
-
+    questions, format_errors = technical_questions(design, spec[1])
+    return errors + format_errors + [f"{spec[1]}:{item.line}: {item.id} (lane {name}) has no Decision:"
+                                     for item in questions if item.lane == name and not item.decision]
 
 
 def check_plan_repos(space: Workspace, path: Path) -> list[str]:

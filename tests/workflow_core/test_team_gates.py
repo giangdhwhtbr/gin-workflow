@@ -1610,6 +1610,17 @@ class TestLanePlanChecks(unittest.TestCase):
         self.assertEqual([f"{path}: Spec: .planning/specs/nope.md is not a file"],
                          self.check(LANE_PLAN.replace(SPEC_PATH, ".planning/specs/nope.md")))
 
+    def test_a_malformed_lane_question_is_reported(self):
+        write(self.root, SPEC_PATH, QUESTIONS + "- TQ-7 (lane BE): Which queue?\n")
+        findings = self.check()
+        self.assertTrue(any(item.startswith(f"{SPEC_PATH}:") and "not a question" in item for item in findings), findings)
+
+    def test_the_spec_stays_inside_the_repository(self):
+        (Path(self.tmp.name) / "outside.md").write_text("# Outside\n", encoding="utf-8")
+        path = self.root / LANE_PATH
+        self.assertEqual([f"{path}: Spec: ../outside.md is outside the repository"],
+                         self.check(LANE_PLAN.replace(SPEC_PATH, "../outside.md")))
+
 
 if __name__ == "__main__":
     unittest.main()
