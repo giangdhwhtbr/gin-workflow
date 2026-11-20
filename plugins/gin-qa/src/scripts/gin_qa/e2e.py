@@ -220,10 +220,11 @@ def _merge_snapshot(path: Path, shown: str) -> str:
     return f"merged ariaSnapshot into {shown}"
 
 
-def _commands(root: Path) -> tuple[list[str], list[str]]:
-    """The commands that install the package and chromium, by the lockfile at the repository root."""
-    add, run = next(((add, run) for lockfile, add, run in MANAGERS if (root / lockfile).is_file()),
-                    (("npm", "install", "-D"), ("npx",)))
+def _commands(root: Path, package: Path) -> tuple[list[str], list[str]]:
+    """The commands that install the package and chromium, by the nearest lockfile from `package` up to `root`."""
+    folders = [package, *(parent for parent in package.parents if parent.is_relative_to(root))]
+    add, run = next(((add, run) for folder in folders for lockfile, add, run in MANAGERS
+                     if (folder / lockfile).is_file()), (("npm", "install", "-D"), ("npx",)))
     return [*add, "@playwright/test"], [*run, "playwright", "install", "chromium"]
 
 
@@ -244,7 +245,7 @@ def _read_package(root: Path, eff: Effective) -> dict[str, Any]:
 def _install(root: Path, eff: Effective) -> list[str]:
     """Installs Playwright and chromium and adds the `e2e` script; a failure names the commands to run by hand."""
     pkg = _package(root, eff)
-    package, browser = _commands(pkg)
+    package, browser = _commands(root, pkg)
     by_hand = " && ".join(" ".join(argv) for argv in (package, browser))
     done: list[str] = []
     for argv in ([] if _playwright(pkg) else [package]) + [browser]:

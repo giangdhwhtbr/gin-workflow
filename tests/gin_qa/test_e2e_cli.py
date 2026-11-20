@@ -493,8 +493,8 @@ class TestInitInstall(E2eCase):
         """A project with Playwright at the root, which `init --install` keeps using."""
         write(self.root, "playwright.config.js", "module.exports = {};\n")
 
-    def calls(self) -> list[str]:
-        log = self.root / ".pm-calls"
+    def calls(self, folder: str = "") -> list[str]:
+        log = self.root / folder / ".pm-calls"
         return log.read_text().splitlines() if log.exists() else []
 
     def test_without_the_flag_nothing_is_installed(self):
@@ -515,6 +515,34 @@ class TestInitInstall(E2eCase):
                 self.assertEqual(0, result.returncode, result.stderr)
                 self.assertEqual(expected, self.calls())
                 (self.root / (lockfile or "none")).unlink(missing_ok=True)
+
+    def nested_setup(self) -> None:
+        """Playwright in `newapp/e2e`, a workspace package under the files root."""
+        write(self.root, "newapp/e2e/package.json", '{"name": "e2e"}\n')
+        write(self.root, "newapp/e2e/playwright.config.js", "module.exports = {};\n")
+        config = self.root / ".agent-workflow/config.yaml"
+        config.write_text(config.read_text() + "qa:\n  e2e: newapp/e2e\n")
+
+    def test_the_lockfile_in_the_playwright_folder_wins_over_the_root(self):
+        self.nested_setup()
+        write(self.root, "pnpm-lock.yaml", "")
+        write(self.root, "newapp/e2e/yarn.lock", "")
+        result = self.e2e("init", "--install")
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual(["yarn add -D @playwright/test", "yarn playwright install chromium"], self.calls("newapp/e2e"))
+
+    def test_a_lockfile_at_the_root_only_picks_the_manager_for_a_nested_folder(self):
+        self.nested_setup()
+        write(self.root, "pnpm-lock.yaml", "")
+        result = self.e2e("init", "--install")
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual(["pnpm add -D @playwright/test", "pnpm exec playwright install chromium"], self.calls("newapp/e2e"))
+
+    def test_no_lockfile_in_a_nested_folder_uses_npm(self):
+        self.nested_setup()
+        result = self.e2e("init", "--install")
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual(["npm install -D @playwright/test", "npx playwright install chromium"], self.calls("newapp/e2e"))
 
     def test_adds_the_script_and_keeps_the_rest_of_package_json(self):
         self.root_setup()
