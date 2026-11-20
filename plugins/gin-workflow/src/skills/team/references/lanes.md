@@ -17,7 +17,6 @@ Read this in team mode. A lane is the tracks of one plan that one member does in
   - **Scope**: the login API and its tests
   - **Acceptance criteria**: POST /login answers 200 with a session and 401 on a wrong password
   - **Contracts**: produces `POST /login`
-  - **Depends on lanes**: fe
   ```
   Repeat `Area:` per area; `Repo:` only in a workspace; `Depends on lanes:` only when the lane's tracks need another lane's merged code. A track whose `Lane:` names a declared lane has that lane's owner and repository, and the lead plans that lane here. A declared lane without tracks is planned by its owner (Lane plan). A plan with `## Lanes` needs no track.
 - Answer only the technical questions that concern more than one area. Write a question for one lane as `- TQ-<n> (lane <name>): <question>` and leave it open for the lane's owner. `gin record plan-approved` accepts it open when the plan declares the lane, so pass `--plan <path>` with the PR URL; it refuses a question marked for a lane the plan does not declare. With `area_lead`, the lead of each declared lane's area approves the plan PR.
@@ -47,12 +46,12 @@ Read this in team mode. A lane is the tracks of one plan that one member does in
 
 - `gin team claim <bead>` claims every open track of the bead's lane and creates or reuses the lane's worktree. It refuses when another member holds an unexpired lease on any of them. Claim again at the start of each track: it renews the lease and marks that track in progress.
 - Run the lane's tracks in dependency order in that worktree. The reviewed diff of a track runs from the lane branch's head when the track started to the track's last commit. After the track closes, `git push -u origin feat/<topic>-<lane>` and go on to the next one.
-- `gin goal --workflow-id <id>` covers the tracks assigned to you; `--lane <name>` picks one lane and also covers its unassigned tracks. It leaves out tracks that need a human or wait for another lane to merge.
+- `gin goal --workflow-id <id>` covers the tracks assigned to you; `--lane <name>` picks one lane and also covers its unassigned tracks. It leaves out tracks that need a human or wait for another lane to merge. For a lane not planned yet it prints `No goal: lane <name> has no tracks yet; run /plan for it.`
 - When the lane's PR has merged and tracks remain, the next `gin team claim` starts the branch again from the default branch. If the host kept the merged branch, delete it on origin before the next push. If the claim reports commits made after the merged PR, merge `origin/<default>` into the branch. Never force-push.
 
 ## Ship
 
-- With a lane plan, `gin team check-plan <lane plan>` must exit 0 before the PR: ship stops while a question marked for the lane has no `Decision:`.
+- With a lane plan, run `gin team check-plan <lane plan>` before the PR; it must exit 0, so stop while a question marked for the lane has no `Decision:`.
 - Deliver the closed tracks of the lane that no merged PR lists yet; each needs its review approved or waived. Open tracks stay for a later PR of the same lane.
 - Fill the generated PR template: `Plan:` with the plan path (the lane plan path for its tracks), `Tracks:` with every delivered track number (`gin team deps` and `gin team complete` read both), `Beads:`, and one line per track under `## Tracks`.
 - A fix the PR reviewer asks for is committed on the lane branch and pushed. With `project.review_ledger: true`, first reopen the last approved track and have it reviewed again.
