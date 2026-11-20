@@ -4,7 +4,7 @@ This page lists what changed in each release of gin-workflow and its add-ons (gi
 
 ## Unreleased
 
-In team mode a member now works a lane, the tracks of one plan that share a `Lane:` line, on one branch and in one pull request, instead of a pull request per track.
+In team mode a member now works a lane, the tracks of one plan that share a `Lane:` line, on one branch and in one pull request, instead of a pull request per track. A team plan may also declare lanes and leave each lane's tracks to its owner, who writes them in a lane plan.
 
 ### Upgrade notes
 
@@ -16,11 +16,17 @@ In team mode a member now works a lane, the tracks of one plan that share a `Lan
 - `gin team check-plan` reports a missing or invalid lane, and a lane whose tracks have different owners or repositories.
 - `gin goal --lane NAME` covers one lane, including its unassigned tracks. In team mode the goal covers your tracks, leaves out tracks that wait for another lane to merge, and requires the lane's branch to be pushed.
 - `gin team ready` rows carry `lane` and `branch`, and the text groups rows under their branch.
+- A team plan may declare lanes under `## Lanes` and leave each lane's tracks to its owner, who writes them in a lane plan `<plan stem>.lane-<lane>.md` with no approval gate. `gin team check-plan` checks the declarations and the lane plan.
+- A technical question for one lane is written `- TQ-<n> (lane <name>): <question>`. `gin record plan-approved` accepts it open when the plan declares the lane, and `gin team check-plan <lane plan>` fails until the lane plan answers it.
+- `gin team deps` closes `external: <plan>#lane-<name>` placeholders once every track of that lane has merged.
+- `gin goal` prints `No goal: lane <name> has no tracks yet; run /plan for it.` when you have a lane bead to plan and no open track.
 
 ### Changed
 
 - `gin team claim`, `reassign`, `handoff`, and `takeover` act on every open track of the lane. A claim restarts the lane branch from the default branch after its pull request merged.
 - `gin team pending` lists one branch per lane with an open track. `gin team deps` and `gin team complete` read the `Tracks:` line of merged pull requests.
+- `gin team claim`, `ready`, `pending`, and `complete` treat a lane bead and the tracks of a lane plan as part of the lane of their lead plan; `<topic>` leaves out `.lane-<lane>`.
+- With `plan_approved: area_lead`, the lead of each declared lane's area approves the plan.
 
 ## [3.1.2] - 2026-11-15
 
