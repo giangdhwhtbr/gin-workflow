@@ -18,7 +18,7 @@ In team mode a member now works a lane, the tracks of one plan that share a `Lan
 - `gin team ready` rows carry `lane` and `branch`, and the text groups rows under their branch.
 - A team plan may declare lanes under `## Lanes` and leave each lane's tracks to its owner, who writes them in a lane plan `<plan stem>.lane-<lane>.md` with no approval gate. `gin team check-plan` checks the declarations and the lane plan.
 - A technical question for one lane is written `- TQ-<n> (lane <name>): <question>`. `gin record plan-approved` accepts it open when the plan declares the lane, and `gin team check-plan <lane plan>` fails until the lane plan answers it.
-- `gin team deps` closes `external: <plan>#lane-<name>` placeholders once every track of that lane has merged.
+- `gin team deps` closes `external: <plan>#lane-<name>` placeholders once the lane's beads, its lane bead included, are closed and every track of that lane has merged.
 - `gin goal` prints `No goal: lane <name> has no tracks yet; run /plan for it.` when you have a lane bead to plan and no open track.
 
 ### Changed
