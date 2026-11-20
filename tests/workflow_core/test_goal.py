@@ -76,6 +76,29 @@ def lane_desc(lane, number=1):
 class TestGoalTeam(unittest.TestCase):
     ME = "a@corp.com"
 
+    def lane_bead(self, bead: str, name: str, assignee: str = "a@corp.com"):
+        return track(bead, assignee=assignee, title=f"Lane {name}: scope",
+                     description=f"Plan: p.md, Lane {name}\nLane: {name}")
+
+    def test_only_lane_beads_left_say_to_plan_each_lane(self):
+        text = goal_text("epic", [self.lane_bead("e.1", "be"), self.lane_bead("e.2", "fe"), track("e.3", "closed")],
+                         "wf", False, member=self.ME)
+        self.assertEqual("No goal: lane be has no tracks yet; run /plan for it.\n"
+                         "No goal: lane fe has no tracks yet; run /plan for it.", text)
+        self.assertEqual("No goal: lane fe has no tracks yet; run /plan for it.",
+                         goal_text("epic", [self.lane_bead("e.1", "be"), self.lane_bead("e.2", "fe")], "wf", False,
+                                   member=self.ME, lane="fe"))
+
+    def test_a_lane_bead_is_never_a_track_of_the_goal(self):
+        tracks = [self.lane_bead("e.1", "be"), track("e.2", assignee=self.ME, description=lane_desc("fe", 2))]
+        text = goal_text("epic", tracks, "wf", False, member=self.ME)
+        self.assertTrue(text.startswith("/goal tracks e.2 of epic epic"), text)
+        self.assertNotIn("e.1", text)
+
+    def test_another_members_lane_bead_gives_the_usual_line(self):
+        self.assertEqual("No goal: a@corp.com has no open track in epic epic.",
+                         goal_text("epic", [self.lane_bead("e.1", "be", "b@corp.com")], "wf", False, member=self.ME))
+
     def test_member_goal_covers_only_their_tracks(self):
         tracks = [track("e.1", assignee=self.ME), track("e.2", assignee=self.ME), track("e.3", assignee="b@corp.com")]
         text = goal_text("epic", tracks, "wf", False, member=self.ME)

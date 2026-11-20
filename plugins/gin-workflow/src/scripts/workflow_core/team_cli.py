@@ -208,7 +208,8 @@ def _run(args: argparse.Namespace) -> int:
         _emit({"path": team_init.codeowners_path(team), "text": text}, args.format, text.rstrip("\n"))
         return 0
     if args.command == "check-plan":
-        findings = team_core.check_plan(team, args.plan)
+        findings = (team_core.check_lane_plan(team, args.plan, root) if team_core.plan_lane(args.plan)
+                    else team_core.check_plan(team, args.plan))
         located = workspace.locate(args.repository)
         if located.workspace is not None:
             findings += team_core.check_plan_repos(located.workspace, args.plan)

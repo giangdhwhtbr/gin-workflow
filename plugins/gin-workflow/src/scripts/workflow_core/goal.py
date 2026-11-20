@@ -16,7 +16,7 @@ from typing import Any, Sequence
 
 from .prep import tracks_of
 from .tasks import query
-from .team_pending import track_lane
+from .team_pending import lane_bead, track_lane
 from . import team as team_core
 from . import workspace
 
@@ -31,10 +31,15 @@ def goal_text(epic: str, tracks: Sequence[dict[str, Any]], workflow_id: str, rev
     The review clause is part of the condition only when the review ledger is on; otherwise no ledger
     exists and no waiver is recorded, so the clause could never be met. With `member` (team mode) the goal
     covers that member's tracks, or with `lane` the member's and unassigned tracks of the lane; a track that
-    depends on a bead in `waiting` (a lane not merged yet) is left out like a human gate.
+    depends on a bead in `waiting` (a lane not merged yet) is left out like a human gate. A lane bead
+    (`Plan: <path>, Lane <name>`) is never a track; when the member's only open beads are lane beads, one line
+    per lane says to plan it.
     """
+    planning = {track["id"]: (found_lane[1], track) for track in tracks if track.get("status") != "closed"
+                and (found_lane := lane_bead(str(track.get("description") or ""))) is not None}
     found = {track["id"]: track for track in tracks
-             if track.get("status") != "closed" and not _EXTERNAL.match(track.get("title") or "")}
+             if track.get("status") != "closed" and not _EXTERNAL.match(track.get("title") or "")
+             and track["id"] not in planning}
     blockers = {bead: {dep.get("depends_on_id") for dep in track.get("dependencies") or []
                        if dep.get("type", "blocks") == "blocks"} & found.keys()
                 for bead, track in found.items()}
@@ -49,16 +54,21 @@ def goal_text(epic: str, tracks: Sequence[dict[str, Any]], workflow_id: str, rev
         elif deps & waiting or blockers[bead] & late:
             late.add(bead)
 
-    def mine(track: dict[str, Any]) -> bool:
-        found_lane = track_lane(str(track.get("description") or ""))
-        in_lane = lane is None or (found_lane is not None and found_lane[2] == lane)
+    def mine(track: dict[str, Any], name: str | None) -> bool:
         assignee = (track.get("assignee") or "").lower()
-        return in_lane and (assignee == member or (lane is not None and not assignee))
+        return (lane is None or name == lane) and (assignee == member or (lane is not None and not assignee))
 
-    covered = open_tracks if member is None else {bead: t for bead, t in open_tracks.items() if mine(t)}
+    def lane_name(track: dict[str, Any]) -> str | None:
+        found_lane = track_lane(str(track.get("description") or ""))
+        return found_lane[2] if found_lane else None
+
+    covered = open_tracks if member is None else {bead: t for bead, t in open_tracks.items() if mine(t, lane_name(t))}
     gates = [bead for bead, track in covered.items() if HUMAN_GATE in (track.get("labels") or [])]
     runnable = [bead for bead in covered if bead not in held and bead not in late]
-    if not open_tracks:
+    to_plan = [name for name, track in planning.values() if member is not None and mine(track, name)]
+    if member is not None and not covered and to_plan:
+        return "\n".join(f"No goal: lane {name} has no tracks yet; run /plan for it." for name in dict.fromkeys(to_plan))
+    if not open_tracks and (member is None or not planning):
         return f"No goal: every track of epic {epic} is closed."
     if member is not None and not covered:
         where = f"lane {lane} of epic {epic}" if lane else f"epic {epic}"

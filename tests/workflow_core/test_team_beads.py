@@ -14,7 +14,7 @@ from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from team_fixtures import TEAM, fake_cli, gh_pr, git, init_beads, make_team_repo, path_with, write  # noqa: E402
+from team_fixtures import TEAM, calls, fake_cli, gh_pr, git, init_beads, make_team_repo, path_with, write  # noqa: E402
 # One test per subcommand keeps the subprocess; the rest run gin in this process.
 from team_fixtures import run_cli as run_cli_subprocess, run_cli_in_process as run_cli  # noqa: E402
 from workflow_core import team_beads, worktrees  # noqa: E402
@@ -1046,6 +1046,7 @@ class LaneBeads:
 
     PLAN = ".planning/plans/2026-11-19-shop.md"
     URL = "https://github.com/org/app/pull/9"
+    LANE_PLAN = ".planning/plans/2026-11-19-shop.lane-be.md"
 
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -1065,6 +1066,19 @@ class LaneBeads:
         text = f"Plan: {self.PLAN}, Track {number}" + (f"\nLane: {lane}" if lane else "")
         return json.loads(bd(self.root, "create", f"Track {number}", "--parent", self.epic, "-l", f"area:{area}",
                              "--description", text, "--json"))["id"]
+
+    def lane_bead(self, lane: str = "be", holder: str = "binh@corp.com") -> str:
+        text = f"Plan: {self.PLAN}, Lane {lane}\nLane: {lane}"
+        bead = json.loads(bd(self.root, "create", f"Lane {lane}: the shop API", "--parent", self.epic, "-l",
+                             f"lane:{lane},area:backend", "--description", text, "--json"))["id"]
+        if holder:
+            bd(self.root, "update", bead, "--assignee", holder)
+        return bead
+
+    def lane_track(self, number: int, lane: str = "be") -> str:
+        text = f"Plan: {self.PLAN.replace('.md', f'.lane-{lane}.md')}, Track {number}\nLane: {lane}"
+        return json.loads(bd(self.root, "create", f"Lane track {number}", "--parent", self.epic, "-l",
+                             "area:backend", "--description", text, "--json"))["id"]
 
     def claim(self, bead: str, rules: list[dict] | None = None):
         if rules is None:
@@ -1267,6 +1281,134 @@ class TestTeamLaneClaim(LaneBeads, unittest.TestCase):
         self.assertEqual(0, claimed.returncode, claimed.stdout + claimed.stderr)
         self.assertEqual(before, git(worktree, "rev-parse", "HEAD").strip())
         self.assertTrue(json.loads(claimed.stdout)["note"].startswith("cannot ask the host"))
+
+
+@unittest.skipUnless(HAS_BD, "bd is not installed")
+class TestTeamLaneBeadClaim(LaneBeads, unittest.TestCase):
+    """R5, R6, US-2: a lane bead and the tracks of its lane plan are one lane of the lead plan."""
+
+    def test_ready_lists_the_lane_bead_on_the_lane_branch(self):
+        lane = self.lane_bead()
+        rows = {row["id"]: row for row in json.loads(run_cli(self.root, "team", "ready", "--format", "json").stdout)["ready"]}
+        self.assertEqual(("be", "feat/shop-be"), (rows[lane]["lane"], rows[lane]["branch"]))
+
+    def test_claiming_a_lane_bead_gives_the_lane_worktree(self):
+        lane = self.lane_bead()
+        claimed = self.claim(lane)
+        self.assertEqual(0, claimed.returncode, claimed.stdout + claimed.stderr)
+        data = json.loads(claimed.stdout)
+        self.assertEqual(("be", [lane], "feat/shop-be", True),
+                         (data["lane"], data["beads"], data["branch"], data["created"]))
+        self.assertTrue(data["worktree"].endswith(f".planning/worktrees/{self.epic}-be"), data["worktree"])
+        self.assertEqual("in_progress", show(self.root, lane)["status"])
+
+    def test_claiming_a_lane_bead_takes_the_open_tracks_of_its_lane_plan(self):
+        lane, t1, t2 = self.lane_bead(), self.lane_track(1), self.lane_track(2)
+        other = self.track(3, "fe", "frontend")
+        data = json.loads(self.claim(lane).stdout)
+        self.assertEqual([lane, t1, t2], data["beads"])
+        self.assertEqual("binh@corp.com", show(self.root, t2)["assignee"])
+        self.assertFalse(show(self.root, other).get("assignee"))
+
+    def test_a_lead_plan_track_and_a_lane_plan_track_share_the_lane(self):
+        lead, planned = self.track(1), self.lane_track(1)
+        data = json.loads(self.claim(lead).stdout)
+        self.assertEqual(([lead, planned], "feat/shop-be"), (data["beads"], data["branch"]))
+
+    def test_a_foreign_lease_on_the_lane_bead_refuses_with_the_lane_message(self):
+        lane = self.lane_bead(holder="")
+        bd(self.root, "update", lane, "--claim", actor="em@corp.com")
+        claim_meta(self.root, lane, "em@corp.com", "2999-01-01T00:00:00Z")
+        track = self.lane_track(1)
+        refused = self.claim(track)
+        self.assertEqual(1, refused.returncode, refused.stdout + refused.stderr)
+        self.assertIn(f"lane be is claimed by em@corp.com until 2999-01-01T00:00:00Z ({lane})", refused.stdout)
+
+    def test_a_closed_lane_bead_does_not_count_as_a_delivered_track(self):
+        lane = self.lane_bead()
+        bd(self.root, "close", lane)
+        t1, t2 = self.lane_track(1), self.lane_track(2)
+        self.assertEqual(0, self.claim(t1, []).returncode)
+        claimed = self.claim(t2, [])
+        self.assertEqual(0, claimed.returncode, claimed.stdout + claimed.stderr)
+        self.assertNotIn("note", json.loads(claimed.stdout))
+        self.assertEqual([], calls(self.bin))
+
+
+@unittest.skipUnless(HAS_BD, "bd is not installed")
+class TestTeamDepsLane(LaneBeads, unittest.TestCase):
+    """R9, US-4: `external: <plan>#lane-<name>` closes once lane <name> has no open bead and every track merged."""
+
+    def deps(self, *prs: tuple[str, str, str]) -> dict:
+        fake_cli(self.bin, "gh", [{"argv": ["pr", "list"], "stdout": [
+            {"url": url, "mergeCommit": {"oid": commit}, "body": f"Plan: {self.LANE_PLAN}\nTracks: {tracks}\n"}
+            for url, commit, tracks in prs]}])
+        result = run_cli(self.root, "team", "deps", "--format", "json", env=path_with(self.bin))
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        return json.loads(result.stdout)
+
+    def planned_lane(self, *open_tracks: int) -> tuple[str, str]:
+        """A closed lane bead, tracks 1 and 2 of the lane plan (closed unless listed), and the placeholder."""
+        lane = self.lane_bead()
+        bd(self.root, "close", lane)
+        for number in (1, 2):
+            track = self.lane_track(number)
+            if number not in open_tracks:
+                bd(self.root, "close", track)
+        return lane, create(self.root, f"external: {self.PLAN}#lane-be")
+
+    def test_a_merged_lane_closes_its_placeholder(self):
+        _lane, ext = self.planned_lane()
+        payload = self.deps((self.URL, "abc", "1, 2"))
+        self.assertEqual([{"id": ext, "pr": self.URL}], payload["closed"])
+        self.assertEqual(("closed", "abc"), (show(self.root, ext)["status"], show(self.root, ext)["metadata"]["merge_commit"]))
+
+    def test_a_lane_merged_in_two_pull_requests_records_both_commits(self):
+        _lane, ext = self.planned_lane()
+        second = "https://github.com/org/app/pull/10"
+        payload = self.deps((self.URL, "abc", "1"), (second, "def", "2"))
+        self.assertEqual([{"id": ext, "pr": f"{self.URL}, {second}"}], payload["closed"])
+        self.assertEqual("abc def", show(self.root, ext)["metadata"]["merge_commit"])
+
+    def test_an_open_track_or_lane_bead_keeps_it_waiting_with_a_reason(self):
+        _lane, ext = self.planned_lane(2)
+        payload = self.deps((self.URL, "abc", "1, 2"))
+        self.assertEqual([ext], payload["waiting"])
+        self.assertTrue(payload["reasons"][ext].startswith("lane be has open beads: "), payload["reasons"])
+        self.assertEqual("open", show(self.root, ext)["status"])
+
+    def test_a_lane_not_planned_yet_waits(self):
+        lane = self.lane_bead()
+        ext = create(self.root, f"external: {self.PLAN}#lane-be")
+        self.assertEqual(f"lane be has open beads: {lane}", self.deps()["reasons"][ext])
+        bd(self.root, "close", lane)
+        self.assertEqual("lane be has no track bead yet", self.deps()["reasons"][ext])
+        other = create(self.root, f"external: {self.PLAN}#lane-ops")
+        self.assertEqual(f"lane ops of {self.PLAN} has no bead", self.deps()["reasons"][other])
+
+    def test_a_track_no_merged_pull_request_lists_waits_without_a_reason(self):
+        _lane, ext = self.planned_lane()
+        payload = self.deps((self.URL, "abc", "1"))
+        self.assertEqual([ext], payload["waiting"])
+        self.assertNotIn(ext, payload["reasons"])
+
+    def test_the_bead_check_needs_every_recorded_commit(self):
+        git(self.root, "commit", "-q", "--allow-empty", "-m", "one")
+        first = git(self.root, "rev-parse", "HEAD").strip()
+        git(self.root, "commit", "-q", "--allow-empty", "-m", "two")
+        second = git(self.root, "rev-parse", "HEAD").strip()
+        work = create(self.root, "work", "area:backend")
+        ext = create(self.root, f"external: {self.PLAN}#lane-be")
+        bd(self.root, "update", ext, "--set-metadata", f"merge_commit={first} {second}")
+        bd(self.root, "close", ext)
+        bd(self.root, "dep", "add", work, ext)
+        result = run_cli(self.root, "team", "deps", "--bead", work, "--format", "json")
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        self.assertEqual([ext], json.loads(result.stdout)["ok"])
+        git(self.root, "checkout", "-q", "--detach", first)
+        result = run_cli(self.root, "team", "deps", "--bead", work)
+        self.assertEqual(1, result.returncode)
+        self.assertIn(second, result.stdout)
 
 
 if __name__ == "__main__":
