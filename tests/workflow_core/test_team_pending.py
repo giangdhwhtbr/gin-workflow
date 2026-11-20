@@ -18,7 +18,7 @@ from team_fixtures import PLAN, TEAM, calls, fake_cli, gh_pr, git, make_team_rep
 from team_fixtures import run_cli_in_process as run_cli  # noqa: E402
 from workflow_core import team_pending  # noqa: E402
 from workflow_core.configuration import resolve_effective_config  # noqa: E402
-from workflow_core.team import TeamError  # noqa: E402
+from workflow_core.team import TeamError, lead_plan, plan_lane  # noqa: E402
 
 REAL_GIT = team_pending.git
 PR_SPEC, PR_PLAN, PR_SHIP, PR_TRACK = (f"https://github.com/org/app/pull/{number}" for number in (1, 2, 3, 4))
@@ -35,6 +35,34 @@ class TestTopicOf(unittest.TestCase):
     def test_strips_the_date_from_the_plan_file_stem(self):
         self.assertEqual("team-progress", team_pending.topic_of(".planning/plans/2026-11-14-team-progress.md"))
         self.assertEqual("login", team_pending.topic_of("plans/login.md"))
+
+    def test_a_lane_plan_has_the_topic_of_its_lead_plan(self):
+        self.assertEqual("shop", team_pending.topic_of(".planning/plans/2026-11-19-shop.lane-be.md"))
+        self.assertEqual("shop.lane-t3", team_pending.topic_of(".planning/plans/2026-11-19-shop.lane-t3.md"))
+        self.assertEqual((".planning/plans/2026-11-19-shop.md", "qa-e2e"),
+                         plan_lane(".planning/plans/2026-11-19-shop.lane-qa-e2e.md"))
+        self.assertIsNone(plan_lane(".planning/plans/2026-11-19-shop.md"))
+        self.assertEqual("docs/changes/c/04-plan.md", lead_plan("docs/changes/c/04-plan.lane-be.md"))
+        self.assertEqual("p.md", lead_plan("p.md"))
+
+    def test_a_lane_bead_and_its_branch(self):
+        lane = "Lane be: the API\n\nPlan: .planning/plans/2026-11-19-shop.md, Lane be\nLane: be\n"
+        self.assertEqual((".planning/plans/2026-11-19-shop.md", "be"), team_pending.lane_bead(lane))
+        self.assertEqual("feat/shop-be", team_pending.lane_branch(lane))
+        self.assertEqual("feat/shop-be", team_pending.lane_branch(
+            "Plan: .planning/plans/2026-11-19-shop.lane-be.md, Track 2\nLane: be\n"))
+        self.assertIsNone(team_pending.lane_bead("Plan: p.md, Track 1\nLane: be\n"))
+        self.assertIsNone(team_pending.track_lane(lane))
+
+    def test_a_lane_plan_track_without_a_lane_line_takes_the_lane_of_its_path(self):
+        track = "Plan: .planning/plans/2026-11-19-shop.lane-be.md, Track 2\n"
+        self.assertEqual((".planning/plans/2026-11-19-shop.lane-be.md", 2, "be", True), team_pending.track_lane(track))
+        self.assertEqual("feat/shop-be", team_pending.lane_branch(track))
+        self.assertEqual(("p.md", 2, "t2", False), team_pending.track_lane("Plan: p.md, Track 2\n"))
+
+    def test_an_implicit_lane_name_makes_no_lane_bead(self):
+        self.assertIsNone(team_pending.lane_bead("Plan: .planning/plans/2026-11-19-shop.md, Lane t2\n"))
+        self.assertIsNone(team_pending.lane_branch("Plan: .planning/plans/2026-11-19-shop.md, Lane t2\n"))
 
 
 class PendingCase(unittest.TestCase):
@@ -207,6 +235,14 @@ class TestTrackRows(PendingCase):
         rows = self.pending()
         self.assertEqual(1, len(rows))
         self.assertEqual(("feat/login-web", None), (rows[0]["branch"], rows[0]["gate"]))
+
+    def test_a_lane_plan_track_is_on_the_lead_topic_branch_and_a_lane_bead_has_no_row(self):
+        lane_plan = PLAN_PATH.replace(".md", ".lane-web.md")
+        self.bd({**TRACK, "id": "e-1.4", "description": f"Plan: {lane_plan}, Track 1\nLane: web\n"},
+                {**TRACK, "id": "e-1.5", "description": f"Plan: {PLAN_PATH}, Lane web\nLane: web\n"})
+        self.gh(("feat/login-web", gh_pr(PR_TRACK, state="OPEN", author="em-dev", files=["web/login.tsx"])))
+        self.assertEqual([("feat/login-web", None, "e-1")],
+                         [(row["branch"], row["gate"], row["epic"]) for row in self.pending()])
 
 
 class TestFiltersAndErrors(PendingCase):

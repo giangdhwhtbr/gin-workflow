@@ -270,8 +270,8 @@ def _spec_lint_errors(repo_path: Path, evidence: str) -> list[str]:
     return lint_design_spec(path, repo_path)
 
 
-def _open_questions(repo_path: Path, workflow_id: str) -> list[str]:
-    """`<path>:<line>: TQ-<n>` for each open technical question in the workflow's design doc."""
+def _open_questions(repo_path: Path, workflow_id: str) -> list[tuple[str, str]]:
+    """(`<path>:<line>: TQ-<n>`, lane) for each open technical question in the workflow's design doc; the lane is "" for a question not marked `(lane <name>)`."""
     from .specs import SpecsError, design_doc, sdd_config, shown, technical_questions
 
     if not (repo_path / ".agent-workflow/config.yaml").is_file():
@@ -284,7 +284,8 @@ def _open_questions(repo_path: Path, workflow_id: str) -> list[str]:
         questions, _ = technical_questions(design)
     except (OSError, UnicodeDecodeError) as error:
         raise SpecsError(f"{shown(repo_path, design)}: cannot read the design doc: {error}") from error
-    return [f"{shown(repo_path, design)}:{item.line}: {item.id}" for item in questions if not item.decision]
+    return [(f"{shown(repo_path, design)}:{item.line}: {item.id}", item.lane)
+            for item in questions if not item.decision]
 
 
 
@@ -294,6 +295,21 @@ def _plan_path(root: Path, value: str | None) -> Path | None:
     candidate = Path(value)
     candidate = candidate if candidate.is_absolute() else root / candidate
     return candidate if candidate.is_file() else None
+
+
+def _lane_question_refusal(plan: Path | None, marked: Sequence[tuple[str, str]]) -> str | None:
+    """Why plan-approved refuses open questions marked for a lane: no plan file to read its `## Lanes` from,
+    or a lane the plan does not declare; None when the plan declares every lane."""
+    from .team import plan_lanes
+
+    if plan is None:
+        return ("plan-approved refused: questions marked for a lane need the plan file as --plan or --evidence\n"
+                + "\n".join(f"{label} (lane {lane})" for label, lane in marked))
+    declared = {lane.name for lane in plan_lanes(plan)}
+    undeclared = [f"{label} (lane {lane})" for label, lane in marked if lane not in declared]
+    if undeclared:
+        return "plan-approved refused: questions marked for a lane the plan does not declare\n" + "\n".join(undeclared)
+    return None
 
 
 def _record_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
@@ -325,9 +341,16 @@ def _record_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
             open_questions = _open_questions(Path(args.repository).resolve(), args.workflow_id)
         except SpecsError as error:
             return {"status": "error", "message": str(error)}, 2
-        if open_questions:
+        unmarked = [label for label, lane in open_questions if not lane]
+        if unmarked:
             return {"status": "rejected", "message": "plan-approved refused: open technical questions\n"
-                    + "\n".join(open_questions)}, 1
+                    + "\n".join(unmarked)}, 1
+        marked = [(label, lane) for label, lane in open_questions if lane]
+        if marked:
+            root = Path(args.repository).resolve()
+            refusal = _lane_question_refusal(_plan_path(root, args.plan) or _plan_path(root, evidence), marked)
+            if refusal:
+                return {"status": "rejected", "message": refusal}, 1
         located = workspace.locate(Path(args.repository).resolve())
         if located.workspace is not None:
             plan = _plan_path(located.root, args.plan) or _plan_path(located.root, evidence)

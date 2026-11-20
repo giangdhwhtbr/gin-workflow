@@ -47,6 +47,15 @@ class TestParse(_Repo):
         self.assertEqual([("TQ-1", 12, "a table, queried by date."), ("TQ-2", 14, "")],
                          [(q.id, q.line, q.decision) for q in found])
 
+    def test_a_question_marked_for_a_lane_records_the_lane(self):
+        found, errors = self.parse(spec("- TQ-4 (lane be): Which cache?\n  Decision: redis.\n- TQ-5: Which queue?\n"))
+        self.assertEqual([], errors)
+        self.assertEqual([("TQ-4", 12, "be", "redis."), ("TQ-5", 14, "", "")],
+                         [(q.id, q.line, q.lane, q.decision) for q in found])
+        found, errors = self.parse(spec("- TQ-6 (lane BE): x\n"))
+        self.assertEqual([], found)
+        self.assertIn(":12: not a question", errors[0])
+
     def test_format_errors(self):
         found, errors = self.parse(spec("- TQ-1: a\n  Decision:\n- TQ-1: b\nfree text\n  Decision: orphan\n"))
         self.assertEqual(["TQ-1", "TQ-1"], [q.id for q in found])
@@ -75,6 +84,10 @@ class TestLint(_Repo):
         errors = specs.lint_design_spec(write(self.root, "bad.md", spec("- TQ-1: a\n  Decision:\n")))
         self.assertEqual(1, len(errors))
         self.assertIn(":13: TQ-1 has an empty Decision:", errors[0])
+
+
+    def test_a_question_marked_for_a_lane_passes_lint(self):
+        self.assertEqual([], specs.lint_design_spec(write(self.root, "lane.md", spec("- TQ-4 (lane be): a\n"))))
 
 
 class TestChangeLint(_Repo):
@@ -192,6 +205,51 @@ class TestPlanApprovedCheck(_Repo):
         self.assertEqual(1, result.returncode, result.stderr)
         self.assertIn("open technical questions", result.stderr)
         self.assertEqual([], calls(bin_dir))
+
+
+class TestPlanApprovedLaneQuestions(_Repo):
+    """R3: an open question marked for a lane the plan declares does not refuse plan-approved."""
+
+    PLAN = "# Plan\n\n## Lanes\n\n### Lane be\n- Owner: em@corp.com\n- Area: backend\n\n## Tasks\n"
+
+    def setUp(self):
+        super().setUp()
+        write(self.root, "plan.md", self.PLAN)
+
+    def record(self, questions: str, *extra: str, evidence: str = "plan.md"):
+        write(self.root, SPEC_PATH, spec(questions))
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err), contextlib.redirect_stdout(io.StringIO()):
+            code = cli_main(["record", "plan-approved", "--repository", str(self.root), "--evidence", evidence,
+                             "--actor", "user", "--workflow-id", "ep-1", *extra])
+        return code, err.getvalue()
+
+    gate = TestPlanApprovedCheck.gate
+
+    def test_an_open_question_of_a_declared_lane_records_the_gate(self):
+        self.assertEqual(0, self.record("- TQ-4 (lane be): Which cache?\n")[0])
+        self.assertEqual("satisfied", self.gate())
+
+    def test_an_open_question_without_a_lane_still_refuses(self):
+        code, err = self.record("- TQ-4 (lane be): Which cache?\n- TQ-5: Which queue?\n")
+        self.assertEqual(1, code)
+        self.assertIn(f"plan-approved refused: open technical questions\n{SPEC_PATH}:13: TQ-5", err)
+        self.assertNotIn("TQ-4", err)
+        self.assertEqual("unmet", self.gate())
+
+    def test_a_lane_the_plan_does_not_declare_refuses(self):
+        code, err = self.record("- TQ-4 (lane ops): Which cache?\n")
+        self.assertEqual(1, code)
+        self.assertIn("plan-approved refused: questions marked for a lane the plan does not declare\n"
+                      f"{SPEC_PATH}:12: TQ-4 (lane ops)", err)
+
+    def test_without_a_plan_file_the_lane_cannot_be_checked(self):
+        code, err = self.record("- TQ-4 (lane be): Which cache?\n", evidence="pr-123")
+        self.assertEqual(1, code)
+        self.assertIn("plan-approved refused: questions marked for a lane need the plan file as --plan or "
+                      f"--evidence\n{SPEC_PATH}:12: TQ-4 (lane be)", err)
+        self.assertEqual(0, self.record("- TQ-4 (lane be): Which cache?\n", "--plan", "plan.md",
+                                        evidence="pr-123")[0])
 
 
 class PlanApprovedWorkspaceTests(unittest.TestCase):

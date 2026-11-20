@@ -162,12 +162,14 @@ class TestBudgetLimits(unittest.TestCase):
 
     def test_team_guidance_loads_on_demand(self):
         team_skill = (SRC / "skills/team/SKILL.md").resolve()
+        lanes = (SRC / "skills/team/references/lanes.md").resolve()
         for stage in ("discuss", "plan", "orchestrate", "execute", "ship"):
             text = (SRC / "skills" / stage / "SKILL.md").read_text(encoding="utf-8")
             with self.subTest(stage=stage):
                 self.assertIn("`team` skill", text)
                 self.assertEqual(1, sum("project.team" in line for line in text.splitlines()))
                 self.assertNotIn(team_skill, stage_chain(SRC, stage))
+                self.assertNotIn(lanes, stage_chain(SRC, stage))
         guide = team_skill.read_text(encoding="utf-8")
         for heading in ("## Gates", "## discuss", "## plan", "## orchestrate", "## execute", "## ship"):
             with self.subTest(heading=heading):

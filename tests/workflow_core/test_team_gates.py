@@ -19,7 +19,7 @@ from team_fixtures import run_cli as run_cli_subprocess, run_cli_in_process as r
 from workflow_core.configuration import ConfigValidationError, resolve_effective_config, validate_portable_config  # noqa: E402
 from workflow_core.epic_kind import KINDS  # noqa: E402
 from workflow_core.team import (  # noqa: E402
-    can_waive, check_plan, check_plan_repos, gate_roles, has_policy, load_team, plan_tracks, policy_for, repo_slug,
+    can_waive, check_lane_plan, check_plan, check_plan_repos, gate_roles, has_policy, load_team, plan_lanes, plan_tracks, policy_for, repo_slug,
     verify_gate)
 from workflow_core.workspace import Workspace, repos_from  # noqa: E402
 from workflow_core.team_host import fetch_pr  # noqa: E402
@@ -37,6 +37,44 @@ WORKSPACE = """workspace:
     - {path: .beads, url: u4, shape: beads}
 """
 SPEC_PATH = ".planning/specs/2026-10-03-login-design.md"
+
+LANES = """# Plan: Login
+
+## Lanes
+
+### Lane api
+- **Owner**: em@corp.com
+- **Area**: backend
+- **Scope**: the login API
+- **Acceptance criteria**: POST /login answers 200 or 401
+- **Contracts**: produces `POST /login`
+
+### Lane web
+- **Owner**: chi@corp.com
+- **Area**: frontend
+- **Scope**: the login form
+- **Acceptance criteria**: the form posts to /login
+- **Contracts**: consumes `POST /login`
+- **Depends on lanes**: api
+
+## Contracts
+
+- `POST /login`: request `{"email": str, "password": str}`; 200 `{"session": str}`; 401.
+
+## Tasks
+
+## Integration
+- Branch: feat/login
+"""
+
+
+def lanes_plan(*blocks: str) -> str:
+    """A plan whose `## Lanes` holds `blocks` and that has no track."""
+    return "# Plan\n\n## Lanes\n\n" + "\n".join(blocks) + "\n## Tasks\n"
+
+
+MIXED = LANES.replace("## Tasks\n\n", PLAN[PLAN.index("## Tasks"):PLAN.index("## Integration")])
+
 
 
 class GateCase(unittest.TestCase):
@@ -81,6 +119,32 @@ class GateCase(unittest.TestCase):
 
 
 class TestRecordGitHub(GateCase):
+    def test_plan_approved_needs_the_lead_of_each_declared_lane_area(self):
+        write(self.root, PLAN_PATH, LANES)
+        self.gh(gh_pr(files=[PLAN_PATH], reviews=[("binh-dev", "APPROVED", "c")]))
+        result = self.record("plan-approved")
+        self.assertEqual(1, result.returncode)
+        self.assertIn("missing approval from fe_lead for area frontend", result.stderr)
+        self.gh(gh_pr(files=[PLAN_PATH], reviews=[("binh-dev", "APPROVED", "c"), ("chi-fe", "APPROVED", "c")]))
+        self.assertEqual(0, self.record("plan-approved").returncode)
+
+    def test_plan_approved_with_an_open_lane_question_needs_the_plan_file(self):
+        write(self.root, PLAN_PATH, LANES)
+        questions = "# Login\n\nEpic: w\n\n## Open Technical Questions\n\n- TQ-4 (lane api): Which cache?\n"
+        write(self.root, SPEC_PATH, questions)
+        self.gh(gh_pr(files=[PLAN_PATH], reviews=[("binh-dev", "APPROVED", "c"), ("chi-fe", "APPROVED", "c")]))
+        result = self.record("plan-approved")
+        self.assertEqual(1, result.returncode)
+        self.assertIn("questions marked for a lane need the plan file as --plan or --evidence", result.stderr)
+        self.assertEqual([], calls(self.bin))
+        write(self.root, SPEC_PATH, questions + "- TQ-5: Which queue?\n")
+        result = self.record("plan-approved", PR, "--plan", PLAN_PATH)
+        self.assertEqual(1, result.returncode)
+        self.assertIn("plan-approved refused: open technical questions", result.stderr)
+        write(self.root, SPEC_PATH, questions)
+        result = self.record("plan-approved", PR, "--plan", PLAN_PATH)
+        self.assertEqual(0, result.returncode, result.stderr)
+
     def test_requirement_confirmed_by_ba_is_recorded_with_proof(self):
         self.gh(gh_pr(author="binh-dev", files=[SPEC_PATH], reviews=[("an-ba", "APPROVED", "c1")]))
         result = run_cli_subprocess(self.root, "record", "requirement-confirmed", "--evidence", PR, "--workflow-id", "w",
@@ -612,6 +676,70 @@ class TestPlanChecks(unittest.TestCase):
 
     def tearDown(self):
         self.tmp.cleanup()
+
+    def test_plan_lanes_reads_the_declarations(self):
+        path = write(self.root, PLAN_PATH, LANES)
+        self.assertEqual([("api", "em@corp.com", ("backend",), "", ()),
+                          ("web", "chi@corp.com", ("frontend",), "", ("api",))],
+                         [(lane.name, lane.owner, lane.areas, lane.repo, lane.depends) for lane in plan_lanes(path)])
+        plain = lanes_plan("### Lane `api`\n- Owner: `em@corp.com`\n- Area: backend\n- Area: frontend\n"
+                           "- Repo: services/api\n- Depends on lanes: web, `qa`\n")
+        self.assertEqual([("api", "em@corp.com", ("backend", "frontend"), "services/api", ("web", "qa"))],
+                         [(lane.name, lane.owner, lane.areas, lane.repo, lane.depends)
+                          for lane in plan_lanes(write(self.root, PLAN_PATH, plain))])
+        fenced = "```markdown\n## Lanes\n\n### Lane x\n- Owner: em@corp.com\n```\n"
+        self.assertEqual([], plan_lanes(write(self.root, PLAN_PATH, PLAN + fenced)))
+        self.assertEqual([], plan_lanes(write(self.root, PLAN_PATH, PLAN)))
+
+    def test_a_plan_with_lanes_and_no_track_passes(self):
+        path = write(self.root, PLAN_PATH, LANES)
+        self.assertEqual([], plan_tracks(path))
+        self.assertEqual([], check_plan(self.team, path))
+        result = run_cli(self.root, "team", "check-plan", str(path))
+        self.assertEqual((0, "ok"), (result.returncode, result.stdout.strip()), result.stderr)
+        self.assertEqual([f"{path}: no '### Track N:' sections"],
+                         check_plan(self.team, write(self.root, PLAN_PATH, "# Plan\n\n## Lanes\n\n## Tasks\n")))
+
+    def test_lane_declaration_findings(self):
+        good = "### Lane api\n- Owner: em@corp.com\n- Area: backend\n"
+        cases = [
+            (lanes_plan("### Lane api\n- Area: backend\n"), "lane api: missing Owner:"),
+            (lanes_plan("### Lane API\n- Owner: em@corp.com\n- Area: backend\n"), "lane API: invalid lane name"),
+            (lanes_plan("### Lane t3\n- Owner: em@corp.com\n- Area: backend\n"), "lane t3: invalid lane name"),
+            (lanes_plan(good, good), "lane api: declared twice"),
+            (lanes_plan("### Lane api\n- Owner: chi@corp.com\n- Area: backend\n"),
+             "lane api: owner chi@corp.com holds no role allowed in area backend"),
+            (lanes_plan("### Lane api\n- Owner: zed@corp.com\n- Area: backend\n"),
+             "lane api: owner zed@corp.com is not in team.members"),
+            (lanes_plan("### Lane api\n- Owner: em@corp.com\n- Area: nowhere\n"), "lane api: unknown area nowhere"),
+            (lanes_plan("### Lane api\n- Owner: em@corp.com\n"), "lane api: missing Area:"),
+            (lanes_plan(good + "- Depends on lanes: web\n"), "lane api: Depends on lanes: web is not a declared lane"),
+        ]
+        for text, finding in cases:
+            with self.subTest(finding):
+                self.assertEqual([finding], check_plan(self.team, write(self.root, PLAN_PATH, text)))
+
+    def test_tracks_are_checked_against_their_declared_lane(self):
+        self.assertEqual([], check_plan(self.team, write(self.root, PLAN_PATH, MIXED)))
+        cases = [
+            (MIXED.replace("- Lane: api", "- Lane: ops"), "Track 1: lane ops is not declared in ## Lanes"),
+            (MIXED.replace("- Owner: em@corp.com\n- Lane: api", "- Owner: binh@corp.com\n- Lane: api"),
+             "Track 1: Owner: binh@corp.com is not the owner of lane api (em@corp.com)"),
+            (MIXED.replace("- Lane: api\n", "- Lane: api\n- Repo: services/a\n"),
+             "Track 1: Repo: services/a is not the repository of lane api (.)"),
+        ]
+        for text, finding in cases:
+            with self.subTest(finding):
+                self.assertEqual([finding], check_plan(self.team, write(self.root, PLAN_PATH, text)))
+        other_area = MIXED.replace("### Lane api\n- **Owner**: em@corp.com\n- **Area**: backend",
+                                   "### Lane api\n- **Owner**: em@corp.com\n- **Area**: frontend")
+        self.assertIn("Track 1: area backend is not an area of lane api",
+                      check_plan(self.team, write(self.root, PLAN_PATH, other_area)))
+
+    def test_a_plan_without_lanes_is_checked_as_before(self):
+        self.assertEqual([], check_plan(self.team, write(self.root, PLAN_PATH, PLAN)))
+        self.assertIn("Track 1: missing Lane:",
+                      check_plan(self.team, write(self.root, PLAN_PATH, PLAN.replace("- Lane: api\n", ""))))
 
     def test_plan_tracks_reads_area_owner_and_files(self):
         path = write(self.root, PLAN_PATH, PLAN)
@@ -1388,6 +1516,110 @@ class TestBeforeMerge(GateCase):
                          self.verify("plan_approved", before_merge=True, artifact_text=PLAN))
         self.assertIn("Track 1: unknown area nowhere", self.verify(
             "plan_approved", before_merge=True, artifact_text=PLAN.replace("- Area: backend", "- Area: nowhere")))
+
+
+LANE_PATH = ".planning/plans/2026-10-03-login.lane-api.md"
+LANE_PLAN = """# Plan: Login API
+
+Spec: .planning/specs/2026-10-03-login-design.md
+
+## Tasks
+
+### Track 1: API
+- **Area**: backend
+- **Owner**: em@corp.com
+- **Lane**: api
+- **Files**:
+  - Create `services/auth/login.py`
+  - Test `tests/services/test_login.py`
+
+### Track 2: Session
+- **Area**: backend
+- **Owner**: em@corp.com
+- **Lane**: api
+- **Files**:
+  - Create `services/auth/session.py`
+
+## Integration
+"""
+QUESTIONS = "# Login\n\nEpic: w\n\n## Open Technical Questions\n\n- TQ-4 (lane api): Which cache?\n"
+
+
+class TestLanePlanChecks(unittest.TestCase):
+    """R7, R10, US-2, US-3: a lane plan is checked against its lane's declaration and its lane's questions."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.root = make_team_repo(Path(self.tmp.name) / "repo")
+        self.team = load_team(yaml.safe_load((self.root / ".agent-workflow/config.yaml").read_text()))
+        self.lead = write(self.root, PLAN_PATH, LANES)
+        write(self.root, SPEC_PATH, QUESTIONS + "  Decision: redis.\n- TQ-5 (lane web): Which store?\n")
+
+    def check(self, text: str = LANE_PLAN, relative: str = LANE_PATH) -> list[str]:
+        return check_lane_plan(self.team, write(self.root, relative, text), self.root)
+
+    def test_a_lane_plan_that_follows_its_lane_passes(self):
+        self.assertEqual([], self.check())
+        result = run_cli(self.root, "team", "check-plan", LANE_PATH, "--format", "json")
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+
+    def test_another_lane_another_owner_or_a_file_outside_the_area_fails(self):
+        second = LANE_PLAN.index("### Track 2")
+        head, tail = LANE_PLAN[:second], LANE_PLAN[second:]
+        cases = [
+            (head + tail.replace("- **Lane**: api", "- **Lane**: web"), ["Track 2: lane web is not lane api"]),
+            (head + tail.replace("- **Owner**: em@corp.com", "- **Owner**: binh@corp.com"),
+             ["lane api: tracks 1 and 2 have different owners",
+              "Track 2: Owner: binh@corp.com is not the owner of lane api (em@corp.com)"]),
+            (head + tail.replace("`services/auth/session.py`", "`web/session.tsx`"),
+             ["Track 2: web/session.tsx is outside area backend"]),
+        ]
+        for text, findings in cases:
+            with self.subTest(findings[-1]):
+                self.assertEqual(findings, self.check(text))
+        result = run_cli(self.root, "team", "check-plan", LANE_PATH)
+        self.assertEqual(1, result.returncode)
+        self.assertIn("Track 2: web/session.tsx is outside area backend", result.stdout)
+
+    def test_a_track_in_another_area_of_the_team_is_reported(self):
+        second = LANE_PLAN.index("### Track 2")
+        text = LANE_PLAN[:second] + LANE_PLAN[second:].replace("- **Area**: backend", "- **Area**: frontend")
+        self.assertIn("Track 2: area frontend is not an area of lane api", self.check(text))
+
+    def test_the_lead_plan_must_declare_the_lane_without_tracks(self):
+        ops = self.check(relative=".planning/plans/2026-10-03-login.lane-ops.md")
+        self.assertEqual([f"{self.root / '.planning/plans/2026-10-03-login.lane-ops.md'}: lane ops is not declared in "
+                          f"{self.lead}"], ops)
+        write(self.root, PLAN_PATH, MIXED)
+        self.assertEqual([f"{self.root / LANE_PATH}: lane api has tracks in {self.lead}; the lead plans it there"],
+                         self.check())
+        self.lead.unlink()
+        self.assertEqual([f"{self.root / LANE_PATH}: lead plan {self.lead} not found"], self.check())
+
+    def test_an_open_question_of_the_lane_fails_and_others_are_ignored(self):
+        write(self.root, SPEC_PATH, QUESTIONS + "- TQ-5 (lane web): Which store?\n- TQ-6: Which queue?\n")
+        self.assertEqual([f"{SPEC_PATH}:7: TQ-4 (lane api) has no Decision:"], self.check())
+        result = run_cli(self.root, "team", "check-plan", LANE_PATH)
+        self.assertEqual(1, result.returncode)
+
+    def test_the_lane_plan_names_its_design_doc(self):
+        path = self.root / LANE_PATH
+        self.assertEqual([f"{path}: missing Spec: <design doc path> line"],
+                         self.check(LANE_PLAN.replace(f"Spec: {SPEC_PATH}\n", "")))
+        self.assertEqual([f"{path}: Spec: .planning/specs/nope.md is not a file"],
+                         self.check(LANE_PLAN.replace(SPEC_PATH, ".planning/specs/nope.md")))
+
+    def test_a_malformed_lane_question_is_reported(self):
+        write(self.root, SPEC_PATH, QUESTIONS + "- TQ-7 (lane BE): Which queue?\n")
+        findings = self.check()
+        self.assertTrue(any(item.startswith(f"{SPEC_PATH}:") and "not a question" in item for item in findings), findings)
+
+    def test_the_spec_stays_inside_the_repository(self):
+        (Path(self.tmp.name) / "outside.md").write_text("# Outside\n", encoding="utf-8")
+        path = self.root / LANE_PATH
+        self.assertEqual([f"{path}: Spec: ../outside.md is outside the repository"],
+                         self.check(LANE_PLAN.replace(SPEC_PATH, "../outside.md")))
 
 
 if __name__ == "__main__":
