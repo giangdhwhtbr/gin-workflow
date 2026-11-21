@@ -8,6 +8,7 @@ from datetime import datetime, timedelta, timezone
 import hashlib
 import json
 from pathlib import Path
+import re
 import subprocess
 from typing import Any
 
@@ -19,6 +20,7 @@ from .configuration import ConfigValidationError, resolve_effective_config
 from .executables import tool
 
 SCHEME = "attachment:"
+_SHA = re.compile(r"[0-9a-f]{64}")
 DEFAULT_MAX_BYTES = 10 * 1024 * 1024
 
 
@@ -238,6 +240,13 @@ def _unreadable(row: Mapping[str, Any]) -> bool:
     return value is not None and not isinstance(value, list)
 
 
+def _entry_path(entry: Mapping[str, Any]) -> str | None:
+    path, sha = entry.get("path"), entry.get("sha256")
+    if path is None and isinstance(sha, str) and _SHA.fullmatch(sha):
+        return blob_path(sha)
+    return path if isinstance(path, str) else None
+
+
 def _day(value: Any) -> datetime | None:
     try:
         moment = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
@@ -253,27 +262,31 @@ def prune(repo: Path, *, apply: bool = False, now: datetime | None = None, store
     store = store or open_store(repo, settings)
     rows = _rows(repo)
     broken = sorted(str(row.get("id")) for row in rows if _unreadable(row))
-    if broken:
-        raise AttachmentError("metadata.attachments is not a JSON list on " + ", ".join(broken)
-                              + "; fix it with bd update before pruning")
-    store.fetch()
     users: dict[str, list[Mapping[str, Any]]] = {}
     for row in rows:
+        if row.get("id") in broken:
+            continue
         for entry in entries(row):
-            sha = entry.get("sha256")
-            if entry.get("pruned_at") or not isinstance(sha, str):
+            if entry.get("pruned_at"):
                 continue
-            users.setdefault(entry.get("path") or blob_path(sha), []).append(row)
+            path = _entry_path(entry)
+            if path is None:
+                broken.append(str(row.get("id")))
+                break
+            users.setdefault(path, []).append(row)
+    if broken:
+        raise AttachmentError("metadata.attachments is unreadable or has an entry without a usable path on "
+                              + ", ".join(sorted(set(broken))) + "; fix it with bd update before pruning")
+    store.fetch()
+    stored = store.paths()
     cutoff = None
     if settings.retention_days is not None:
         cutoff = (now or datetime.now(timezone.utc)) - timedelta(days=settings.retention_days)
     candidates: list[dict[str, Any]] = []
-    for path in sorted(store.paths() | users.keys()):
+    for path in sorted(stored):
         referrers = users.get(path, [])
         reason = None
         if not referrers:
-            if path not in store.paths():
-                continue
             reason = "orphan"
         elif cutoff is not None and all(row.get("status") == "closed" for row in referrers):
             closed = [_day(row.get("closed_at")) for row in referrers]
@@ -288,7 +301,6 @@ def prune(repo: Path, *, apply: bool = False, now: datetime | None = None, store
         gone = {item["path"] for item in candidates}
         touched = {str(row.get("id")): row for item in candidates for row in users.get(item["path"], [])}
         for bead, row in touched.items():
-            kept = [dict(e, pruned_at=stamp) if not e.get("pruned_at") and isinstance(e.get("sha256"), str)
-                    and (e.get("path") or blob_path(e["sha256"])) in gone else e for e in entries(row)]
+            kept = [dict(e, pruned_at=stamp) if not e.get("pruned_at") and _entry_path(e) in gone else e for e in entries(row)]
             _bd(repo, ["update", "--set-metadata", f"attachments={json.dumps(kept, sort_keys=True)}", "--", bead])
     return {"candidates": candidates, "applied": apply}
