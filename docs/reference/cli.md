@@ -253,6 +253,19 @@ Exit codes: 0 ok, warnings included; 1 unknown id, a refused change, a `--lanes`
 
 A malformed `Deadline:` line or a dependency cycle among open epics is reported in `forecast.error`; `list` still exits 0.
 
+## `gin attach`
+
+```text
+gin attach add <bead> <file>... [--caption TEXT] [--case ID] [--step N] [--format text|json] [--repository PATH]
+gin attach list <bead> [--format text|json] [--repository PATH]
+gin attach fetch [--bead ID --out DIR] [--repository PATH]
+gin attach push [--repository PATH]
+```
+
+Attaches PNG, JPEG, WebP, or GIF images to a bead and keeps them in the store set by `attachments.store`, `git-ref` by default. It needs `providers.task_tracking: beads`.
+
+Exit codes: 0 ok; 1 at least one file refused; 2 usage, a missing bead or tracker, a configuration error, or a store that cannot be reached.
+
 ## `gin hooks`
 
 ```
