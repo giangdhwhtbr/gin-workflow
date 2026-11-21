@@ -129,7 +129,7 @@ Every `gin-orchestrator dispatch` command and every sentence about the extension
 
 ## Testing
 
-Removed with the code: `tests/gin_orchestrator/`, the three core test files in A, and `tests/workflow_core/test_import_boundary.py` (it guards the boundary to the extension's library).
+Removed with the code: `tests/gin_orchestrator/`, the three core test files in A, and `tests/workflow_core/test_import_boundary.py` (it guards the boundary to the extension's library). One file of that directory is kept: `test_harness_packaging.py` never named the extension; it tests gin-workflow's own bundles for each harness, so it moves to `tests/workflow_core/`.
 
 Updated: `tests/install_smoke_test.sh`, `tests/install_smoke_test.ps1`, `tests/test_all.py`, `tests/gin_qa/test_packaging.py`, and in `tests/workflow_core/`: `test_skill_routing.py`, `test_rename_sweep.py`, `test_version_pin.py`, `test_routes_cli.py`, `test_reviewer.py`, `test_config_examples.py`, `test_lifecycle_cli.py`, `test_setup_cli.py`, `test_project_settings.py`, `test_schema_2_8.py`, `test_executables.py`, `test_migrations.py`.
 

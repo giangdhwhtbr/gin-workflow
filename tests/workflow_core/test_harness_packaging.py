@@ -1,0 +1,402 @@
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import shutil
+import subprocess
+import tempfile
+import unittest
+
+import yaml
+
+
+ROOT = Path(__file__).resolve().parents[2]
+
+USE_CASE_SECTIONS = (
+    "Small change",
+    "Bounded defect",
+    "Large multi-track change",
+    "Resume in-progress work",
+)
+
+REQUIRED_ARTIFACTS = (
+    "skills/setup/SKILL.md",
+    "skills/workflow/SKILL.md",
+    "skills/discuss/SKILL.md",
+    "skills/plan/SKILL.md",
+    "skills/plan/plan-schema.md",
+    "skills/orchestrate/SKILL.md",
+    "skills/execute/SKILL.md",
+    "skills/execute/references/delegation-policy.md",
+    "skills/execute/references/result-contract.md",
+    "skills/tech-doc/references/jvm-routes.md",
+    "skills/tech-doc/references/webview-shells.md",
+    "skills/tech-doc/references/jvm-data.md",
+    "skills/roadmap/references/manager-view.md",
+    "skills/roadmap/references/milestone-plan.md",
+    "skills/ship/SKILL.md",
+    "skills/review/SKILL.md",
+    "skills/retro/SKILL.md",
+    "skills/milestone-close/SKILL.md",
+    "references/stage-contract.md",
+    "references/shape-frontend.md",
+    "references/shape-backend.md",
+    "references/docs-style.md",
+    "agents/developer.md",
+    "scripts/gin",
+    "scripts/workflow_core/__init__.py",
+    "scripts/workflow_core/configuration.py",
+    "scripts/workflow_core/setup_service.py",
+    "scripts/workflow_core/router.py",
+    "scripts/workflow_core/provider_config.py",
+    "scripts/workflow_core/assignments.py",
+    "examples/config.full.yaml",
+    "rules/README.md",
+    "rules/core.md",
+    "rules/lean.md",
+    "rules/docs.md",
+    "rules/typescript.md",
+    "rules/python.md",
+    "rules/react.md",
+    "rules/nextjs.md",
+    "rules/fastapi.md",
+    "rules/node-api.md",
+    "rules/java.md",
+    "rules/spring.md",
+    "rules/jvm-templates.md",
+    "templates/proposal.md",
+    "templates/spec-delta.md",
+    "templates/spec.md",
+    "templates/specs-README.md",
+    "templates/codebase/01-OVERVIEW.md",
+    "templates/codebase/05-API.md",
+    "templates/codebase/02-FEATURES.md",
+    "templates/codebase/12-DATABASE.md",
+    "templates/codebase/13-CAPABILITIES.md",
+    "scripts/workflow_core/specs.py",
+    "scripts/workflow_core/specs_cli.py",
+    "scripts/workflow_core/specs_archive.py",
+    "scripts/workflow_core/specs_trace.py",
+    "scripts/workflow_core/specs_migrate.py",
+    "skills/migrate-specs/SKILL.md",
+    "skills/sdd/SKILL.md",
+    "templates/team/pull_request_template.md",
+    "templates/team/commit-msg",
+    "templates/team/github-ci.yml",
+    "templates/team/gitlab-ci.yml",
+    "scripts/workflow_core/team.py",
+    "scripts/workflow_core/team_host.py",
+    "scripts/workflow_core/team_beads.py",
+    "scripts/workflow_core/team_init.py",
+    "scripts/workflow_core/team_cli.py",
+    "skills/team/SKILL.md",
+    "skills/team-setup/SKILL.md",
+    "skills/report/SKILL.md",
+    "scripts/workflow_core/usage.py",
+    "scripts/workflow_core/usage_logs.py",
+    "scripts/workflow_core/usage_attribution.py",
+    "scripts/workflow_core/usage_cli.py",
+)
+
+
+# setUpClass rebuilds the shared plugins/*/dist, which every test of the class reads. Under
+# pytest -n the class's tests can run on several workers, each rebuilding dist, so the class holds
+# an exclusive lock from setUpClass to tearDownClass: one worker builds and reads dist at a time.
+@unittest.skipIf(os.name == "nt", "runs install.sh, which needs bash")
+class HarnessPackagingTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        import fcntl  # POSIX only; the class is skipped on Windows
+
+        key = hashlib.sha256(str(ROOT.resolve()).encode("utf-8")).hexdigest()[:12]
+        cls.dist_lock = open(Path(tempfile.gettempdir()) / f"gin-harness-dist-{key}.lock", "w")
+        fcntl.flock(cls.dist_lock, fcntl.LOCK_EX)
+        cls.temporary_home = tempfile.TemporaryDirectory()
+        shutil.rmtree(ROOT / "plugins/gin-workflow/dist", ignore_errors=True)
+        shutil.rmtree(ROOT / "plugins/gin-workflow-advanced/dist", ignore_errors=True)
+        environment = os.environ.copy()
+        environment["HOME"] = cls.temporary_home.name
+        cls.install = subprocess.run(
+            ["bash", "install.sh", "--platform", "all", "--dry-run"],
+            cwd=ROOT,
+            env=environment,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        cls.dist = ROOT / "plugins/gin-workflow/dist"
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.temporary_home.cleanup()
+        cls.dist_lock.close()  # closing releases the lock
+
+    def test_dry_run_builds_every_harness_layout(self):
+        self.assertEqual(0, self.install.returncode, self.install.stderr)
+        # OpenCode translates agent files into namespaced subagents, drops
+        # commands, and gives gin's generic skill names a gin- prefix, so
+        # `report` does not shadow OpenCode's built-in `report` skill.
+        prefixed = {"report", "sdd", "team"}
+        opencode_removed = {"agents/developer.md"} | {f"skills/{name}/SKILL.md" for name in prefixed}
+        opencode_added = {"agents/gin-developer.md"} | {f"skills/gin-{name}/SKILL.md" for name in prefixed}
+        copilot_removed: set[str] = set()
+        for harness in ("claude-code", "codex", "antigravity", "opencode", "copilot"):
+            with self.subTest(harness=harness):
+                root = self.dist / ("copilot/gin" if harness == "copilot" else harness)
+                removed = opencode_removed if harness == "opencode" else copilot_removed if harness == "copilot" else set()
+                required = [r for r in REQUIRED_ARTIFACTS if r not in removed]
+                if harness == "opencode":
+                    required += sorted(opencode_added)
+                missing = [relative for relative in required if not (root / relative).is_file()]
+                self.assertEqual([], missing)
+
+    def test_removed_agents_are_gone_and_unreferenced(self):
+        src = ROOT / "plugins/gin-workflow/src"
+        for name in ("full-stack-developer", "codebase-mapper"):
+            with self.subTest(agent=name):
+                self.assertFalse((src / "agents" / f"{name}.md").exists())
+                mentions = [path.relative_to(src).as_posix() for path in src.rglob("*")
+                            if path.is_file() and path.suffix in (".md", ".py", ".json", ".yaml")
+                            and name in path.read_text(encoding="utf-8", errors="replace")]
+                self.assertEqual([], mentions)
+
+    def test_each_harness_has_its_manifest_and_hooks_in_the_expected_location(self):
+        expected = {
+            "claude-code": (".claude-plugin/plugin.json", "hooks/hooks.json"),
+            "codex": (".codex-plugin/plugin.json", "hooks/hooks.json"),
+            "antigravity": ("plugin.json", "hooks/hooks.json"),
+        }
+        for harness, relatives in expected.items():
+            with self.subTest(harness=harness):
+                root = self.dist / harness
+                self.assertTrue(all((root / relative).is_file() for relative in relatives))
+
+    def test_only_the_claude_hooks_file_has_a_session_start_hook_for_the_version_pin(self):
+        claude = json.loads((self.dist / "claude-code/hooks/hooks.json").read_text(encoding="utf-8"))
+        self.assertEqual({"PreToolUse", "SessionStart"}, set(claude["hooks"]))
+        command = claude["hooks"]["SessionStart"][0]["hooks"][0]["command"]
+        self.assertIn("gin version --hook", command)
+        for relative in ("codex/hooks/hooks.json", "antigravity/hooks/hooks.json", "copilot/gin/hooks/hooks.json"):
+            with self.subTest(file=relative):
+                self.assertNotIn("SessionStart", (self.dist / relative).read_text(encoding="utf-8"))
+
+    def test_copilot_layout_is_a_claude_manifest_bundle_with_copilot_hooks(self):
+        # Copilot CLI reads .claude-plugin/plugin.json, skills/<name>/SKILL.md,
+        # hooks/hooks.json in Copilot's format, and agents with translated tool names.
+        root = self.dist / "copilot/gin"
+        manifest = json.loads((root / ".claude-plugin/plugin.json").read_text(encoding="utf-8"))
+        self.assertEqual("gin", manifest["name"])
+        self.assertTrue((root / "skills/setup/SKILL.md").is_file())
+        self.assertTrue((root / "skills/report/SKILL.md").is_file())
+        self.assertTrue((root / "references/stage-contract.md").is_file())
+        hooks = json.loads((root / "hooks/hooks.json").read_text(encoding="utf-8"))
+        self.assertEqual(1, hooks.get("version"))
+        pre_tool_use = hooks.get("hooks", {}).get("PreToolUse", [])
+        self.assertTrue(any(entry.get("matcher") == "bash" and "/scripts/safety_check.py" in entry.get("bash", "") for entry in pre_tool_use))
+        self.assertNotIn("PostToolUse", hooks.get("hooks", {}))
+        self.assertTrue((root / "agents/developer.md").is_file())
+        dev_text = (root / "agents/developer.md").read_text(encoding="utf-8")
+        self.assertIn('tools: ["view", "grep", "glob", "bash", "edit"]', dev_text)
+        codex_dev = (self.dist / "codex/agents/developer.md").read_text(encoding="utf-8")
+        self.assertNotIn("tools:", codex_dev.split("---", 2)[1])
+        allowed_copilot_tools = {"view", "grep", "glob", "web_fetch", "bash", "edit"}
+        for agent_path in (root / "agents").glob("*.md"):
+            with self.subTest(agent=agent_path.name):
+                frontmatter = yaml.safe_load(agent_path.read_text(encoding="utf-8").split("---", 2)[1])
+                tools = frontmatter.get("tools", [])
+                self.assertEqual(len(tools), len(set(tools)), f"Duplicate tools in {agent_path.name}: {tools}")
+                self.assertTrue(set(tools).issubset(allowed_copilot_tools), f"Unexpected tools in {agent_path.name}: {tools}")
+        self.assertFalse((root / "commands").exists())
+
+    def test_copilot_hook_commands_run_the_scripts_and_skip_when_missing(self):
+        # Copilot runs each entry's `bash` with the payload on stdin; exit 2 denies,
+        # and any other non-zero exit also denies, so a missing script must exit 0.
+        hooks = json.loads((self.dist / "copilot/gin/hooks/hooks.json").read_text(encoding="utf-8"))["hooks"]
+        pre = hooks["PreToolUse"][0]["bash"]
+        root = str(self.dist / "copilot/gin")
+
+        def run(command, payload, **env):
+            base = {k: v for k, v in os.environ.items() if k not in ("PLUGIN_ROOT", "COPILOT_HOME", "WORKTREE_PATH")}
+            return subprocess.run(["bash", "-c", command], input=json.dumps(payload), capture_output=True,
+                                  text=True, env={**base, **env})
+
+        danger = {"tool_name": "bash", "tool_input": {"command": "rm -rf " + "/"}, "cwd": "/tmp"}
+        safe = {"tool_name": "bash", "tool_input": {"command": "ls"}, "cwd": "/tmp"}
+        self.assertEqual(2, run(pre, danger, PLUGIN_ROOT=root).returncode)
+        self.assertEqual(0, run(pre, safe, PLUGIN_ROOT=root).returncode)
+        with tempfile.TemporaryDirectory() as home:
+            missing = run(pre, danger, COPILOT_HOME=home)
+        self.assertEqual(0, missing.returncode)
+        self.assertIn("hook skipped", missing.stderr)
+
+    def test_every_skill_frontmatter_is_strict_yaml(self):
+        # Copilot CLI skips a skill whose frontmatter is not valid YAML.
+        for path in sorted(ROOT.glob("plugins/*/src/skills/*/SKILL.md")):
+            with self.subTest(skill=path.relative_to(ROOT).as_posix()):
+                frontmatter = path.read_text(encoding="utf-8").split("---", 2)[1]
+                self.assertIsInstance(yaml.safe_load(frontmatter), dict)
+
+    def test_opencode_layout_is_a_skill_bundle_without_manifest_or_hooks(self):
+        root = self.dist / "opencode"
+        self.assertTrue((root / "skills/setup/SKILL.md").is_file())
+        self.assertTrue((root / "skills/gin-report/SKILL.md").is_file())
+        self.assertTrue((root / "references/stage-contract.md").is_file())
+        self.assertFalse((root / "hooks").exists())
+        self.assertFalse((root / "plugin.json").exists())
+        # OpenCode translates agents to subagents and prunes commands.
+        self.assertTrue((root / "agents/gin-developer.md").is_file())
+        self.assertFalse((root / "agents/developer.md").exists())
+        oc_frontmatter = yaml.safe_load((root / "agents/gin-developer.md").read_text(encoding="utf-8").split("---", 2)[1])
+        self.assertEqual("subagent", oc_frontmatter.get("mode"))
+        self.assertIn("description", oc_frontmatter)
+        self.assertNotIn("name", oc_frontmatter)
+        self.assertNotIn("tools", oc_frontmatter)
+        self.assertFalse((root / "commands").exists())
+        # The renamed skill keeps its display name aligned with the directory id.
+        self.assertIn("name: gin-report", (root / "skills/gin-report/SKILL.md").read_text(encoding="utf-8"))
+
+    def test_plugin_metadata_and_harness_manifests_publish_current_version(self):
+        release_version = json.loads((ROOT / "plugins/gin-workflow/plugin.meta.json").read_text(encoding="utf-8"))["version"]
+        manifests = (
+            ROOT / "plugins/gin-workflow/plugin.meta.json",
+            ROOT / "plugins/gin-workflow/src/.claude-plugin/plugin.json",
+            ROOT / "plugins/gin-workflow/src/.codex-plugin/plugin.json",
+            self.dist / "claude-code/.claude-plugin/plugin.json",
+            self.dist / "codex/.codex-plugin/plugin.json",
+            self.dist / "antigravity/plugin.json",
+        )
+        for manifest in manifests:
+            with self.subTest(manifest=manifest.relative_to(ROOT)):
+                with manifest.open(encoding="utf-8") as file:
+                    self.assertEqual(release_version, json.load(file)["version"])
+
+    def test_repository_ignores_installations_and_generated_workflow_output(self):
+        ignored = (
+            ".codex/plugin.json",
+            ".claude/plugin.json",
+            ".agents/plugin.json",
+            ".opencode/skills/plan/SKILL.md",
+            ".agent-workflow/generated/plan.json",
+            ".agent-workflow/runtime/evidence.json",
+            ".agent-workflow/backups/config.yaml",
+            ".agent-workflow/providers.local.yaml",
+            "plugins/gin-workflow/dist/codex/plugin.json",
+            "plugins/gin-workflow/dist/opencode/plugin.json",
+        )
+        tracked = (
+            "plugins/gin-workflow/src/skills/setup/SKILL.md",
+            ".claude-plugin/marketplace.json",
+            ".agent-workflow/config.yaml",
+            "docs/reference/config.md",
+            "install.sh",
+            "install.ps1",
+        )
+
+        for relative in ignored:
+            with self.subTest(relative=relative):
+                result = subprocess.run(
+                    ["git", "check-ignore", "--no-index", "-q", relative],
+                    cwd=ROOT,
+                    check=False,
+                )
+                self.assertEqual(0, result.returncode)
+
+        for relative in tracked:
+            with self.subTest(relative=relative):
+                result = subprocess.run(
+                    ["git", "check-ignore", "--no-index", "-q", relative],
+                    cwd=ROOT,
+                    check=False,
+                )
+                self.assertEqual(1, result.returncode)
+                tracked_result = subprocess.run(
+                    ["git", "ls-files", "--error-unmatch", relative],
+                    cwd=ROOT,
+                    check=False,
+                    capture_output=True,
+                )
+                self.assertEqual(0, tracked_result.returncode)
+
+        untracked_roots = (
+            ".codex",
+            ".claude",
+            ".agents",
+            ".opencode",
+            ".agent-workflow/generated",
+            ".agent-workflow/runtime",
+            ".agent-workflow/backups",
+        )
+        for root in untracked_roots:
+            with self.subTest(root=root):
+                result = subprocess.run(
+                    ["git", "ls-files", "--", root],
+                    cwd=ROOT,
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                )
+                self.assertEqual("", result.stdout)
+
+    def test_docs_have_a_single_copy_outside_the_bundle(self):
+        references = ROOT / "plugins/gin-workflow/src/references"
+        packaged = sorted(path.name for path in references.glob("*.md"))
+        self.assertEqual(["docs-style.md", "epic-kinds.md", "shape-backend.md", "shape-frontend.md", "stage-contract.md"], packaged)
+
+    def test_use_cases_guide_has_every_case_and_readme_links_it(self):
+        content = (ROOT / "docs/guides/use-cases.md").read_text(encoding="utf-8")
+        for section in USE_CASE_SECTIONS:
+            with self.subTest(section=section):
+                self.assertRegex(content, re.compile(rf"^## {re.escape(section)}\s*$", re.MULTILINE))
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        self.assertIn("docs/guides/use-cases.md", readme)
+
+    def test_t8_lifecycle_review_is_separate_from_router_stages(self):
+        lifecycle = (ROOT / "docs/concepts/lifecycle.md").read_text(encoding="utf-8")
+        guide = (ROOT / "docs/guides/use-cases.md").read_text(encoding="utf-8")
+        resume = guide[guide.index("## Resume in-progress work"):]
+        self.assertIn("not a router lifecycle stage", lifecycle)
+        self.assertIn("review_approved", lifecycle)
+        self.assertIn("fails closed when a ledger lacks terminal approval", resume)
+        self.assertLess(resume.index("/gin:progress"), resume.index("finish the review first"))
+        self.assertLess(resume.index("finish the review first"), resume.index("/gin:workflow"))
+        self.assertLess(resume.index("/gin:workflow"), resume.index("selects `ship`"))
+
+    def test_t8_bounded_defect_orchestrates_before_execute(self):
+        guide = (ROOT / "docs/guides/use-cases.md").read_text(encoding="utf-8")
+        defect = guide[guide.index("## Bounded defect"):guide.index("## Large multi-track change")]
+        self.assertIn("/gin:orchestrate", defect)
+        self.assertLess(defect.index("/gin:orchestrate"), defect.index("/gin:execute"))
+        self.assertLess(defect.index("debugging"), defect.index("/gin:plan"))
+
+    def test_t8_provider_routing_documents_portable_and_local_boundaries(self):
+        content = (ROOT / "docs/concepts/providers.md").read_text(encoding="utf-8")
+        self.assertIn("A plan never names a concrete model", content)
+        self.assertIn("and never a provider", content)
+        self.assertIn("never contain executable paths, credentials, secrets", content)
+        self.assertIn("secret values are never written", content)
+
+    def test_scoped_markdown_links_are_repo_relative_and_resolve(self):
+        roots = [ROOT / "README.md", ROOT / "docs", ROOT / "plugins/gin-workflow/src/references"]
+        link_pattern = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
+        for root in roots:
+            paths = [root] if root.is_file() else sorted(root.rglob("*.md"))
+            for path in paths:
+                for target in link_pattern.findall(path.read_text(encoding="utf-8")):
+                    if target.startswith(("http://", "https://", "mailto:", "#")):
+                        continue
+                    target_path = target.split("#", 1)[0]
+                    if not target_path:
+                        continue
+                    with self.subTest(path=path.relative_to(ROOT), target=target):
+                        self.assertFalse(Path(target_path).is_absolute(), f"absolute Markdown link is not allowed: {target}")
+                        resolved = (path.parent / target_path).resolve()
+                        self.assertTrue(
+                            resolved == ROOT or ROOT in resolved.parents,
+                            f"Markdown link escapes repository root: {target}",
+                        )
+                        self.assertTrue(resolved.is_file(), f"missing Markdown link target: {target}")
+
+
+if __name__ == "__main__":
+    unittest.main()
