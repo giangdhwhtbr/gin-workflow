@@ -186,6 +186,7 @@ RETIRED_KEYS_NOTICE = (
     "orchestrator, provider_mode, and routing.review.independence are ignored since gin 3.3.0; "
     "run gin setup update --to-version 2.11 --approve"
 )
+USAGE_IGNORED_NOTICE = "usage is ignored since gin 3.4.0; delete it from .agent-workflow/config.yaml"
 
 
 def retired_keys(config: Mapping[str, Any]) -> list[str]:

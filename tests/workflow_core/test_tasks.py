@@ -141,23 +141,19 @@ class TaskDispatchTests(unittest.TestCase):
             self.assertIsNone(tasks.query(self.root, ["ready"]))
         which.assert_not_called()
         self.assertIn("team mode requires Beads", "".join(c.args[0] for c in stderr.write.call_args_list))
-        from workflow_core import specs, usage
+        from workflow_core import specs
 
         with self.assertRaisesRegex(specs.SpecsError, "team mode requires Beads"):
             specs._bd(self.root, ["ready"])
-        with self.assertRaisesRegex(usage.UsageError, "team mode requires Beads"):
-            usage._bd(self.root, ["show", "x"])
 
-    def test_specs_and_usage_follow_the_markdown_backend(self):
-        from workflow_core import specs, usage
+    def test_specs_follow_the_markdown_backend(self):
+        from workflow_core import specs
 
         self.init("providers.task_tracking=markdown")
         epic = json.loads(gw(self.root, "task", "create", "--type", "epic", "E", "--json").stdout)["id"]
         self.assertEqual(epic, specs._bd(self.root, ["show", epic])[0]["id"])
         with self.assertRaisesRegex(specs.SpecsError, "failed"):
             specs._bd(self.root, ["show", "nope-1"])
-        with self.assertRaisesRegex(usage.UsageError, "AI usage tracking requires Beads"):
-            usage._bd(self.root, ["show", epic])
 
 @unittest.skipUnless(shutil.which("bd"), "bd is not installed")
 class ExternalDependencyTests(unittest.TestCase):

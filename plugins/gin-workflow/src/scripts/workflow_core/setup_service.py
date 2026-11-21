@@ -15,6 +15,7 @@ from .checkout import main_checkout
 from .cli import CLI_VERSION
 from .configuration import (
     RETIRED_KEYS_NOTICE,
+    USAGE_IGNORED_NOTICE,
     legacy_worker_routing,
     require_yaml,
     resolve_effective_config,
@@ -492,6 +493,8 @@ def doctor(repository: Path, *, current: Path | None = None, **_: Any) -> dict[s
             )
         if retired_keys(effective_cfg):
             backend_actions.append(RETIRED_KEYS_NOTICE)
+        if "usage" in effective_cfg:
+            backend_actions.append(USAGE_IGNORED_NOTICE)
         local_path = main_checkout(root) / ".agent-workflow/orchestrator.local.yaml"
         if local_path.is_file() and _local_tier_models(_read_local_file(local_path)):
             backend_actions.append(

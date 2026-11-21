@@ -513,6 +513,17 @@ setup_cli_version: '2.2'
         validate_portable_config(migrated)
         self.assertEqual([], retired_keys(migrated))
 
+    def test_doctor_says_usage_is_ignored(self):
+        from workflow_core.configuration import USAGE_IGNORED_NOTICE
+
+        current = migrate_config(V210, "2.11")
+        with tempfile.TemporaryDirectory() as directory:
+            repository, _ = _write_repository(directory, {**current, "usage": {"budget_usd": 5}})
+            self.assertEqual(1, setup_service.doctor(repository)["actions"].count(USAGE_IGNORED_NOTICE))
+        with tempfile.TemporaryDirectory() as directory:
+            repository, _ = _write_repository(directory, current)
+            self.assertNotIn(USAGE_IGNORED_NOTICE, setup_service.doctor(repository)["actions"])
+
     def test_doctor_reports_retired_keys_on_an_older_schema(self):
         with tempfile.TemporaryDirectory() as directory:
             repository, _ = _write_repository(directory, {**V210, **RETIRED})

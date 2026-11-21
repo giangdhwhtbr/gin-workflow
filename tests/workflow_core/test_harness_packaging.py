@@ -92,10 +92,6 @@ REQUIRED_ARTIFACTS = (
     "scripts/workflow_core/team_cli.py",
     "skills/team/SKILL.md",
     "skills/team-setup/SKILL.md",
-    "scripts/workflow_core/usage.py",
-    "scripts/workflow_core/usage_logs.py",
-    "scripts/workflow_core/usage_attribution.py",
-    "scripts/workflow_core/usage_cli.py",
 )
 
 
@@ -135,7 +131,7 @@ class HarnessPackagingTests(unittest.TestCase):
         self.assertEqual(0, self.install.returncode, self.install.stderr)
         # OpenCode translates agent files into namespaced subagents, drops
         # commands, and gives gin's generic skill names a gin- prefix, so
-        # `report` does not shadow OpenCode's built-in `report` skill.
+        # they do not shadow OpenCode's built-in skills.
         prefixed = {"sdd", "team"}
         opencode_removed = {"agents/developer.md"} | {f"skills/{name}/SKILL.md" for name in prefixed}
         opencode_added = {"agents/gin-developer.md"} | {f"skills/gin-{name}/SKILL.md" for name in prefixed}

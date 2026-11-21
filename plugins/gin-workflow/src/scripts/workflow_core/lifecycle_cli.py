@@ -13,7 +13,13 @@ from typing import Any, Mapping, Sequence
 from .artifacts import ArtifactResolutionError, resolve_artifact
 from .catalog import catalog_for
 from .checkout import main_checkout
-from .configuration import RETIRED_KEYS_NOTICE, ConfigValidationError, resolve_effective_config, retired_keys
+from .configuration import (
+    RETIRED_KEYS_NOTICE,
+    USAGE_IGNORED_NOTICE,
+    ConfigValidationError,
+    resolve_effective_config,
+    retired_keys,
+)
 from .events import EventPersistenceError, WorkflowEvent, WorkflowEventStore
 from .prep import is_prep, tracks_of
 from .project import project_settings
@@ -586,7 +592,8 @@ def _state_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
         "project": {**project_settings(config.to_dict()).to_dict(),
                     "team": team_summary(repo_path, team)},
         "workspace": workspace.summary(workspace.locate(getattr(args, "start", repo_path))),
-        "warnings": [w for w in ((RETIRED_KEYS_NOTICE if retired_keys(config.to_dict()) else None), *causes, *unshared,
+        "warnings": [w for w in ((RETIRED_KEYS_NOTICE if retired_keys(config.to_dict()) else None),
+                                 (USAGE_IGNORED_NOTICE if "usage" in config.to_dict() else None), *causes, *unshared,
                                  _knowledge_warning(repo_path, config, events, workflow_id, gates_state,
                                                     epic=warn_epic)) if w],
         "recent_quick": [

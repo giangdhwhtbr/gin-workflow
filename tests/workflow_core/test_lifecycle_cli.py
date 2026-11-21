@@ -142,6 +142,24 @@ class TestLifecycleCLI(unittest.TestCase):
         self.assertIn("gates", data)
         self.assertEqual([], [w for w in data["warnings"] if "event log unreadable" in w])
 
+    def test_state_says_usage_is_ignored(self):
+        import io
+        from unittest.mock import patch
+
+        from workflow_core.configuration import USAGE_IGNORED_NOTICE
+
+        def warnings():
+            with patch("sys.stdout", new=io.StringIO()) as fake_out:
+                lifecycle_main(["state", "--repository", str(self.repo_path), "--format", "json"])
+            return json.loads(fake_out.getvalue())["warnings"]
+
+        config = self.workflow_dir / "config.yaml"
+        original = config.read_text(encoding="utf-8")
+        config.write_text(original + "usage:\n  budget_usd: 5\n", encoding="utf-8")
+        self.assertEqual(1, warnings().count(USAGE_IGNORED_NOTICE))
+        config.write_text(original, encoding="utf-8")
+        self.assertNotIn(USAGE_IGNORED_NOTICE, warnings())
+
     def test_state_warns_about_retired_keys_on_an_older_schema(self):
         import io
         from unittest.mock import patch

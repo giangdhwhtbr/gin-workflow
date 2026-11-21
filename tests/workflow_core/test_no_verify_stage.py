@@ -18,7 +18,6 @@ ALLOWED = (
     "plugins/gin-workflow/src/scripts/workflow_core/lifecycle_cli.py",
     "plugins/gin-workflow/src/scripts/workflow_core/team.py",
     "plugins/gin-workflow/src/scripts/workflow_core/schemas.py",
-    "plugins/gin-workflow/src/scripts/workflow_core/usage_attribution.py",
     "plugins/gin-workflow/src/scripts/review_ledger/",
     "plugins/gin-workflow/src/scripts/review-ledger.py",
     "tests/",

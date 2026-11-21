@@ -70,8 +70,7 @@ def _split(argv: Sequence[str], waiving: bool) -> tuple[list[str], list[str], st
 
 
 def _has_review_ledger(root: Path, bead: str) -> bool:
-    from .checkout import main_checkout
-    from .usage_attribution import worktrees
+    from .checkout import main_checkout, worktrees
 
     main = main_checkout(root)
     roots = [root, main] + [tree.path for tree in worktrees(main)]
