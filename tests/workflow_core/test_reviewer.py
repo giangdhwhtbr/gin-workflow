@@ -13,19 +13,17 @@ from unittest import mock
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from team_fixtures import git, write  # noqa: E402
-from tests.workflow_core.orchestrator_fakes import fake_orchestrator, on_path  # noqa: E402
 from workflow_core import reviewer  # noqa: E402
 from workflow_core.catalog import DEFAULT_CATALOGS  # noqa: E402
 from workflow_core.models import EffectiveConfig  # noqa: E402
 from workflow_core.reviewer import ReviewerError, is_docs, review_route, route  # noqa: E402
 
 
-def config(root: Path, harness: str = "claude", provider_mode: str = "single", **review) -> EffectiveConfig:
+def config(root: Path, harness: str = "claude", **review) -> EffectiveConfig:
     return EffectiveConfig(
         {
             "schema_version": "2.9",
             "harness": harness,
-            "provider_mode": provider_mode,
             "routing": {"review": review},
         },
         root,
@@ -142,11 +140,15 @@ class RouteTests(unittest.TestCase):
             route(self.root, self.base, model="sonnet", effort=None, implementer="codex",
                   config=config(self.root, harness="claude"))
 
-    def test_provider_independence_without_orchestrator_warns(self):
-        cfg = config(self.root, harness="claude", independence="provider")
-        out = route(self.root, self.base, model="sonnet", effort=None, implementer="claude", config=cfg)
-        self.assertEqual(len(out["warnings"]), 1)
-        self.assertIn("gin-orchestrator", out["warnings"][0])
+    def test_unknown_implementer_exits_2_naming_the_harness_without_traceback(self):
+        stderr = io.StringIO()
+        with mock.patch.object(reviewer, "load_effective_config", return_value=config(self.root, harness="claude")), \
+                mock.patch("sys.stderr", stderr):
+            code = reviewer.main(["--base", self.base, "--implementer", "nosuch", "--model", "g1",
+                                  "--repository", str(self.root), "--json"])
+        self.assertEqual(2, code)
+        self.assertIn("unknown harness: nosuch", stderr.getvalue())
+        self.assertNotIn("Traceback", stderr.getvalue())
 
     def test_json_flag_prints_the_routes_document(self):
         stdout = io.StringIO()
@@ -169,61 +171,6 @@ class RouteTests(unittest.TestCase):
         self.assertEqual(doc["routes"][0]["model"], "sonnet")
         self.assertEqual(doc["routes"][0]["effort"], "medium")
         self.assertRegex(doc["routes"][0]["actor_id"], r"^reviewer:claude:session-[0-9a-f]{8}$")
-
-    def test_multi_mode_returns_orchestrator_routes(self):
-        cfg = config(self.root, harness="claude", provider_mode="multi")
-        orch_routes = [{"provider": "codex", "model": "opus", "effort": None, "actor_id": "reviewer:codex"}]
-        with tempfile.TemporaryDirectory() as fake_dir:
-            fake_orchestrator(fake_dir, contract=2, capabilities=["reviewer"], replies={"reviewer": orch_routes})
-            with on_path(fake_dir):
-                out = route(self.root, self.base, model="sonnet", effort="medium", implementer="claude", config=cfg)
-                self.assertEqual(orch_routes, out["routes"])
-
-    def test_multi_mode_passes_the_implementer_route_to_the_orchestrator(self):
-        # F2
-        cfg = config(self.root, harness="claude", provider_mode="multi")
-        orch_routes = [{"provider": "claude", "model": "sonnet", "effort": "high", "actor_id": "reviewer:claude"}]
-        with tempfile.TemporaryDirectory() as fake_dir:
-            fake_orchestrator(fake_dir, contract=2, capabilities=["reviewer"], replies={"reviewer": orch_routes})
-            with on_path(fake_dir):
-                out = route(self.root, self.base, model="gpt-6-astra", effort="high", implementer="codex", config=cfg)
-            calls = [json.loads(line) for line in (Path(fake_dir) / ".calls").read_text(encoding="utf-8").splitlines()]
-        self.assertEqual(orch_routes, out["routes"])
-        self.assertEqual([], out["warnings"])
-        reviewer_call = next(call for call in calls if call[0] == "reviewer")
-        self.assertEqual(["gpt-6-astra", "high"], [reviewer_call[reviewer_call.index("--model") + 1],
-                                                  reviewer_call[reviewer_call.index("--effort") + 1]])
-
-    def test_empty_orchestrator_routes_exit_2(self):
-        cfg = config(self.root, harness="claude", provider_mode="multi")
-        with tempfile.TemporaryDirectory() as fake_dir:
-            fake_orchestrator(fake_dir, contract=2, capabilities=["reviewer"], replies={"reviewer": []})
-            with on_path(fake_dir):
-                with self.assertRaises(ReviewerError):
-                    route(self.root, self.base, model="sonnet", effort="medium", implementer="claude", config=cfg)
-
-    def test_failing_orchestrator_reviews_on_the_main_harness_with_warning(self):
-        cfg = config(self.root, harness="claude", provider_mode="multi")
-        with tempfile.TemporaryDirectory() as fake_dir:
-            fake_orchestrator(fake_dir, contract=2, capabilities=["reviewer"], fail=["reviewer"])
-            with on_path(fake_dir):
-                out = route(self.root, self.base, model="sonnet", effort="medium", implementer="claude", config=cfg)
-                self.assertEqual("claude", out["routes"][0]["provider"])
-                self.assertTrue(
-                    any("gin-orchestrator failed" in w for w in out["warnings"]),
-                    out["warnings"],
-                )
-
-    def test_malformed_orchestrator_reply_reviews_on_the_main_harness_with_warning(self):
-        cfg = config(self.root, harness="claude", provider_mode="multi")
-        for reply in ({"routes": []}, ["codex"]):
-            with tempfile.TemporaryDirectory() as fake_dir:
-                fake_orchestrator(fake_dir, contract=2, capabilities=["reviewer"], replies={"reviewer": reply})
-                with on_path(fake_dir):
-                    out = route(self.root, self.base, model="sonnet", effort="medium", implementer="claude", config=cfg)
-                    self.assertEqual("claude", out["routes"][0]["provider"], reply)
-                    self.assertIn("gin-orchestrator failed (orchestrator_failed); reviewing on the main harness",
-                                  out["warnings"])
 
 
 if __name__ == "__main__":

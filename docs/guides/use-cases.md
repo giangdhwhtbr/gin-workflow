@@ -33,10 +33,10 @@ A feature or migration that splits into dependent tracks, for example CSV export
 1. `/gin:discuss` produces the confirmed spec.
 2. `/gin:plan` gives each track its files, interfaces, test-first steps, a provider role (`backend` for A and B, `frontend` for C), and a model and effort from the model catalog with the reason for the choice.
 3. `/gin:orchestrate` creates the epic and three track tasks, then resolves every route and writes the assignment manifest only when all tracks resolve. It then adds the dependencies and creates the worktree.
-4. `/gin:execute` per ready track, each in a `gin:developer` subagent at the track's model and effort: A first; closing A makes B ready, and so on. Each track is reviewed independently before it closes.
+4. `/gin:execute` per ready track, each at the track's model and effort, in a `gin:developer` subagent on Claude Code and Antigravity and in the session on Codex, OpenCode, and Copilot: A first; closing A makes B ready, and so on. Each track is reviewed independently before it closes.
 5. With the review ledger on, `/gin:ship` checks every ledger and any changes after review (the quality gates already ran in the git hooks), then merges or opens the pull request with your approval.
 
-Routes to other harnesses need the [gin-orchestrator](../orchestrator/README.md) extension; without it every track runs on the main harness. If a route is unavailable the task stays open; a fallback harness runs the route mapped by rank into its own catalog. If route resolution reports an unresolved role, or a model or effort outside the catalog, it writes no manifest until the plan or the configuration is fixed; the beads stay.
+Every track runs on the main harness. If route resolution reports an unresolved role, or a model or effort outside the catalog, it writes no manifest until the plan or the configuration is fixed; the beads stay.
 
 ## Resume in-progress work
 

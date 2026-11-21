@@ -13,7 +13,14 @@ from .bundles import export_bundle, verify_bundle
 from .catalog import DEFAULT_CATALOGS
 from .checkout import main_checkout
 from .cli import CLI_VERSION
-from .configuration import legacy_worker_routing, require_yaml, resolve_effective_config, validate_portable_config
+from .configuration import (
+    RETIRED_KEYS_NOTICE,
+    legacy_worker_routing,
+    require_yaml,
+    resolve_effective_config,
+    retired_keys,
+    validate_portable_config,
+)
 from .project import preset_assignments, project_settings
 from .project_detect import detect_project
 from .executables import detect as detect_tools, doctor_report as executables_report, tool, write_local
@@ -28,7 +35,6 @@ from .migrations import (
 from .executable_resolver import resolve_harness_executable
 from .provider_config import DEFAULT_EXECUTABLES
 from . import agents_block
-from . import orchestrator_client
 from . import snapshot
 from . import version_pin
 from . import workspace as workspace_mod
@@ -445,7 +451,7 @@ def status(repository: Path, **_: Any) -> dict[str, Any]:
     }
 
 
-def doctor(repository: Path, *, probe: bool = False, current: Path | None = None, **_: Any) -> dict[str, Any]:
+def doctor(repository: Path, *, current: Path | None = None, **_: Any) -> dict[str, Any]:
     _dependencies()
     root = Path(repository).resolve()
     entry = workspace_mod.locate(current).entry if current is not None else None
@@ -484,6 +490,8 @@ def doctor(repository: Path, *, probe: bool = False, current: Path | None = None
             backend_actions.append(
                 "notifications is ignored since schema 2.10; run gin setup update --to-version 2.10 --approve"
             )
+        if retired_keys(effective_cfg):
+            backend_actions.append(RETIRED_KEYS_NOTICE)
         local_path = main_checkout(root) / ".agent-workflow/orchestrator.local.yaml"
         if local_path.is_file() and _local_tier_models(_read_local_file(local_path)):
             backend_actions.append(
@@ -607,21 +615,6 @@ def doctor(repository: Path, *, probe: bool = False, current: Path | None = None
             checks_details["workspace"] = detail
             actions.extend(f"workspace: {action}" for action in detail["actions"])
 
-        if effective.get("provider_mode") == "multi":
-            checks_details["orchestrator"] = orchestrator_client.status()
-            if probe and orchestrator_client.delegates(effective, "doctor"):
-                try:
-                    providers = orchestrator_client.call(["doctor", "--repository", str(root)])["providers"]
-                    checks_details["providers"] = providers
-                    checks["providers"] = all(v["available"] for v in providers.values())
-                except (orchestrator_client.OrchestratorError, KeyError, TypeError, AttributeError):
-                    checks["providers"] = False
-                    checks_details["providers"] = {"reason": orchestrator_client.FAILED}
-            if not checks_details["orchestrator"].get("available"):
-                warn = orchestrator_client.warning(effective)
-                if warn:
-                    actions.append(warn)
-
     installed = CLI_VERSION
     found = version_pin.verdict(installed, root)
     checks_details["version"] = {"installed": installed, "required": found.required, "status": found.status}
@@ -629,8 +622,7 @@ def doctor(repository: Path, *, probe: bool = False, current: Path | None = None
         actions.append("version: no .ginrc; run gin setup update --approve")
     elif found.status == "newer_major":
         actions.append(f"version: .ginrc {found.required} is an older major version; run gin setup update --approve")
-    for name, version in ((version_pin.QA, version_pin.qa_version()),
-                          ("gin-orchestrator", orchestrator_client.status().get("version"))):
+    for name, version in ((version_pin.QA, version_pin.qa_version()),):
         if version and version != installed:
             actions.append(f"version: {name} {version} differs from gin {installed}; run ./install.sh --plugin {name}")
 
@@ -711,6 +703,7 @@ def update(
     local_actions: list[str] = []
     local_writes: dict[Path, bytes] = {}
     local_backup: dict[str, bytes] = {}
+    retire_local = version_key(target_version) >= version_key("2.11") and local_source.is_file()
     if version_key(target_version) >= version_key("2.9") and local_source.is_file():
         local = _read_local_file(local_source)
         tiered = _local_tier_models(local)
@@ -723,9 +716,14 @@ def update(
             rewritten = copy.deepcopy(local)
             for provider in tiered:
                 rewritten["providers"][provider].pop("models")
-            local_actions.append(f"remove provider models: from {local_source.relative_to(main)}")
+            if not retire_local:
+                local_actions.append(f"remove provider models: from {local_source.relative_to(main)}")
             local_writes[new_local] = _yaml_text(rewritten).encode("utf-8")
             local_backup[local_source.name] = local_source.read_bytes()
+    if retire_local:
+        local_writes.pop(new_local, None)
+        local_backup[local_source.name] = local_source.read_bytes()
+        local_actions.append(f"remove {local_source.relative_to(main).as_posix()}")
     validate_portable_config(migrated)
     resolved = resolve_effective_config(root, repository_config=migrated, write=False)
 
@@ -734,7 +732,7 @@ def update(
     if (local_actions or pin_actions) and proposal["status"] == "up_to_date":
         proposal["status"] = "migration_available"
     proposal["actions"] = [*proposal.get("actions", ()), *local_actions, *pin_actions]
-    if rename_local:
+    if rename_local and not retire_local:
         proposal["actions"] = [*proposal.get("actions", ()), f"rename {old_local.relative_to(main).as_posix()} to {new_local.name}"]
     payload = {**proposal, "configuration": migrated}
     if dry_run or not approve:
@@ -757,7 +755,10 @@ def update(
             atomic_write_many(pin_writes)
             res["status"] = "updated"
         res.setdefault("actions", []).extend(pin_actions)
-    if rename_local:
+    if retire_local:
+        local_source.unlink()
+        res.setdefault("actions", []).append(f"remove {local_source.relative_to(main).as_posix()}")
+    elif rename_local:
         if local_writes:
             old_local.unlink()
         else:
@@ -915,19 +916,9 @@ def preset(repository: Path, *, project_stage: str | None = None, project_shape:
             "warnings": [f"no {key} command detected" for key in missing], "actions": []}
 
 
-def models(repository: Path, *, provider: str | None = None, **_: Any) -> dict[str, Any]:
-    if not provider:
-        raise SetupError("--provider is required")
-    from . import orchestrator_client
-
-    listed = orchestrator_client.models(provider)
-    return {"status": "listed", "provider": provider, "models": listed, "manual_entry": True, "actions": []}
-
-
 COMMANDS = {
     "detect": detect,
     "preset": preset,
-    "models": models,
     "init": initialize,
     "configure": configure,
     "refresh": refresh,

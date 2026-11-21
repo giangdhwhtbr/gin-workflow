@@ -9,7 +9,7 @@ Coordinate one setup session outside the lifecycle. Do not require generated con
 
 ## Quick setup (default)
 
-Setup runs with one main harness; worker harnesses come from gin-orchestrator (`/gin-orchestrator:providers`).
+Setup runs with one main harness.
 
 Ask exactly one question at a time and wait for its answer. Do not infer required answers or combine questions.
 
@@ -35,6 +35,6 @@ One `/setup` invocation completes initial setup. Repeated identical `init` calls
 
 ## Explicit maintenance
 
-On an initialized repository, run only the maintenance action the user requested: `detect`, `preset`, `models`, `configure`, `refresh`, `update`, `doctor` (`--probe` for active model health; also reports missing git hooks and missing verify commands, a stale codegraph index, and a greenfield stage that now has sources), `status`, `diff`, `rollback`, `export-bundle`, or `verify-bundle`. Present dry-run output before user-authored configuration changes, upgrades, rollback, or data movement. After bootstrap, protected mutations use the approval and evidence capabilities.
+On an initialized repository, run only the maintenance action the user requested: `detect`, `preset`, `configure`, `refresh`, `update`, `doctor` (reports missing git hooks and missing verify commands, a stale codegraph index, and a greenfield stage that now has sources), `status`, `diff`, `rollback`, `export-bundle`, or `verify-bundle`. Present dry-run output before user-authored configuration changes, upgrades, rollback, or data movement. After bootstrap, protected mutations use the approval and evidence capabilities.
 
 The CLI must not prompt, choose policy, or manufacture approval.

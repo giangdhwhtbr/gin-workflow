@@ -44,7 +44,7 @@ Setup hỏi từng câu một và tạo `.agent-workflow/config.yaml`:
 - Code index: với codebase có sẵn, setup đề nghị chạy `codegraph init` khi đã cài CodeGraph.
 - Theo dõi task: `markdown` (mặc định; file cục bộ dưới `.planning/tasks/`) hoặc `beads` (cần `bd`).
 
-Mọi thứ chạy trong harness bạn đã mở (`provider_mode: single`).
+Mọi thứ chạy trong harness bạn đã mở.
 
 Hãy commit `.agent-workflow/config.yaml` vào git.
 

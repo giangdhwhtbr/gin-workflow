@@ -50,7 +50,7 @@ Cause: the Copilot bundle's `hooks/hooks.json` runs `scripts/safety_check.py` wi
 
 ## `bwrap: loopback: Failed RTM_NEWADDR: Operation not permitted`
 
-Cause: on Ubuntu 24.04 and later, AppArmor restricts unprivileged user namespaces by default (`kernel.apparmor_restrict_unprivileged_userns=1`). The Codex CLI sandbox (`bwrap`) and the Antigravity CLI sandbox (`agy --sandbox`) both need one, so every sandboxed shell action, `apply_patch` included, fails for any file in any project. The restriction belongs to the host, not to gin-workflow, Codex CLI, or Antigravity CLI. gin-orchestrator avoids it only for the Codex workers it dispatches, which run `codex exec --dangerously-bypass-approvals-and-sandbox` inside their own worktree; a Codex session you start yourself, and Antigravity, still fail.
+Cause: on Ubuntu 24.04 and later, AppArmor restricts unprivileged user namespaces by default (`kernel.apparmor_restrict_unprivileged_userns=1`). The Codex CLI sandbox (`bwrap`) and the Antigravity CLI sandbox (`agy --sandbox`) both need one, so every sandboxed shell action, `apply_patch` included, fails for any file in any project. The restriction belongs to the host, not to gin-workflow, Codex CLI, or Antigravity CLI. A Codex session and an Antigravity session both fail until the restriction is lifted.
 
 Fix it once per host, in an interactive terminal, because `sudo` prompts for a password:
 
@@ -71,27 +71,15 @@ Fix it once per host, in an interactive terminal, because `sudo` prompts for a p
    codex sandbox -- echo hello                            # should print "hello", not a bwrap error
    ```
 
-## A provider CLI that runs in your shell is reported unavailable
-
-Cause: gin-orchestrator looks for each provider executable on the `PATH` of the process that runs it, then in a fixed list: `~/.npm-global/bin`, `~/.local/bin`, `~/.opencode/bin`, `~/.local/share/pnpm`, `/usr/local/bin`, and `/home/linuxbrew/.linuxbrew/bin`. Codex and Antigravity run commands without sourcing `~/.zshrc` or `~/.bashrc`. A CLI in a directory outside that list, reachable only through a `PATH` entry added in those files, is then not found. `gin setup doctor --probe --format json` reports it under `checks_details.providers` as `executable_not_found` (key `<provider>.executable`), or as `executable_or_help_unavailable` (key `<provider>.<model>`) when its `--help` cannot run.
-
-1. Link the CLI into `/usr/local/bin`, which is on the fixed list:
-
-   ```bash
-   sudo ln -s "$(which claude)" /usr/local/bin/claude
-   ```
-
-2. Check that it runs without your shell's `PATH` changes:
-
-   ```bash
-   env -i PATH="/usr/local/bin:/usr/bin:/bin" claude --version
-   ```
-
-3. Repeat for each other provider CLI (`codex`, `agy`, `opencode`) that a minimal `PATH` cannot reach.
-
 ## A CLI works in your shell but gin-workflow reports it missing or uses an old copy
 
 Cause: `.agent-workflow/executables.local.yaml` records the path found when `setup` last ran, and `setup doctor` lists stale entries under `checks_details.executables`. Run `gin setup refresh` to record the current paths, or edit the file. See [`executables.local.yaml`](config.md#executableslocalyaml).
+
+## `main harness <name>: executable not found on PATH`
+
+Cause: `gin setup doctor` looks for the main harness executable on `PATH`, then in these directories: `~/.npm-global/bin`, `~/.local/bin`, `~/.opencode/bin`, `~/.local/share/pnpm`, `/usr/local/bin`, and `/home/linuxbrew/.linuxbrew/bin`, plus `%APPDATA%\npm` on Windows. Codex and Antigravity run commands without sourcing `~/.zshrc` or `~/.bashrc`, so a CLI reachable only through a `PATH` entry added in those files is not found.
+
+Fix: link the CLI into one of those directories, for example `/usr/local/bin`, or add its directory to the `PATH` of the process that runs gin.
 
 ## A repository still hits a gin-workflow bug that was already fixed and shipped on `master`
 
@@ -138,17 +126,15 @@ Cause: the router holds the workflow at the `progress` stage when a blocker is r
      gin unblock --clear-blocker --reason "cleared blocker reason" --actor <your-id>
      ```
 
-## `orchestrator_missing`, `orchestrator_contract_mismatch`, or `orchestrator_failed`
+## `orchestrator, provider_mode, and routing.review.independence are ignored since gin 3.3.0`
 
-Cause: with `provider_mode: multi`, gin-workflow hands worker routing and reviews to `gin-orchestrator`; these codes say it could not, and work continues on the main harness. Before delegating, gin-workflow checks the extension. When the check fails, `gin state` and `setup doctor` warn `<code>; install with ./install.sh --plugin gin-orchestrator`. The code is `orchestrator_missing` when `gin-orchestrator` is not on `PATH`, `orchestrator_contract_mismatch` when it reports a contract version other than 2, and `orchestrator_failed` when `gin-orchestrator version` fails. When the check passes but a delegated command exits non-zero or prints invalid JSON, gin-workflow reports it per command. `routes resolve` warns `gin-orchestrator failed (orchestrator_failed); routing every track to the main harness`. `reviewer` warns `gin-orchestrator failed (orchestrator_failed); reviewing on the main harness`. `setup doctor --probe --format json` reports `"reason": "orchestrator_failed"` under `checks_details.providers`.
+Cause: the configuration is below schema 2.11 and still holds one of the keys the worker extension used. gin 3.3.0 runs every stage in the main harness, so `gin state` warns and `gin setup doctor` lists one action; nothing else changes. A schema 2.11 configuration that holds one of them is refused with `<key> was removed in schema 2.11`.
 
-1. For the `install with` warning, install or update the extension, then run `gin setup doctor --probe`; the warning no longer appears:
+Fix: remove the keys with the update. Role names found only under `orchestrator.roles` move to `routing.roles`.
 
-   ```bash
-   ./install.sh --plugin gin-orchestrator
-   ```
-
-2. For a delegated command that failed, run it directly in the repository to see its error, for example `gin-orchestrator doctor --json`. The command for each delegation is in the [CLI reference](cli.md#delegation-to-gin-orchestrator).
+```bash
+gin setup update --to-version 2.11 --approve
+```
 
 ## `.beads exists but providers.task_tracking is unset, so tasks use markdown`
 
@@ -171,7 +157,7 @@ Cause: `.ginrc` in the project pins a gin version higher than the one installed,
 
 ## Upgrading from gin-workflow 2.x
 
-Version 3.0 renames the CLI to `gin` and the skills to the `gin:` namespace (`/gin:discuss`, `gin:learn`), with no `gin-workflow` alias. `./install.sh` installs `gin` and removes the old `gin-workflow` launcher and plugin installs it manages. It also reinstalls the gin-qa and gin-orchestrator add-ons whose launchers it manages, so they call `gin`; a `--project` install refreshes those launchers too but writes only the plugins named on the command line into the project. A global install also reinstalls gin-ba when `~/.claude/skills/gin-ba` exists, since gin-ba has no launcher.
+Version 3.0 renames the CLI to `gin` and the skills to the `gin:` namespace (`/gin:discuss`, `gin:learn`), with no `gin-workflow` alias. `./install.sh` installs `gin` and removes the old `gin-workflow` launcher and plugin installs it manages. It also reinstalls the gin-qa add-on when the installer manages its launcher, so it calls `gin`; a `--project` install refreshes that launcher too but writes only the plugins named on the command line into the project. A global install also reinstalls gin-ba when `~/.claude/skills/gin-ba` exists, since gin-ba has no launcher.
 
 In each repository, run `gin hooks install`, then `gin setup refresh`; with team mode, also `gin team init`. A hook installed before 3.0 stops the commit with `gin-workflow is not on PATH`, so no check is skipped silently. `gin setup doctor` reports what is still on the old name.
 

@@ -42,7 +42,7 @@ Setup phát hiện môi trường của bạn và hỏi:
 - Stack intent: các công nghệ bạn dự định dùng, ví dụ TypeScript, Python, React hoặc FastAPI. Setup hỏi điều này thay cho verify commands, vốn bạn có thể thêm sau trong `.agent-workflow/config.yaml`.
 - Theo dõi task: `markdown` (file cục bộ) hoặc `beads`, cần `bd`. Markdown là mặc định.
 
-Mọi thứ chạy trong harness bạn đã mở (`provider_mode: single`).
+Mọi thứ chạy trong harness bạn đã mở.
 
 Hãy commit `.agent-workflow/config.yaml` được tạo vào repository:
 

@@ -7,7 +7,6 @@ from collections.abc import Mapping, Sequence
 import json
 from pathlib import Path
 import sys
-import tempfile
 from typing import Any
 
 from .assignments import (
@@ -26,7 +25,7 @@ from .configuration import ConfigValidationError, load_effective_config, require
 from .events import WorkflowEvent, WorkflowEventStore
 from .locking import file_lock
 from .models import EffectiveConfig
-from . import orchestrator_client, usage, workspace
+from . import usage, workspace
 from .project_detect import detect_project
 from .provider_config import PROVIDER_DEFAULT
 
@@ -62,69 +61,6 @@ def resolve(
     warnings: list[str] = []
     config_dict = config.to_dict() if hasattr(config, "to_dict") else dict(config)
 
-    if orchestrator_client.delegates(config_dict, "routes"):
-        with tempfile.NamedTemporaryFile("w", encoding="utf-8", suffix=".json", delete=False) as tf:
-            json.dump(list(tracks), tf)
-            tracks_file = Path(tf.name)
-        try:
-            reply = orchestrator_client.call([
-                "routes", "resolve",
-                "--workflow-id", workflow_id,
-                "--tracks", str(tracks_file),
-                "--main-harness", harness,
-                "--repository", str(root),
-            ])
-        except orchestrator_client.OrchestratorError as error:
-            warnings.append(f"gin-orchestrator failed ({error}); routing every track to the main harness")
-            reply = None
-        finally:
-            tracks_file.unlink(missing_ok=True)
-        if reply is not None and not (
-            isinstance(reply, Mapping)
-            and isinstance(reply.get("diagnostics", []), list)
-            and isinstance(reply.get("routes", []), list)
-        ):
-            warnings.append(f"gin-orchestrator failed ({orchestrator_client.FAILED}); routing every track to the main harness")
-            reply = None
-
-        if reply is not None:
-            diagnostics = list(reply.get("diagnostics", []))
-            if diagnostics:
-                return {
-                    "workflow_id": workflow_id,
-                    "main_harness": harness,
-                    "routes": [],
-                    "diagnostics": diagnostics,
-                    "warnings": warnings,
-                    "manifest": None,
-                }
-            entries = list(reply.get("routes", []))
-            repos = {str(t.get("task_id", "")).strip(): str(t["repo"])
-                     for t in tracks if isinstance(t, Mapping) and t.get("repo")}
-            entries = [{**e, "repo": repos[e["task_id"]]} if isinstance(e, Mapping) and e.get("task_id") in repos else e
-                       for e in entries]
-            manifest = None
-            try:
-                path = write_assignments(root, workflow_id, entries)
-            except (AssignmentResolutionError, OSError) as error:
-                diagnostics.append(f"workflow_id: {error}")
-            else:
-                manifest = str(path.relative_to(root)) if path.is_relative_to(root) else str(path)
-            if manifest and (warning := _top_model_warning(config_dict, entries)):
-                warnings.append(warning)
-            return {
-                "workflow_id": workflow_id,
-                "main_harness": harness,
-                "routes": entries if manifest else [],
-                "diagnostics": diagnostics,
-                "warnings": warnings,
-                "manifest": manifest,
-            }
-    else:
-        warn = orchestrator_client.warning(config_dict)
-        if warn is not None:
-            warnings.append(warn)
-
     diagnostics: list[str] = []
     if not _SAFE_WORKFLOW_ID.fullmatch(workflow_id):
         diagnostics.append(f"workflow_id: unsafe path characters in '{workflow_id}'")
@@ -136,18 +72,7 @@ def resolve(
         elif task_id in task_ids[:index]:
             diagnostics.append(f"{task_id}.task_id: duplicate task_id")
 
-    orchestrator = config_dict.get("orchestrator")
-    orchestrator_roles = orchestrator.get("roles") if isinstance(orchestrator, Mapping) else None
-    owned = {
-        str(t.get("task_id", "")).strip()
-        for t in tracks
-        if isinstance(orchestrator_roles, Mapping) and t.get("provider_role") in orchestrator_roles
-    }
-    raw_diagnostics = validate_plan_assignments(tracks, config, harness)
-    for diag in raw_diagnostics:
-        if any(f"track {tid}: unknown provider role:" in diag for tid in owned):
-            continue
-        diagnostics.append(diag)
+    diagnostics.extend(validate_plan_assignments(tracks, config, harness))
 
     entries: list[dict[str, Any]] = []
     if not diagnostics:

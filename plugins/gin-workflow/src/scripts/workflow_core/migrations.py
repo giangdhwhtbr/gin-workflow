@@ -14,7 +14,7 @@ from .configuration import WORKER_ROUTING_KEYS, require_yaml, role_providers, va
 from .schemas import SUPPORTED_CONFIG_VERSIONS, version_key  # noqa: F401  (version_key re-exported for setup_service)
 
 
-CURRENT_VERSION = "2.10"
+CURRENT_VERSION = "2.11"
 BACKUP_SCHEMA_VERSION = "1"
 
 
@@ -139,6 +139,33 @@ def _migrate_2_9_to_2_10(config: dict[str, Any]) -> dict[str, Any]:
     return migrated
 
 
+def _migrate_2_10_to_2_11(config: dict[str, Any]) -> dict[str, Any]:
+    """The worker extension is retired: `orchestrator`, `provider_mode`, and `routing.review.independence` go."""
+    migrated = copy.deepcopy(dict(config))
+    orchestrator = migrated.pop("orchestrator", None)
+    migrated.pop("provider_mode", None)
+    routing = dict(migrated.get("routing") or {})
+    roles = dict(routing.get("roles") or {})
+    retired = orchestrator.get("roles") if isinstance(orchestrator, Mapping) else None
+    for name in (retired if isinstance(retired, Mapping) else ()):
+        roles.setdefault(str(name), {"preferred": ["main_harness"]})
+    if roles:
+        routing["roles"] = roles
+    review = dict(routing.get("review") or {})
+    review.pop("independence", None)
+    if review:
+        routing["review"] = review
+    else:
+        routing.pop("review", None)
+    if routing:
+        migrated["routing"] = routing
+    else:
+        migrated.pop("routing", None)
+    for field in ("schema_version", "workflow_version", "setup_cli_version"):
+        migrated[field] = "2.11"
+    return migrated
+
+
 _MIGRATIONS = {
     ("2.0", "2.1"): _migrate_2_0_to_2_1,
     ("2.1", "2.2"): _migrate_2_1_to_2_2,
@@ -150,6 +177,7 @@ _MIGRATIONS = {
     ("2.7", "2.8"): _migrate_2_7_to_2_8,
     ("2.8", "2.9"): _migrate_2_8_to_2_9,
     ("2.9", "2.10"): _migrate_2_9_to_2_10,
+    ("2.10", "2.11"): _migrate_2_10_to_2_11,
 }
 _NEXT_STEP = {source: target for source, target in _MIGRATIONS}
 

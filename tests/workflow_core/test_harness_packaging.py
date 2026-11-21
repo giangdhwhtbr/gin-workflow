@@ -28,7 +28,6 @@ REQUIRED_ARTIFACTS = (
     "skills/plan/plan-schema.md",
     "skills/orchestrate/SKILL.md",
     "skills/execute/SKILL.md",
-    "skills/execute/references/worker-lifecycle.md",
     "skills/execute/references/delegation-policy.md",
     "skills/execute/references/result-contract.md",
     "skills/tech-doc/references/jvm-routes.md",
@@ -373,10 +372,9 @@ class HarnessPackagingTests(unittest.TestCase):
     def test_t8_provider_routing_documents_portable_and_local_boundaries(self):
         content = (ROOT / "docs/concepts/providers.md").read_text(encoding="utf-8")
         self.assertIn("A plan never names a concrete model", content)
-        self.assertIn("live only in `.agent-workflow/orchestrator.local.yaml`", content)
+        self.assertIn("and never a provider", content)
+        self.assertIn("never contain executable paths, credentials, secrets", content)
         self.assertIn("secret values are never written", content)
-        orchestrator = (ROOT / "docs/orchestrator/README.md").read_text(encoding="utf-8")
-        self.assertIn("provider_default", orchestrator)
 
     def test_scoped_markdown_links_are_repo_relative_and_resolve(self):
         roots = [ROOT / "README.md", ROOT / "docs", ROOT / "plugins/gin-workflow/src/references"]

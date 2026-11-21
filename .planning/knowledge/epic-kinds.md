@@ -14,7 +14,7 @@ Epic `gin-workflow-3nwf` (workflow `epic-kinds`, 2026-11-12). In team mode, pure
 
 **Consequences**
 - The map form needs gin-workflow 3.1 or later; older versions reject the config at schema validation.
-- `tests/gin_orchestrator/test_harness_packaging.py` pins the list of packaged references; adding a file under `plugins/gin-workflow/src/references/` must update it. Track 3 missed it because its validation ran only the targeted tests; the full suite in Track 4 caught it.
+- `tests/workflow_core/test_harness_packaging.py` (under `tests/gin_orchestrator/` before gin 3.3.0) pins the list of packaged references; adding a file under `plugins/gin-workflow/src/references/` must update it. Track 3 missed it because its validation ran only the targeted tests; the full suite in Track 4 caught it.
 - `roadmap/SKILL.md` is at 11,985 of 12,000 characters and `discuss/SKILL.md` at 5,990 of 6,000; new rules go in a reference.
 - Execution: antigravity timed out at 900 s on Track 2 and the main harness (claude) took the fallback; `invalid_result_contract` results still need manual commit checks.
 - Changing a kind after the spec is confirmed needs a new `/gin:discuss`. Showing the kind in `/gin:progress` or gin-console is out of scope.

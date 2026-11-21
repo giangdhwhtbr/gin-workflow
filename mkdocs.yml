@@ -92,9 +92,7 @@ plugins:
 
 not_in_nav: |
   /concepts/**
-  /orchestrator/**
   /contributing.md
-  /reference/orchestrator-contract.md
 
 validation:
   nav:

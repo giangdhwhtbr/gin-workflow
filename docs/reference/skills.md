@@ -1,6 +1,6 @@
 # Skills reference
 
-Every skill is also a slash command: `/gin:<name>` (Claude Code) or the harness equivalent, `/gin-qa:<name>` for the QA add-on, `/gin-ba:<name>` for the BA add-on, and `/gin-orchestrator:<name>` for the worker harnesses add-on. In OpenCode, invoke a skill by id with `@<name>` (for example `@plan`; `learn` is `@gin-learn` and `report` is `@gin-report`, as for the other six generic skills, see [Troubleshooting](troubleshooting.md#opencode-does-not-show-the-gin-skills)); the lifecycle stages still run through the `gin` CLI. In GitHub Copilot CLI the skills register under their plain names (`setup`, `workflow`, `plan`, ...), as `copilot skill list` shows.
+Every skill is also a slash command: `/gin:<name>` (Claude Code) or the harness equivalent, `/gin-qa:<name>` for the QA add-on, `/gin-ba:<name>` for the BA add-on. In OpenCode, invoke a skill by id with `@<name>` (for example `@plan`; `learn` is `@gin-learn` and `report` is `@gin-report`, as for the other six generic skills, see [Troubleshooting](troubleshooting.md#opencode-does-not-show-the-gin-skills)); the lifecycle stages still run through the `gin` CLI. In GitHub Copilot CLI the skills register under their plain names (`setup`, `workflow`, `plan`, ...), as `copilot skill list` shows.
 
 ## gin: lifecycle stages
 
@@ -11,7 +11,7 @@ Run these in order for a feature. `workflow` picks the next one for you.
 | `discuss` | Clarify a requirement into a confirmed design spec before any planning, tasks, or code | `requirement_confirmed` |
 | `plan` | Turn the confirmed spec into an implementation plan with routed tracks | `plan_approved` |
 | `orchestrate` | Mirror the plan into Beads tracks, resolve provider routes, and prepare an isolated workspace (a worktree unless isolation is disabled with approval) | `orchestration_ready` |
-| `execute` | Implement and validate one ready track, directly or through a routed worker | track closed |
+| `execute` | Implement and validate one ready track, in a native subagent or in the session | track closed |
 | `review` | Request or perform a bead review (independent or self check), with an optional review ledger | approved review |
 | `ship` | Offer merge, PR, keep, or discard; run the chosen one; close beads (and ledgers when on) | `shipped` |
 
@@ -85,14 +85,6 @@ Skills for the BA's inputs to a capability, written into its dated asset folders
 | `mockup` | Build a self-contained interactive HTML mockup at `assets/<date>/mockup/index.html`, one section per screen, revised until the BA confirms |
 
 Each skill sets `Confirmed: <date>` in `description.md` only after the BA confirms; SDD discuss cites only confirmed folders.
-
-## gin-orchestrator (optional add-on)
-
-See the [orchestrator contract](orchestrator-contract.md).
-
-| Skill | Purpose |
-|---|---|
-| `providers` | Configure worker harnesses: which harnesses may run work, the model catalog of each harness, preferred and fallback harnesses per role, concurrency, and limits |
 
 ## Prompt templates
 

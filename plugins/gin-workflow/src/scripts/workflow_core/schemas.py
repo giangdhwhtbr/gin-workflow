@@ -8,8 +8,8 @@ from .epic_kind import KINDS
 from .models import DependencyUnavailableError
 
 
-SUPPORTED_SCHEMA_VERSION = "2.10"
-SUPPORTED_CONFIG_VERSIONS = ("2.3", "2.4", "2.5", "2.6", "2.7", "2.8", "2.9", "2.10")
+SUPPORTED_SCHEMA_VERSION = "2.11"
+SUPPORTED_CONFIG_VERSIONS = ("2.3", "2.4", "2.5", "2.6", "2.7", "2.8", "2.9", "2.10", "2.11")
 
 
 def version_key(version: str) -> tuple[int, ...]:

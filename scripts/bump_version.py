@@ -10,7 +10,7 @@ import re
 import sys
 
 VERSION_RE = re.compile(r"[0-9]+\.[0-9]+\.[0-9]+")
-PLUGINS = ("gin-workflow", "gin-qa", "gin-orchestrator", "gin-ba")
+PLUGINS = ("gin-workflow", "gin-qa", "gin-ba")
 JSON_VERSION = re.compile(r'^\s*"version":\s*"([^"]+)"', re.MULTILINE)
 
 
@@ -26,14 +26,11 @@ def locations(root: Path) -> list[tuple[Path, re.Pattern]]:
     found += [
         (root / "plugins/gin-workflow/src/scripts/workflow_core/cli.py", re.compile(r'^CLI_VERSION = "([^"]+)"', re.MULTILINE)),
         (root / "plugins/gin-qa/src/scripts/gin_qa/cli.py", re.compile(r'^VERSION = "([^"]+)"', re.MULTILINE)),
-        (root / "plugins/gin-orchestrator/src/scripts/gin_orchestrator/cli.py", re.compile(r'^ORCHESTRATOR_VERSION = "([^"]+)"', re.MULTILINE)),
     ]
-    for name in ("LAUNCHER_VERSION", "QA_LAUNCHER_VERSION", "ORCH_LAUNCHER_VERSION"):
+    for name in ("LAUNCHER_VERSION", "QA_LAUNCHER_VERSION"):
         found.append((root / "install.sh", re.compile(rf'^{name}="([^"]+)"', re.MULTILINE)))
-    for name in ("LauncherVersion", "QaLauncherVersion", "OrchLauncherVersion"):
+    for name in ("LauncherVersion", "QaLauncherVersion"):
         found.append((root / "install.ps1", re.compile(rf"^\${name} = '([^']+)'", re.MULTILINE)))
-    # The one documentation page that quotes the version as CLI output.
-    found.append((root / "docs/reference/orchestrator-contract.md", re.compile(r'"orchestrator_version": "([^"]+)"')))
     return found
 
 

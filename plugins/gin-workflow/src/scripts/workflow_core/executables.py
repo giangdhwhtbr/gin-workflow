@@ -11,7 +11,7 @@ from .atomic import atomic_write_text
 from .checkout import main_checkout
 from .configuration import require_yaml
 
-KNOWN_TOOLS = ("git", "bd", "gh", "glab", "gt", "aws", "npm", "npx", "gin", "gin-orchestrator", "codegraph")
+KNOWN_TOOLS = ("git", "bd", "gh", "glab", "gt", "aws", "npm", "npx", "gin", "codegraph")
 LOCAL_FILE = ".agent-workflow/executables.local.yaml"
 
 
@@ -82,7 +82,7 @@ def detect(names: Iterable[str] = KNOWN_TOOLS, root: Path | None = None) -> dict
 
 def write_local(root: Path, found: Mapping[str, str]) -> Path:
     path = _base(root) / LOCAL_FILE
-    lines = ['schema_version: "2.10"', "executables:"] + [f"  {k}: {v}" for k, v in found.items()]
+    lines = ['schema_version: "2.11"', "executables:"] + [f"  {k}: {v}" for k, v in found.items()]
     atomic_write_text(path, "\n".join(lines) + "\n")
     clear_cache()
     return path

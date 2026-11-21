@@ -6,33 +6,26 @@ import unittest
 
 from workflow_core.configuration import ConfigValidationError, validate_portable_config
 from workflow_core.migrations import migrate_config
-from workflow_core.project import ProjectSettings, preset_assignments, project_settings
+from workflow_core.project import preset_assignments, project_settings
 from workflow_core.setup_service import _parse_assignment, _set_nested
 
 
 class TestProjectSettings(unittest.TestCase):
     def test_missing_project_section_keeps_legacy_behavior(self):
         settings = project_settings({"schema_version": "2.3"})
-        self.assertEqual(("fullstack", "standard", "single", "session"),
-                         (settings.shape, settings.rigor, settings.provider_mode, settings.independence))
+        self.assertEqual(("fullstack", "standard"), (settings.shape, settings.rigor))
         self.assertEqual({}, settings.verify_commands)
-        self.assertEqual("single", ProjectSettings().provider_mode)
-        self.assertEqual("session", ProjectSettings().independence)
-        self.assertEqual("single", project_settings({}).provider_mode)
-        self.assertEqual("session", project_settings({}).independence)
 
     def test_explicit_project_values_are_read(self):
         settings = project_settings({
             "schema_version": "2.4",
             "project": {"stage": "brownfield", "shape": "frontend", "rigor": "easy", "worktree": "never"},
-            "provider_mode": "single",
             "verify": {"checks": {"lint": "pnpm run lint", "e2e": ""}},
             "routing": {"review": {"independence": "session", "max_cycles": 2}},
             "quick": {"max_files": 7},
             "clarify": {"max_questions": 5},
         })
         self.assertEqual("frontend", settings.shape)
-        self.assertEqual("session", settings.independence)
         self.assertEqual({"lint": "pnpm run lint"}, settings.verify_commands)
         self.assertEqual(7, settings.quick_max_files)
         self.assertEqual(5, settings.max_questions)
@@ -78,33 +71,35 @@ def _apply(assignments):
 
 class TestPresets(unittest.TestCase):
     def test_single_provider_frontend_standard(self):
-        config = _apply(preset_assignments(stage="brownfield", shape="frontend", rigor="standard",
-                                           task_tracking="markdown",
-                                           verify_commands={"lint": "pnpm run lint", "test": "pnpm run test: unit"}))
+        assignments = preset_assignments(stage="brownfield", shape="frontend", rigor="standard",
+                                         task_tracking="markdown",
+                                         verify_commands={"lint": "pnpm run lint", "test": "pnpm run test: unit"})
+        self.assertFalse(any(a.startswith(("provider_mode", "routing.review.independence")) for a in assignments))
+        config = _apply(assignments)
         validate_portable_config(config)
         self.assertEqual(["docs", "frontend", "general", "qa", "review"],
                          sorted(config["routing"]["roles"]))
         self.assertEqual({"preferred": ["main_harness"]}, config["routing"]["roles"]["frontend"])
-        self.assertEqual("session", config["routing"]["review"]["independence"])
         self.assertEqual("pnpm run test: unit", config["verify"]["checks"]["test"])
         self.assertEqual("parallel", config["project"]["worktree"])
-        self.assertEqual("single", config["provider_mode"])
         self.assertEqual("markdown", config["providers"]["task_tracking"])
         settings = project_settings(config)
-        self.assertEqual(("frontend", "standard", "single"), (settings.shape, settings.rigor, settings.provider_mode))
+        self.assertEqual(("frontend", "standard"), (settings.shape, settings.rigor))
 
     def test_every_shape_preset_routes_qa_to_the_main_harness(self):
         from workflow_core.project import ROLES_BY_SHAPE
         for shape in ROLES_BY_SHAPE:
             self.assertIn("qa", ROLES_BY_SHAPE[shape])
-            config = _apply(preset_assignments(stage="brownfield", shape=shape, rigor="standard"))
+            assignments = preset_assignments(stage="brownfield", shape=shape, rigor="standard")
+            self.assertFalse(any(a.startswith(("provider_mode", "routing.review.independence")) for a in assignments))
+            config = _apply(assignments)
             self.assertEqual({"preferred": ["main_harness"]}, config["routing"]["roles"]["qa"])
 
     def test_preset_backend_standard_includes_single_harness_and_task_tracking(self):
-        config = _apply(preset_assignments(stage="brownfield", shape="backend", rigor="standard", task_tracking="markdown"))
+        assignments = preset_assignments(stage="brownfield", shape="backend", rigor="standard", task_tracking="markdown")
+        self.assertFalse(any(a.startswith(("provider_mode", "routing.review.independence")) for a in assignments))
+        config = _apply(assignments)
         validate_portable_config(config)
-        self.assertEqual("single", config["provider_mode"])
-        self.assertEqual("session", config["routing"]["review"]["independence"])
         self.assertEqual("markdown", config["providers"]["task_tracking"])
         self.assertEqual(["backend", "docs", "general", "qa", "review"],
                          sorted(config["routing"]["roles"]))

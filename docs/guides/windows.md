@@ -136,7 +136,3 @@ Run a CPython build that provides the standard library module `msvcrt`.
 ### `OSError: [WinError 1314]` when creating a symlink
 
 Turn on Developer Mode in Windows Settings, or run PowerShell as Administrator. Only `install.ps1 -Link` creates symlinks; when it cannot, it copies the files and prints a warning.
-
-### `argument cannot be passed safely through cmd.exe`
-
-The OpenCode and Antigravity workers pass the prompt as a command-line argument. When their CLI is only a `.cmd` shim, gin-orchestrator runs it through `cmd.exe`, which cannot carry a double quote, a percent sign, or a line break, or a command line longer than 8,191 characters. The worker then fails with this message before it starts. Route those tracks to a worker that reads the prompt from stdin, such as Claude Code or Codex.

@@ -19,6 +19,18 @@ from workflow_core.events import (  # noqa: E402
 from workflow_core import schemas  # noqa: E402
 
 
+# One line of a real events.jsonl written by gin 3.2.0: the id of a terminal worker event excludes its payload.
+OLD_WORKER_EVENT = (
+    '{"event_id": "evt-8a485af6dbe53e95b7fb5e47bf7d56a7ed21100b07b9a1cf681a848834aa75b6", '
+    '"event_type": "worker.failed", '
+    '"idempotency_key": "integrity-provider-hardening:gin-workflow-x98:review-t1-claude-2:route:failed:none", '
+    '"payload": {"reason": "worker_routes_unavailable", "retry_identity": "review-t1-claude-2", '
+    '"worker_id": "worker-4b48a20f41467dd93fd7656a"}, '
+    '"task_id": "gin-workflow-x98", "timestamp": "2026-08-21T16:11:13.135733Z", '
+    '"workflow_id": "integrity-provider-hardening"}\n'
+)
+
+
 class WorkflowEventTests(unittest.TestCase):
     def test_append_rejects_list_payload_without_writing_it(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -99,6 +111,14 @@ class WorkflowEventTests(unittest.TestCase):
         del invalid["event_id"]
         with self.assertRaises(ValueError):
             schemas.validate_workflow_event(invalid)
+
+    def test_a_terminal_worker_event_stored_by_gin_3_2_is_still_read(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "events.jsonl"
+            path.write_text(OLD_WORKER_EVENT, encoding="utf-8")
+            stored = WorkflowEventStore(path).read_all()
+        self.assertEqual(["worker.failed"], [event.event_type for event in stored])
+        self.assertEqual("worker_routes_unavailable", stored[0].payload["reason"])
 
     def test_event_id_is_deterministic_and_ignores_timestamp(self):
         first = WorkflowEvent.create(

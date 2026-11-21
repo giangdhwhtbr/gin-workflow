@@ -43,6 +43,5 @@ Một git worktree không có `.codegraph/` riêng, nên các agent làm việc 
 
 | Công cụ | Dùng cho | Cách thiết lập |
 |---|---|---|
-| Codex CLI (`codex`), Antigravity CLI (`agy`), hoặc OpenCode (`opencode`) bên cạnh main harness của bạn | worker routing, với extension gin-orchestrator (nó gửi các track tới harness khác) | cài CLI và `./install.sh --plugin gin-orchestrator`, rồi chạy `/gin-orchestrator:providers` |
 | GitHub CLI (`gh`) hoặc GitLab CLI (`glab`) | [chế độ team](team.md) | trình quản lý gói của bạn, rồi `gh auth login` hoặc `glab auth login` |
 | Node với `@playwright/test` 1.49 trở lên | [spec end-to-end của QA](qa.md) | `npm i -D @playwright/test` và `npx playwright install` trong repository ứng dụng |

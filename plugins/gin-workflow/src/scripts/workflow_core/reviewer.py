@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import argparse
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 import json
 from pathlib import Path, PurePosixPath
 import subprocess
@@ -14,7 +14,7 @@ from typing import Any
 from .catalog import Catalog, DEFAULT_CATALOGS, catalog_for, map_route, route_diagnostics, tier_of
 from .configuration import ConfigValidationError, load_effective_config
 from .models import EffectiveConfig
-from . import orchestrator_client, workspace
+from . import workspace
 
 
 class ReviewerError(Exception):
@@ -71,52 +71,6 @@ def route(
         raise ReviewerError("; ".join(diagnostics))
 
     model, effort, reason = review_route(catalog, model, effort, diff.stdout.splitlines())
-
-    if orchestrator_client.delegates(config_dict, "reviewer"):
-        cmd = [
-            "reviewer",
-            "--base", base,
-            "--implementer", implementer,
-            "--model", model,
-            "--repository", str(root),
-        ]
-        if effort is not None:
-            cmd.extend(["--effort", effort])
-        try:
-            orch_routes = orchestrator_client.call(cmd)
-        except orchestrator_client.OrchestratorError as error:
-            warnings.append(f"gin-orchestrator failed ({error}); reviewing on the main harness")
-            orch_routes = None
-        if orch_routes is not None and not (
-            isinstance(orch_routes, list) and all(isinstance(r, Mapping) for r in orch_routes)
-        ):
-            warnings.append(f"gin-orchestrator failed ({orchestrator_client.FAILED}); reviewing on the main harness")
-            orch_routes = None
-
-        if orch_routes is not None:
-            if not orch_routes:
-                raise ReviewerError("no reviewer routes available from orchestrator")
-            return {
-                "model": model,
-                "effort": effort,
-                "reason": reason,
-                "warnings": warnings,
-                "routes": list(orch_routes),
-            }
-    else:
-        warn = orchestrator_client.warning(config_dict)
-        if warn is not None:
-            warnings.append(warn)
-
-    independence = (
-        config_dict.get("routing", {}).get("review", {}).get("independence", "session")
-        if isinstance(config_dict.get("routing"), Mapping)
-        else "session"
-    )
-    if independence == "provider" and not orchestrator_client.delegates(config_dict, "reviewer"):
-        warnings.append(
-            "routing.review.independence: provider requires gin-orchestrator; falling back to same-provider session isolation"
-        )
 
     actor_id = (
         f"reviewer:{harness}:session-{uuid.uuid4().hex[:8]}"

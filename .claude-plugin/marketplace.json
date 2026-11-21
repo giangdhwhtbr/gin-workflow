@@ -30,15 +30,6 @@
         "url": "https://github.com/giangdhwhtbr/gin-workflow.git",
         "path": "plugins/gin-ba/src"
       }
-    },
-    {
-      "name": "gin-orchestrator",
-      "description": "Worker harnesses for gin: route roles and tiers to other agent harnesses.",
-      "source": {
-        "source": "git-subdir",
-        "url": "https://github.com/giangdhwhtbr/gin-workflow.git",
-        "path": "plugins/gin-orchestrator/src"
-      }
     }
   ]
 }

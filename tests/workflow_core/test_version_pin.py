@@ -16,7 +16,6 @@ sys.path.insert(0, str(ROOT / "plugins/gin-workflow/src/scripts"))
 
 from workflow_core import version_pin  # noqa: E402
 from workflow_core.cli import CLI_VERSION  # noqa: E402
-from tests.workflow_core.orchestrator_fakes import fake_orchestrator  # noqa: E402
 from tests.workflow_core.team_fixtures import fake_cli  # noqa: E402
 from tests.workflow_core.test_workspace import git, init_repo  # noqa: E402
 
@@ -224,16 +223,15 @@ class VersionCommandTests(unittest.TestCase):
 
     def test_companions_found_on_path(self):
         fake_cli(self.bin, "gin-qa", [{"argv": ["--version"], "stdout": "gin-qa 9.9.9\n"}])
-        fake_orchestrator(self.bin)
         env = {**self.env, "PATH": f"{self.bin}{os.pathsep}{Path(sys.executable).parent}"}  # the fake runs python3
         text = run(self.root, "version", env=env).stdout.splitlines()
-        self.assertEqual([f"gin {CLI_VERSION}", "gin-qa 9.9.9", "gin-orchestrator 0.1.0"], text)
+        self.assertEqual([f"gin {CLI_VERSION}", "gin-qa 9.9.9"], text)
         payload = json.loads(run(self.root, "version", "--format", "json", env=env).stdout)
-        self.assertEqual({"gin-qa": "9.9.9", "gin-orchestrator": "0.1.0"}, payload["companions"])
+        self.assertEqual({"gin-qa": "9.9.9"}, payload["companions"])
 
         fake_cli(self.bin, "gin-qa", [{"argv": ["--version"], "exit": 1}])
         payload = json.loads(run(self.root, "version", "--format", "json", env=env).stdout)
-        self.assertEqual({"gin-orchestrator": "0.1.0"}, payload["companions"])
+        self.assertEqual({}, payload["companions"])
 
     def test_hook_is_silent_without_pin_and_when_compatible(self):
         for content in (None, CLI_VERSION, LOWER):
@@ -272,17 +270,6 @@ class VersionCommandTests(unittest.TestCase):
         self.assertEqual(("none", None), (found["status"], found["path"]))
         found = json.loads(run(outside, "version", "--format", "json", env=env).stdout)
         self.assertEqual(("older", str(self.base / ".ginrc")), (found["status"], found["path"]))
-
-    def test_orchestrator_is_found_through_executables_local_yaml(self):
-        hidden = self.base / "hidden"
-        stub = fake_orchestrator(hidden)  # gin-orchestrator.cmd on Windows
-        (self.root / ".agent-workflow").mkdir()
-        (self.root / ".agent-workflow/executables.local.yaml").write_text(
-            f'schema_version: "2.10"\nexecutables:\n  gin-orchestrator: {stub}\n',
-            encoding="utf-8")
-        env = {**self.env, "PATH": f"{self.bin}{os.pathsep}{Path(sys.executable).parent}"}  # the fake runs python3
-        payload = json.loads(run(self.root, "version", "--format", "json", env=env).stdout)
-        self.assertEqual({"gin-orchestrator": "0.1.0"}, payload["companions"])
 
     def test_hook_exits_zero_when_the_pin_cannot_be_read(self):
         (self.root / ".ginrc").mkdir()

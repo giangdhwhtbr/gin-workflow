@@ -42,7 +42,7 @@ Setup detects your environment and asks:
 - Stack intent: the technologies you plan to use, for example TypeScript, Python, React, or FastAPI. Setup asks this instead of verify commands, which you can add later in `.agent-workflow/config.yaml`.
 - Task tracking: `markdown` (local files) or `beads`, which needs `bd`. Markdown is the default.
 
-Everything runs in the harness you opened (`provider_mode: single`).
+Everything runs in the harness you opened.
 
 Commit the generated `.agent-workflow/config.yaml` to your repository:
 

@@ -124,8 +124,7 @@ class TestSchema28(unittest.TestCase):
         }
         with self.assertRaises(ConfigValidationError) as ctx:
             validate_portable_config(config)
-        self.assertIn("orchestrator:", str(ctx.exception))
-        self.assertIn("setup update --to-version 2.8", str(ctx.exception))
+        self.assertIn("removed in schema 2.11", str(ctx.exception))
 
     def test_2_8_rejects_a_routing_role_naming_a_provider(self):
         config = {
@@ -141,8 +140,7 @@ class TestSchema28(unittest.TestCase):
         }
         with self.assertRaises(ConfigValidationError) as ctx:
             validate_portable_config(config)
-        self.assertIn("orchestrator:", str(ctx.exception))
-        self.assertIn("setup update --to-version 2.8", str(ctx.exception))
+        self.assertIn("removed in schema 2.11", str(ctx.exception))
 
     def test_orchestrator_section_is_not_validated(self):
         config = {

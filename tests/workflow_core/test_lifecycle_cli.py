@@ -16,11 +16,23 @@ import unittest
 from unittest import mock
 
 from workflow_core.cli import main as cli_main
+from workflow_core.configuration import RETIRED_KEYS_NOTICE
 from workflow_core.events import EventPersistenceError, WorkflowEvent, WorkflowEventStore
 from workflow_core.lifecycle_cli import main as lifecycle_main
-from tests.workflow_core.orchestrator_fakes import fake_orchestrator, on_path
 from tests.workflow_core.team_fixtures import calls, fake_cli, path_with
 from tests.workflow_core.test_workspace import make_workspace
+
+
+# One line of a real events.jsonl written by gin 3.2.0: the id of a terminal worker event excludes its payload.
+OLD_WORKER_EVENT = (
+    '{"event_id": "evt-8a485af6dbe53e95b7fb5e47bf7d56a7ed21100b07b9a1cf681a848834aa75b6", '
+    '"event_type": "worker.failed", '
+    '"idempotency_key": "integrity-provider-hardening:gin-workflow-x98:review-t1-claude-2:route:failed:none", '
+    '"payload": {"reason": "worker_routes_unavailable", "retry_identity": "review-t1-claude-2", '
+    '"worker_id": "worker-4b48a20f41467dd93fd7656a"}, '
+    '"task_id": "gin-workflow-x98", "timestamp": "2026-08-21T16:11:13.135733Z", '
+    '"workflow_id": "integrity-provider-hardening"}\n'
+)
 
 
 class TestLifecycleCLI(unittest.TestCase):
@@ -115,82 +127,38 @@ class TestLifecycleCLI(unittest.TestCase):
         self.assertEqual(0, exit_code)
         self.assertIsNone(data["catalog"])
 
-    def test_state_reports_extensions_orchestrator(self):
+    def test_state_has_no_extensions_and_no_retired_project_keys(self):
+        data = self._state_json()
+        self.assertNotIn("extensions", data)
+        self.assertNotIn("provider_mode", data["project"])
+        self.assertNotIn("independence", data["project"])
+
+    def test_state_reads_a_log_with_an_old_worker_event(self):
+        log = self.workflow_dir / "runtime" / "events.jsonl"
+        log.parent.mkdir(parents=True, exist_ok=True)
+        with log.open("a", encoding="utf-8") as handle:
+            handle.write(OLD_WORKER_EVENT)
+        data = self._state_json()
+        self.assertIn("gates", data)
+        self.assertEqual([], [w for w in data["warnings"] if "event log unreadable" in w])
+
+    def test_state_warns_about_retired_keys_on_an_older_schema(self):
         import io
         from unittest.mock import patch
 
-        expected_keys = {"available", "version", "contract", "capabilities", "reason"}
-        # Unavailable
-        with tempfile.TemporaryDirectory() as empty_dir:
-            with on_path(empty_dir):
-                import os
-                os.environ["PATH"] = empty_dir
-                with patch("sys.stdout", new=io.StringIO()) as fake_out:
-                    lifecycle_main([
-                        "state",
-                        "--repository", str(self.repo_path),
-                        "--format", "json",
-                    ])
-                data = json.loads(fake_out.getvalue())
-                self.assertIn("extensions", data)
-                self.assertIn("orchestrator", data["extensions"])
-                orch = data["extensions"]["orchestrator"]
-                self.assertEqual(expected_keys, set(orch.keys()))
-                self.assertFalse(orch["available"])
-                self.assertEqual("orchestrator_missing", orch["reason"])
+        (self.workflow_dir / "config.yaml").write_text("schema_version: '2.10'\nprovider_mode: multi\n")
+        with patch("sys.stdout", new=io.StringIO()) as fake_out:
+            lifecycle_main(["state", "--repository", str(self.repo_path), "--format", "json"])
+        self.assertIn(RETIRED_KEYS_NOTICE, json.loads(fake_out.getvalue())["warnings"])
 
-        # Available
-        with tempfile.TemporaryDirectory() as fake_dir:
-            fake_orchestrator(fake_dir, contract=2, capabilities=["health", "doctor"])
-            with on_path(fake_dir):
-                with patch("sys.stdout", new=io.StringIO()) as fake_out:
-                    lifecycle_main([
-                        "state",
-                        "--repository", str(self.repo_path),
-                        "--format", "json",
-                    ])
-                data = json.loads(fake_out.getvalue())
-                self.assertIn("extensions", data)
-                orch = data["extensions"]["orchestrator"]
-                self.assertEqual(expected_keys, set(orch.keys()))
-                self.assertTrue(orch["available"])
-                self.assertIsNone(orch["reason"])
-                self.assertEqual(2, orch["contract"])
-                self.assertEqual(["health", "doctor"], orch["capabilities"])
+        with patch("sys.stdout", new=io.StringIO()) as fake_out:
+            lifecycle_main(["state", "--repository", str(self.repo_path), "--format", "text"])
+        self.assertIn(f"Warning: {RETIRED_KEYS_NOTICE}", fake_out.getvalue())
 
-    def test_state_warns_in_multi_mode_without_orchestrator(self):
-        import io
-        from unittest.mock import patch
-
-        (self.workflow_dir / "config.yaml").write_text("schema_version: '2.8'\nprovider_mode: multi\n")
-        with tempfile.TemporaryDirectory() as empty_dir:
-            with on_path(empty_dir):
-                import os
-                os.environ["PATH"] = empty_dir
-                # JSON format has warnings
-                with patch("sys.stdout", new=io.StringIO()) as fake_out:
-                    lifecycle_main([
-                        "state",
-                        "--repository", str(self.repo_path),
-                        "--format", "json",
-                    ])
-                data = json.loads(fake_out.getvalue())
-                self.assertIn("warnings", data)
-                self.assertTrue(
-                    any("orchestrator_missing" in w and "./install.sh --plugin gin-orchestrator" in w for w in data["warnings"]),
-                    data["warnings"],
-                )
-
-                # Text format prints Warning: ...
-                with patch("sys.stdout", new=io.StringIO()) as fake_out:
-                    lifecycle_main([
-                        "state",
-                        "--repository", str(self.repo_path),
-                        "--format", "text",
-                    ])
-                text = fake_out.getvalue()
-                self.assertIn("Warning: orchestrator_missing; install with ./install.sh --plugin gin-orchestrator", text)
-
+        (self.workflow_dir / "config.yaml").write_text("schema_version: '2.11'\n")
+        with patch("sys.stdout", new=io.StringIO()) as fake_out:
+            lifecycle_main(["state", "--repository", str(self.repo_path), "--format", "json"])
+        self.assertNotIn(RETIRED_KEYS_NOTICE, json.loads(fake_out.getvalue())["warnings"])
 
     def test_state_derives_completed_process_gates_from_matching_workflow_events(self):
         workflow_id = "two-factor"

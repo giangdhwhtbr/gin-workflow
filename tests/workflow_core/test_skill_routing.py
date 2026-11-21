@@ -25,6 +25,25 @@ class SkillRoutingTests(unittest.TestCase):
         self.assertIn("gin:code-reviewer", text)
         self.assertNotIn("--tier", text)
 
+    def test_review_and_dispatch_skills_keep_their_rules(self):
+        review = (SRC / "skills/review/SKILL.md").read_text(encoding="utf-8")
+        ledger = (SRC / "skills/review/ledger.md").read_text(encoding="utf-8")
+        receiving = (SRC / "skills/review-response/SKILL.md").read_text(encoding="utf-8")
+        policy = (SRC / "skills/execute/references/delegation-policy.md").read_text(encoding="utf-8")
+        execute = (SRC / "skills/execute/SKILL.md").read_text(encoding="utf-8")
+
+        self.assertIn("After `project.max_cycles` cycles without approval, ask the user", review)
+        self.assertIn("maximum review cycles", ledger)
+        self.assertIn("original provider/model route", review)
+        self.assertIn("transition-requested --to changes-requested --actor-role reviewer", ledger)
+        self.assertIn("`reject` only invalidates an existing approval", ledger)
+        self.assertIn("never in shell variables", ledger)
+        self.assertIn("never stop a process you did not start", review)
+        self.assertIn("same-role fallback at that model and effort or higher", receiving)
+        self.assertIn("must not close", receiving)
+        self.assertIn("gin routes dispatch --workflow-id", execute)
+        self.assertIn("A requested route is never lowered", policy)
+
     def test_plan_skill_and_schema_use_catalog_routes(self):
         for path in (SRC / "skills/plan/SKILL.md", SRC / "skills/plan/plan-schema.md"):
             text = path.read_text(encoding="utf-8")
@@ -178,8 +197,6 @@ class SkillRoutingTests(unittest.TestCase):
     def test_execute_references_use_dispatch_and_normalized_statuses(self):
         ref_dir = SRC / "skills/execute/references"
         contract = (ref_dir / "result-contract.md").read_text(encoding="utf-8")
-        dispatch = (ROOT / "plugins/gin-orchestrator/src/scripts/gin_orchestrator/worker_dispatch.py").read_text(encoding="utf-8")
-        self.assertIn("status must be completed, failed, or cancelled", dispatch)
         self.assertIn("`status`: `completed`, `failed`, or `cancelled`", contract)
         policy = (ref_dir / "delegation-policy.md").read_text(encoding="utf-8")
         for status in ("done", "needs_clarification", "failed", "blocked"):
@@ -188,25 +205,15 @@ class SkillRoutingTests(unittest.TestCase):
         self.assertIn("never lowered", policy)
         self.assertIn("one isolated worktree per worker", policy)
 
-        for path in (ref_dir / "worker-lifecycle.md", ref_dir / "delegation-policy.md"):
-            text = path.read_text(encoding="utf-8")
-            with self.subTest(file=path.name):
-                self.assertIn("routes dispatch", text)
+        self.assertIn("routes dispatch", policy)
 
-    def test_skills_reference_orchestrator_dispatch(self):
-        paths = [
-            SRC / "skills/execute/references/worker-lifecycle.md",
-            SRC / "skills/execute/SKILL.md",
-            SRC / "skills/review/SKILL.md",
-            SRC / "skills/discuss/SKILL.md",
-            SRC / "skills/plan/SKILL.md",
-            SRC / "skills/tech-doc/SKILL.md",
-        ]
-        for path in paths:
+    def test_skills_do_not_name_the_retired_extension(self):
+        self.assertFalse((SRC / "skills/execute/references/worker-lifecycle.md").exists())
+        for path in sorted((SRC / "skills").rglob("*.md")) + sorted((SRC / "references").glob("*.md")):
             text = path.read_text(encoding="utf-8")
-            with self.subTest(file=path.name):
-                self.assertIn("gin-orchestrator dispatch", text)
-
+            with self.subTest(file=str(path.relative_to(SRC))):
+                for gone in ("gin-orchestrator", "worker-lifecycle", "project.independence", "--probe"):
+                    self.assertNotIn(gone, text)
 
     def test_allocate_creates_prep_tasks_without_inherited_labels(self):
         text = (SRC / "skills/allocate/SKILL.md").read_text(encoding="utf-8")

@@ -136,7 +136,3 @@ Chạy một bản build CPython có cung cấp module thư viện chuẩn `msvc
 ### `OSError: [WinError 1314]` khi tạo symlink { #oserror-winerror-1314-when-creating-a-symlink }
 
 Bật Developer Mode trong Windows Settings, hoặc chạy PowerShell với quyền Administrator. Chỉ `install.ps1 -Link` tạo symlink; khi không tạo được, nó sao chép file và in một cảnh báo.
-
-### `argument cannot be passed safely through cmd.exe` { #argument-cannot-be-passed-safely-through-cmdexe }
-
-Các worker OpenCode và Antigravity truyền prompt dưới dạng đối số dòng lệnh. Khi CLI của chúng chỉ là một shim `.cmd`, gin-orchestrator chạy nó qua `cmd.exe`, vốn không thể mang dấu nháy kép, dấu phần trăm, hay ngắt dòng, hoặc một dòng lệnh dài hơn 8.191 ký tự. Worker khi đó thất bại với thông báo này trước khi nó bắt đầu. Hãy route các track đó tới một worker đọc prompt từ stdin, như Claude Code hoặc Codex.

@@ -9,10 +9,10 @@ This repository separates responsibilities intentionally:
 - `docs/concepts/architecture.md` shows how the components fit, with flow diagrams.
 - `docs/concepts/lifecycle.md` is the canonical lifecycle, gate, verification, and handoff spec.
 - `docs/concepts/state-model.md` is the canonical state ownership model.
-- `docs/concepts/providers.md` defines capability boundaries, the main harness, and the evidence policy; `docs/orchestrator/README.md` covers worker routing in the gin-orchestrator extension.
+- `docs/concepts/providers.md` defines capability boundaries, the main harness, and the evidence policy.
 - `docs/reference/config.md` is the canonical setup, versioning, and migration reference; `docs/reference/cli.md` documents every command.
 - `docs/contributing.md` covers build, install, tests (including running one file), the invariants the tests enforce, and release.
-- Plugin command and skill files under `plugins/gin-workflow/src/` (and `plugins/gin-orchestrator/src/` for worker routing) contain the actionable execution rules.
+- Plugin command and skill files under `plugins/gin-workflow/src/` contain the actionable execution rules.
 
 ## Response Language
 

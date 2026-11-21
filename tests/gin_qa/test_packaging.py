@@ -29,8 +29,7 @@ class TestPackaging(unittest.TestCase):
                     self.assertEqual(meta[key], manifest[key])
         self.assertNotIn("hooks", json.loads((QA / "src/.codex-plugin/plugin.json").read_text()))
         marketplace = json.loads((ROOT / ".claude-plugin/marketplace.json").read_text())
-        self.assertEqual({"gin": "plugins/gin-workflow/src", "gin-qa": "plugins/gin-qa/src", "gin-ba": "plugins/gin-ba/src",
-                          "gin-orchestrator": "plugins/gin-orchestrator/src"},
+        self.assertEqual({"gin": "plugins/gin-workflow/src", "gin-qa": "plugins/gin-qa/src", "gin-ba": "plugins/gin-ba/src"},
                          {p["name"]: p["source"]["path"] for p in marketplace["plugins"]})
 
     def test_skill_budget_and_links(self):
