@@ -75,6 +75,12 @@ Fix it once per host, in an interactive terminal, because `sudo` prompts for a p
 
 Cause: `.agent-workflow/executables.local.yaml` records the path found when `setup` last ran, and `setup doctor` lists stale entries under `checks_details.executables`. Run `gin setup refresh` to record the current paths, or edit the file. See [`executables.local.yaml`](config.md#executableslocalyaml).
 
+## `main harness <name>: executable not found on PATH`
+
+Cause: `gin setup doctor` looks for the main harness executable on `PATH`, then in these directories: `~/.npm-global/bin`, `~/.local/bin`, `~/.opencode/bin`, `~/.local/share/pnpm`, `/usr/local/bin`, and `/home/linuxbrew/.linuxbrew/bin`, plus `%APPDATA%\npm` on Windows. Codex and Antigravity run commands without sourcing `~/.zshrc` or `~/.bashrc`, so a CLI reachable only through a `PATH` entry added in those files is not found.
+
+Fix: link the CLI into one of those directories, for example `/usr/local/bin`, or add its directory to the `PATH` of the process that runs gin.
+
 ## A repository still hits a gin-workflow bug that was already fixed and shipped on `master`
 
 Cause: each harness runs the copy of the plugin taken at install time, and the `gin` CLI runs from its copy under `~/.local/lib/gin/<version>/`. Pushing a fix to `master` updates neither, even when the plugin version is unchanged. The steps below refresh the current host only; a machine that installed through a marketplace or `remote-install.sh` reruns its own install flow from [Installation](https://github.com/giangdhwhtbr/gin-workflow/blob/master/README.md#installation).

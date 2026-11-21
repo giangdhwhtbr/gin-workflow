@@ -72,7 +72,7 @@ Nhật ký thay đổi liệt kê toàn bộ trong [ghi chú nâng cấp](../cha
 
 ## Những gì thay đổi ở 3.3 { #what-changes-at-33 }
 
-gin 3.3 chạy mọi stage trong harness bạn đã mở và gỡ extension gin-orchestrator. Installer xóa bản đã cài của nó. Các khóa cấu hình `orchestrator`, `provider_mode` và `routing.review.independence` đi cùng, cũng như `gin setup models`, `--probe` và `--provider`. Lead làm việc này một lần cho mỗi project, sau khi mọi member đã cập nhật gin:
+gin 3.3 chạy mọi stage trong harness bạn đã mở và gỡ extension gin-orchestrator. Mỗi lần chạy `./install.sh` xóa launcher mà nó đã cài và các thư mục plugin của những harness được chọn. Nó giữ lại một launcher không do nó cài, kèm cảnh báo, và chạy thử (dry run) không xóa gì. Các khóa cấu hình `orchestrator`, `provider_mode` và `routing.review.independence` đi cùng, cũng như `gin setup models`, `--probe` và `--provider`. Lead làm việc này một lần cho mỗi project, sau khi mọi member đã cập nhật gin:
 
 ```bash
 gin setup update --to-version 2.11 --approve

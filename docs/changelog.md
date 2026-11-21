@@ -8,7 +8,7 @@ gin now runs every stage in the harness you opened. The gin-orchestrator extensi
 
 ### Upgrade notes
 
-- The extension is removed from the repository, and every `./install.sh` run deletes an installed copy: its launcher and its plugin or skill folders. `--plugin gin-orchestrator` now fails with `gin-orchestrator was removed in gin 3.3.0`.
+- The extension is removed from the repository, and every `./install.sh` run removes the launcher it installed and the plugin folders of the selected harnesses. A launcher it did not install is kept with a warning, and a dry run removes nothing. `--plugin gin-orchestrator` now fails with `gin-orchestrator was removed in gin 3.3.0`.
 - Run `gin setup update --to-version 2.11 --approve` once per project. Until then a project keeps working, `gin state` warns once, and `gin setup doctor` lists one action.
 - The update removes `orchestrator`, `provider_mode`, and `routing.review.independence`. It moves role names found only under `orchestrator.roles` into `routing.roles`, and it backs up and deletes `.agent-workflow/orchestrator.local.yaml`. `gin setup rollback --backup <dir>` restores it.
 - Review is a fresh session of the same harness. A project that reviewed with `independence: provider` no longer gets a review on another harness.

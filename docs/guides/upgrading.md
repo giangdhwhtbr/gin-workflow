@@ -72,7 +72,7 @@ The changelog lists everything in its [upgrade notes](../changelog.md#upgrade-no
 
 ## What changes at 3.3
 
-gin 3.3 runs every stage in the harness you opened and removes the gin-orchestrator extension. The installer deletes an installed copy of it. The config keys `orchestrator`, `provider_mode`, and `routing.review.independence` go with it, and so do `gin setup models`, `--probe`, and `--provider`. The lead runs this once per project, after every member has updated gin:
+gin 3.3 runs every stage in the harness you opened and removes the gin-orchestrator extension. Every `./install.sh` run removes the launcher it installed and the plugin folders of the selected harnesses. It keeps a launcher it did not install, with a warning, and a dry run removes nothing. The config keys `orchestrator`, `provider_mode`, and `routing.review.independence` go with it, and so do `gin setup models`, `--probe`, and `--provider`. The lead runs this once per project, after every member has updated gin:
 
 ```bash
 gin setup update --to-version 2.11 --approve
