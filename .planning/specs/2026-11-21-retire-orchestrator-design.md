@@ -140,7 +140,7 @@ New tests:
 - A 2.11 config holding each removed key is refused with the message in B.
 - A 2.10 config with `provider_mode: multi` and an `orchestrator:` block: `gin routes resolve` routes every track to the main harness, including one whose role exists only under `orchestrator.roles`; `gin state` carries the one warning; `gin setup doctor` lists the one action.
 - `gin state --format json` has no `extensions`, `project.provider_mode`, or `project.independence`.
-- An `events.jsonl` that holds an old `worker.failed` event with a payload: `gin state` and `gin usage report` succeed.
+- A line of a real `events.jsonl` written by gin 3.2.0, a `worker.failed` event with a payload: `WorkflowEventStore.read_all()` returns it, and `gin state` reports no unreadable event log. (`gin usage report` reads the log through the same store; a test of its exit code proved vacuous and was dropped.)
 - `migrate_config` takes this repository's `.agent-workflow/config.yaml` to a 2.11 config that validates and holds none of the three keys.
 - Sweep: the strings `gin-orchestrator` and `gin_orchestrator` appear nowhere under `plugins/`, `scripts/`, `.claude-plugin/`, `docs/`, or in `README.md`, `AGENTS.md`, `mkdocs.yml`, except `docs/changelog.md` and `docs/guides/upgrading*.md`. `install.sh` and `install.ps1` are not swept: they name the plugin to refuse and remove it, and the install smoke tests cover them.
 - Install smoke: a prefix that holds a 3.2.0 `gin-orchestrator` launcher and plugin directory has neither after the install; `--plugin gin-orchestrator` exits non-zero with the message in E. `tests/install_smoke_test.ps1` gets the same cases; it runs on the Windows job of `test.yml` and the release workflow, not on this machine (no `pwsh`).

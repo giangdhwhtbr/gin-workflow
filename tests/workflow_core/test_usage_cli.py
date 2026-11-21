@@ -23,18 +23,6 @@ USAGE = {"version": 1, "cost": 2.5,
                      "findings": {"critical": 0, "important": 1, "minor": 0, "suggestion": 0}, "waivers": 0}}
 
 
-# One line of a real events.jsonl written by gin 3.2.0: the id of a terminal worker event excludes its payload.
-OLD_WORKER_EVENT = (
-    '{"event_id": "evt-8a485af6dbe53e95b7fb5e47bf7d56a7ed21100b07b9a1cf681a848834aa75b6", '
-    '"event_type": "worker.failed", '
-    '"idempotency_key": "integrity-provider-hardening:gin-workflow-x98:review-t1-claude-2:route:failed:none", '
-    '"payload": {"reason": "worker_routes_unavailable", "retry_identity": "review-t1-claude-2", '
-    '"worker_id": "worker-4b48a20f41467dd93fd7656a"}, '
-    '"task_id": "gin-workflow-x98", "timestamp": "2026-08-21T16:11:13.135733Z", '
-    '"workflow_id": "integrity-provider-hardening"}\n'
-)
-
-
 class UsageCliTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -103,14 +91,6 @@ class UsageCliTests(unittest.TestCase):
         lines = text.splitlines()
         total_idx = next(i for i, line in enumerate(lines) if line.startswith("total:"))
         self.assertEqual(lines[total_idx + 1], "partial: not_collected, unpriced")
-
-    def test_report_reads_a_log_with_an_old_worker_event(self):
-        log = self.repo / ".agent-workflow/runtime/events.jsonl"
-        log.parent.mkdir(parents=True, exist_ok=True)
-        with log.open("a", encoding="utf-8") as handle:
-            handle.write(OLD_WORKER_EVENT)
-        done = run_cli(self.repo, "usage", "report", "--format", "json", env=self.env)
-        self.assertEqual(done.returncode, 0, done.stderr)
 
     def test_report_clean_has_no_partial_line(self):
         clean = {"version": 1, "cost": 1.0,
