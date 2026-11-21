@@ -11,12 +11,12 @@ from unittest.mock import patch
 SCRIPTS = Path(__file__).resolve().parents[2] / "plugins/gin-workflow/src/scripts"
 sys.path.insert(0, str(SCRIPTS))
 
-from workflow_core.attach_gitref import REF, GitRefStore  # noqa: E402
+from workflow_core.attach_gitref import REF, REMOTE_REF, GitRefStore  # noqa: E402
 from workflow_core.attach_store import StoreError, blob_path  # noqa: E402
 
 # Variables a git hook may export; any of them would point the store's git at another repository.
 HOOK_ENV = ("GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_PREFIX", "GIT_OBJECT_DIRECTORY", "GIT_COMMON_DIR")
-X, Y, Z = b"image x", b"image y", b"image z"
+X, Y, Z, W = b"image x", b"image y", b"image z", b"image w"
 
 
 def sha(data):
@@ -84,10 +84,32 @@ class GitRefStoreTests(unittest.TestCase):
         self.assertEqual({"dev@example.com"}, set(git(self.a.repo, "log", "-1", "--format=%ae%n%ce", REF).split()))
         self.assertEqual(first, git(self.a.repo, "rev-parse", f"{REF}^"))
 
+    def test_commits_ignore_commit_gpg_sign(self):
+        git(self.a.repo, "config", "commit.gpgSign", "true")
+        git(self.a.repo, "config", "gpg.program", "false")
+        x = self.push_from(self.a, X)
+        self.assertEqual({x}, self.tree(self.origin))
+
     def test_push_sends_the_local_tip(self):
         self.push_from(self.a, X)
         self.assertEqual(self.tip(self.a.repo), self.tip(self.origin))
         self.assertIsNone(self.a.push())
+
+    def test_fetch_leaves_fetch_head_alone(self):
+        x = self.push_from(self.a, X)
+        fetch_head = self.b.repo / ".git" / "FETCH_HEAD"
+        fetch_head.write_text("sentinel\n", encoding="utf-8")
+        self.b.fetch()
+        self.assertEqual({x}, self.b.paths())
+        self.assertEqual("sentinel\n", fetch_head.read_text(encoding="utf-8"))
+
+    def test_failed_fetch_names_the_git_version_it_needs(self):
+        self.push_from(self.a, X)
+        self.b.put(sha(Y), Y)
+        # a ref named below REMOTE_REF keeps git from writing REMOTE_REF itself
+        git(self.b.repo, "update-ref", f"{REMOTE_REF}/blocker", REF)
+        with self.assertRaisesRegex(StoreError, r"\(gin attach needs git 2\.29 or later\)$"):
+            self.b.fetch()
 
     def test_push_restores_the_ref_on_an_origin_that_lost_it(self):
         x = self.push_from(self.a, X)
@@ -208,6 +230,56 @@ class GitRefStoreTests(unittest.TestCase):
         self.assertEqual("1", git(self.origin, "rev-list", "--count", f"{REF}^"))
         self.a.fetch()
         self.assertEqual({y, z}, self.a.paths())
+
+    def test_blob_attached_again_after_a_prune_elsewhere_stays(self):
+        x, w = self.push_from(self.a, X), self.push_from(self.a, W)
+        self.b.fetch()
+        self.a.remove([x, w])
+        self.assertEqual(x, self.b.put(sha(X), X))
+        self.assertIsNone(self.b.push())
+        self.assertEqual({x}, self.tree(self.origin))
+        self.assertEqual({x}, self.b.paths())
+        self.assertEqual(X, self.b.get(x))
+
+    def test_origin_ref_replaced_without_a_prune_is_merged_as_a_union(self):
+        x = self.push_from(self.a, X)
+        self.b.fetch()
+        git(self.origin, "update-ref", "-d", REF)
+        z = self.push_from(self.clone("c"), Z)
+        y = self.push_from(self.b, Y)
+        self.assertEqual({x, y, z}, self.tree(self.origin))
+
+    def test_prune_takes_in_a_put_that_moved_the_ref_after_its_push(self):
+        x, y = self.push_from(self.a, X), self.push_from(self.b, Y)
+        self.a.fetch()
+        other, set_ref, raced = GitRefStore(self.a.repo), self.a._set, []
+
+        def put_then_set(commit, old):
+            if not raced:  # another process on this machine puts between the prune's push and its local update
+                raced.append(other.put(sha(Z), Z))
+            set_ref(commit, old)
+
+        with patch.object(self.a, "_set", side_effect=put_then_set):
+            self.a.remove([x])
+        self.assertEqual({y}, self.tree(self.origin))
+        self.assertEqual({y, raced[0]}, self.a.paths())
+        self.assertIsNone(self.a.push())
+        self.assertEqual({y, raced[0]}, self.tree(self.origin))
+
+    def test_fetch_that_loses_a_race_with_a_local_put_still_drops_pruned_blobs_later(self):
+        x, y = self.push_from(self.a, X), self.push_from(self.b, Y)
+        self.b.fetch()
+        self.a.remove([x])
+        other, set_ref = GitRefStore(self.b.repo), self.b._set
+
+        def put_then_set(commit, old):
+            other.put(sha(Z), Z)  # another process on this machine puts while the fetch merges
+            set_ref(commit, old)
+
+        with patch.object(self.b, "_set", side_effect=put_then_set), self.assertRaises(StoreError):
+            self.b.fetch()
+        self.b.fetch()
+        self.assertEqual({y, blob_path(sha(Z))}, self.b.paths())
 
     def lose_lease(self, store, data):
         """While store.remove runs, another clone pushes data right after store's own fetch."""

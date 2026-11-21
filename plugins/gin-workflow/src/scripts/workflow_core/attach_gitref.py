@@ -12,6 +12,7 @@ from .attach_store import StoreError, blob_path, check_path
 
 REF = "refs/gin/attachments"
 REMOTE_REF = "refs/gin/attachments-origin"
+PRUNE = "prune attachments"  # the subject of the parentless commit a prune writes
 ATTEMPTS = 3
 
 
@@ -72,20 +73,13 @@ class GitRefStore:
         return listing
 
     def _commit(self, blobs: Mapping[str, str], parents: list[str], message: str) -> str:
-        handle, index = tempfile.mkstemp(prefix="gin-attach-index-")
-        os.close(handle)
-        os.unlink(index)  # git rejects an empty index file; it creates the file itself
-        env = {"GIT_INDEX_FILE": index}
         rows = "".join(f"100644 {blob}\t{path}\n" for path, blob in sorted(blobs.items()))
-        try:
+        with tempfile.TemporaryDirectory(prefix="gin-attach-") as directory:
+            env = {"GIT_INDEX_FILE": str(Path(directory) / "index")}
             self._git("update-index", "--index-info", data=rows.encode(), env=env)
             tree = self._out("write-tree", env=env)
-        finally:
-            Path(index).unlink(missing_ok=True)
         parent_args = [arg for parent in parents for arg in ("-p", parent)]
-        # --no-gpg-sign: commit.gpgSign would otherwise ask for a passphrase on every attachment
-        return self._out("commit-tree", "--no-gpg-sign", tree, *parent_args, data=message.encode(),
-                         env=self._identity())
+        return self._out("commit-tree", tree, *parent_args, data=message.encode(), env=self._identity())
 
     def _set(self, commit: str, old: str | None) -> None:
         """Move REF to commit only while it is still at old (an empty old value: only while it does not exist)."""
@@ -101,42 +95,63 @@ class GitRefStore:
         if not any(line.split("\t")[-1] == REF for line in listed.stdout.decode().splitlines()):
             self._git("update-ref", "-d", REMOTE_REF)
             return None
-        self._git("fetch", "--quiet", "--no-write-fetch-head", self.remote, f"+{REF}:{REMOTE_REF}")
+        fetched = self._git("fetch", "--quiet", "--no-write-fetch-head", self.remote, f"+{REF}:{REMOTE_REF}",
+                            check=False)
+        if fetched.returncode != 0:
+            raise StoreError(f"git fetch failed: {_stderr(fetched)} (gin attach needs git 2.29 or later)")
         return self._tip(REMOTE_REF)
 
     def _merge(self, local: str | None, remote: str | None, seen: str | None) -> str | None:
-        """The local tip after taking in the remote one: the remote's blobs plus those only this clone added.
-
-        A blob the remote no longer has but `seen` (its previous tip) had was pruned there, so it stays out.
-        The result has the remote tip as its only parent, which keeps pruned history off the remote.
-        """
+        """The local tip after taking in the remote one: the remote's blobs plus those only this clone has,
+        less those a prune on the remote dropped. The result has the remote tip as its only parent,
+        which keeps pruned history off the remote."""
         if remote is None or remote == local:
             return local
         if local is None or self._git("merge-base", "--is-ancestor", local, remote, check=False).returncode == 0:
             return remote
         if self._git("merge-base", "--is-ancestor", remote, local, check=False).returncode == 0:
             return local
-        theirs, earlier = self._listing(remote), self._listing(seen)
-        added = {path: blob for path, blob in self._listing(local).items() if path not in theirs and path not in earlier}
+        theirs, pruned = self._listing(remote), self._pruned(local, remote, seen)
+        added = {path: blob for path, blob in self._listing(local).items() if path not in theirs and path not in pruned}
         if not added:
             return remote
         return self._commit({**theirs, **added}, [remote], "merge attachments")
+
+    def _pruned(self, local: str, remote: str, seen: str | None) -> set[str]:
+        """Paths of `seen` (the remote's previous tip) that a prune on the remote dropped since, less those
+        this clone attached again since `seen`; none when the remote's root is not a prune newer than `seen`
+        (the ref was deleted or replaced some other way)."""
+        if seen is None:
+            return set()
+        roots = self._out("log", "--max-parents=0", "--format=%s", remote, "--not", seen).splitlines()
+        if PRUNE not in roots:
+            return set()
+        subjects = self._out("log", "--format=%s", f"{seen}..{local}").splitlines()
+        again = {subject.removeprefix("attach ") for subject in subjects if subject.startswith("attach ")}
+        return {path for path in self._listing(seen) if path.split("/")[1] not in again}
 
     def fetch(self) -> None:
         seen = self._tip(REMOTE_REF)
         remote = self._fetch_remote()
         local = self._tip(REF)
-        merged = self._merge(local, remote, seen)
-        if merged != local:
-            self._set(merged, local)
+        try:
+            merged = self._merge(local, remote, seen)
+            if merged != local:
+                self._set(merged, local)
+        except StoreError:
+            # REMOTE_REF goes back to the tip this clone took in, so the next fetch still sees what was pruned
+            self._git("update-ref", *((REMOTE_REF, seen) if seen else ("-d", REMOTE_REF)))
+            raise
 
     def put(self, sha256: str, data: bytes) -> str:
         path, local = blob_path(sha256), self._tip(REF)
         listing = self._listing(local)
-        if path in listing:
+        if path not in listing:
+            listing = {**listing, path: self._out("hash-object", "-w", "--stdin", data=data)}
+        elif path not in self._listing(self._tip(REMOTE_REF)):
             return path
-        blob = self._out("hash-object", "-w", "--stdin", data=data)
-        self._set(self._commit({**listing, path: blob}, [local] if local else [], f"attach {sha256}"), local)
+        # a known path gets a commit too while the remote had it: the remote may have pruned it since (see _pruned)
+        self._set(self._commit(listing, [local] if local else [], f"attach {sha256}"), local)
         return path
 
     def get(self, path: str) -> bytes:
@@ -178,17 +193,22 @@ class GitRefStore:
         keep = {path: blob for path, blob in listing.items() if path not in doomed}
         if keep == listing:
             return
-        commit = self._commit(keep, [], "prune attachments")
-        shared = self._has_remote()
-        if shared:
-            seen = self._tip(REMOTE_REF) or ""
-            # no "+" on the refspec: the lease alone allows the rewrite, and only while the remote is at `seen`
-            done = self._git("push", "--quiet", f"--force-with-lease={REF}:{seen}", self.remote, f"{commit}:{REF}",
-                             check=False)
-            if done.returncode != 0:
-                raise StoreError(f"push of {REF} to {self.remote} failed ({_stderr(done)}); "
-                                 "run gin attach prune --apply again")
-        self._set(commit, local)
-        if shared:
-            # last: if the local update failed, REMOTE_REF keeps the old tip, which marks the pruned blobs as gone
-            self._git("update-ref", REMOTE_REF, commit)
+        commit = self._commit(keep, [], PRUNE)
+        if not self._has_remote():
+            self._set(commit, local)
+            return
+        seen = self._tip(REMOTE_REF) or ""
+        # no "+" on the refspec: the lease alone allows the rewrite, and only while the remote is at `seen`
+        done = self._git("push", "--quiet", f"--force-with-lease={REF}:{seen}", self.remote, f"{commit}:{REF}",
+                         check=False)
+        if done.returncode != 0:
+            raise StoreError(f"push of {REF} to {self.remote} failed ({_stderr(done)}); "
+                             "run gin attach prune --apply again")
+        try:
+            self._set(commit, local)
+        except StoreError:
+            # another put moved the local ref after the push; REMOTE_REF still holds the old tip,
+            # so a fetch takes the pruned tip in and keeps only what was attached since
+            self.fetch()
+            return
+        self._git("update-ref", REMOTE_REF, commit)
