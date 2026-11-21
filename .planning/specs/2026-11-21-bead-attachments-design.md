@@ -52,7 +52,7 @@ Out of scope:
    - Credentials come from boto3's default chain (environment, shared credentials file, instance role); the config holds none.
    - boto3 loads through `require_boto3()`, built like `require_yaml()` (`configuration.py:85-93`), so it is needed only with `store: s3`.
    - It never creates a public object, an ACL, or a presigned URL.
-9. Config section `attachments`: `store` (`git-ref`, `local`, or `s3`; default `git-ref`), `max_bytes` (integer, minimum 1, default 10485760), `retention_days` (integer, minimum 1, optional), and `s3` (`bucket` required with `store: s3`, `prefix`, `endpoint_url`, `region`). The schema version stays 2.11; the docs say the section needs the gin release that ships it (assumed 3.5.0), because older versions reject the key.
+9. Config section `attachments`: `store` (`git-ref`, `local`, or `s3`; default `git-ref`), `max_bytes` (integer, minimum 1, default 10485760), `retention_days` (integer, minimum 1, optional), and `s3` (`bucket` required with `store: s3`, `prefix`, `endpoint_url`, `region`). The schema version stays 2.11; the docs say the section needs the gin release that ships it (assumed 3.5.0); older versions accept the key (the top-level schema allows unknown keys) and ignore it.
 10. gin-qa `cases bug`:
     - Once it knows the bug id (a new bug, or the case's open bug that gets a re-run note), it attaches each `--evidence` value that names an image file, and the screenshot of each `failed` step in `<evidence root>/<Run>/<tc>/result.json` when the case's `Run` is an e2e run folder.
     - A new bug's `## Evidence` lists each attached image as `- ![<tc> step <n>: <title>](attachment:<sha256>)` followed by `  local: <path>`; other evidence values stay as they are.
