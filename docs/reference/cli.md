@@ -268,11 +268,11 @@ Attaches PNG, JPEG, WebP, or GIF images to a bead and keeps them in the store se
 Any bead can carry attachments. The [`attachments`](config.md#attachments) config section sets the store, the size limit, and the retention.
 
 - `add` stores each file and lists it in the bead's `metadata.attachments`. It prints one `![caption](attachment:<sha256>)` line per file, and the caption defaults to the file name. `--case` and `--step` record the QA case and step the image belongs to. A file already attached to the bead is not added twice.
-- `add` accepts PNG, JPEG, WebP, and GIF by their first bytes, not by the file name. It removes EXIF and XMP metadata before hashing, and leaves GIF unchanged. A file that is not an image, is malformed, or is larger than `max_bytes` is refused with a line on stderr; the other files are still added.
+- `add` accepts PNG, JPEG, WebP, and GIF by their first bytes, not by the file name. It removes EXIF and XMP metadata before hashing, and leaves GIF unchanged. A file that is not an image, is malformed, or is larger than `max_bytes` is refused with a line on stderr; the other files are still added. `--format json` prints `{"bead", "entries", "refused", "warning"}`; `warning` is the push problem as a string, or null, and also goes to stderr as `warning: <text>`. Each `refused` item is `{"name", "reason"}` and goes to stderr as `refused <name>: <reason>`.
 - `list` prints `<sha256>  <mime>  <bytes>  <name>` per entry, with `(pruned)` after an entry whose blob was pruned. `--format json` prints `{"bead", "entries"}`.
 - `fetch` brings the store up to date. With `--bead ID --out DIR` it also writes the bead's images to `DIR` as `<sha256>.<ext>` and prints each path; the two options go together. A blob whose bytes do not match its `sha256` stops the command.
-- `push` sends the `git-ref` store to `origin`. It exits 2 when there is no `origin` or the push fails. `add` pushes on its own; when that fails it keeps the entry, warns on stderr, and still exits 0, and `gin attach push` retries.
-- `prune` lists the blobs to delete and changes nothing without `--apply`. A blob is a candidate when no bead entry references it (`orphan`), or, with `retention_days` set, when every bead that references it closed more than that many days ago (`closed <date>`). `--apply` deletes the blobs and sets `pruned_at` on the entries. `--format json` prints `{"candidates": [{"path", "sha256", "reason", "beads"}], "applied"}`.
+- `push` sends the `git-ref` store to `origin`. It exits 2 when there is no `origin` or the push fails. It prints nothing on success, and does nothing for the `local` and `s3` stores, which have nothing to push. `add` pushes on its own; when that fails (including no `origin` remote) it keeps the entry, warns on stderr, and still exits 0, and `gin attach push` retries.
+- `prune` lists the blobs to delete and changes nothing without `--apply`. A blob is a candidate when no bead entry references it (`orphan`), or, with `retention_days` set, when every bead that references it closed more than that many days ago (`closed <date>`). `--apply` deletes the blobs and sets `pruned_at` on the entries. Text output prints `<path> <reason>` per candidate, and a reminder to run `bd dolt pull` first when an orphan is listed without `--apply`. `--format json` prints `{"candidates": [{"path", "sha256", "reason", "beads"}], "applied"}`.
 
 Run `bd dolt pull` before `gin attach prune --apply`. A blob whose entry has not reached this machine counts as an orphan, so the machine that added an entry must have run `bd dolt push` first. Prune stops, and deletes nothing, when a bead's `metadata.attachments` cannot be read.
 
@@ -281,7 +281,7 @@ An entry in `metadata.attachments` has the fields `sha256`, `name`, `mime`, `byt
 The stores:
 
 - `git-ref` (default) keeps blobs in one commit history on `refs/gin/attachments`, at `<aa>/<sha256>` where `<aa>` is the first two hex digits. It needs git 2.29 or later. Its pushes run the repository's pre-push hooks, because gin passes no `--no-verify`.
-- `local` keeps blobs under `.agent-workflow/attachments/` in the main checkout, which setup gitignores.
+- `local` keeps blobs under `.agent-workflow/attachments/`; see [`attachments`](config.md#attachments).
 - `s3` keeps private objects at `<prefix>/<aa>/<sha256>` in a bucket, and needs `boto3`.
 
 To read images, a read-only clone that never runs `gin attach add` fetches the ref with `git fetch origin +refs/gin/attachments:refs/gin/attachments`. It then reads a blob with `git cat-file blob refs/gin/attachments:<aa>/<sha256>`. Any clone that writes attachments runs `gin attach fetch` instead, because the forced fetch drops blobs that are not pushed yet.

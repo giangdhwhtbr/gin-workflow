@@ -107,7 +107,7 @@ Một lần thất bại sẽ hỏi chuyện gì đã xảy ra, các tham chiế
 - Bug là một bead được tạo qua `gin task create`, liên kết với epic của case bằng `discovered-from`.
 - Epic lấy từ spec hoặc change của case; xem [`gin-qa cases bug`](../reference/cli.md#gin-qa-cases-bug) để biết cách tra cứu. Nếu không có epic, skill đưa ra các epic đang mở của repository để chọn.
 - Mô tả chứa file case, lần chạy, precondition, test data, các bước, kết quả mong đợi, kết quả thực tế, và evidence.
-- Evidence là ảnh nằm trong repository và screenshot của các bước thất bại trong lần chạy e2e của case được đính kèm vào bug và hiển thị trong mô tả; đường dẫn local vẫn nằm cạnh mỗi ảnh. Xem [`gin attach`](../reference/cli.md#gin-attach).
+- Evidence dạng ảnh nằm trong repository và screenshot của các bước thất bại trong lần chạy e2e của case được đính kèm vào bug và hiển thị trong mô tả; đường dẫn local vẫn nằm cạnh mỗi ảnh. Xem [`gin attach`](../reference/cli.md#gin-attach).
 - Khi `Bug:` của case nêu một bead có trạng thái đã đặt và không phải `closed`, không có bug nào được tạo và case giữ nguyên nó; kết quả thực tế và evidence mới được ghi vào notes của bead thành một dòng `Re-run`. Một bug đã đóng nhận một bug mới nêu nó là bug trước đó; xem [`gin-qa cases bug`](../reference/cli.md#gin-qa-cases-bug) cho các giá trị khác.
 - Các nhóm theo dõi bug trong Jira hoặc Linear tạo ticket ở đó và truyền key của nó bằng `--external-ref`; cờ này chỉ ghi key vào bead.
 - Khi `## Bugs` trong guidelines ghi `External reference: required`, một lần thất bại không được tạo nếu thiếu tham chiếu, và tham chiếu phải khớp với pattern mà dòng đó nêu.

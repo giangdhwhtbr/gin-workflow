@@ -190,7 +190,7 @@ Used by the `gin-qa` add-on: `dir` (default `qa`, a path inside the repository),
 
 ### `attachments`
 
-Used by [`gin attach`](cli.md#gin-attach). It needs gin-workflow 3.5.0 or later; older versions reject the config at schema validation.
+Used by [`gin attach`](cli.md#gin-attach). It needs gin-workflow 3.5.0 or later; older versions ignore the section and attach nothing.
 
 | Key | Values | Default |
 |---|---|---|
