@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 import tempfile
 from collections.abc import Collection
 from pathlib import Path
@@ -13,8 +14,21 @@ class StoreError(Exception):
     """A store that cannot be read or written."""
 
 
+_SHA = re.compile(r"[0-9a-f]{64}")
+_PATH = re.compile(r"([0-9a-f]{2})/([0-9a-f]{64})")
+
+
 def blob_path(sha256: str) -> str:
+    if not _SHA.fullmatch(sha256):
+        raise StoreError(f"{sha256!r} is not a sha256")
     return f"{sha256[:2]}/{sha256}"
+
+
+def check_path(path: str) -> str:
+    match = _PATH.fullmatch(path)
+    if not match or not match.group(2).startswith(match.group(1)):
+        raise StoreError(f"{path!r} is not a store path")
+    return path
 
 
 class Store(Protocol):
@@ -60,21 +74,26 @@ class LocalStore:
 
     def get(self, path: str) -> bytes:
         try:
-            return (self.directory / path).read_bytes()
+            return (self.directory / check_path(path)).read_bytes()
         except OSError as error:
             raise StoreError(f"cannot read {path}: {error}") from error
 
     def paths(self) -> set[str]:
         if not self.directory.is_dir():
             return set()
-        return {
-            f"{folder.name}/{blob.name}"
-            for folder in self.directory.iterdir() if folder.is_dir()
-            for blob in folder.iterdir() if blob.is_file() and not blob.name.startswith(".tmp-")
-        }
+        found = set()
+        for folder in self.directory.iterdir():
+            if folder.is_dir():
+                for blob in folder.iterdir():
+                    try:
+                        found.add(check_path(f"{folder.name}/{blob.name}"))
+                    except StoreError:
+                        continue
+        return found
 
     def remove(self, paths: Collection[str]) -> None:
-        for path in paths:
+        checked = [check_path(path) for path in paths]
+        for path in checked:
             target = self.directory / path
             target.unlink(missing_ok=True)
             try:

@@ -6,7 +6,7 @@ import unittest
 SCRIPTS = Path(__file__).resolve().parents[2] / "plugins/gin-workflow/src/scripts"
 sys.path.insert(0, str(SCRIPTS))
 
-from workflow_core.attach_store import LocalStore, StoreError, blob_path  # noqa: E402
+from workflow_core.attach_store import LocalStore, StoreError, blob_path, check_path  # noqa: E402
 
 SHA = "ab" + "0" * 62
 
@@ -44,6 +44,40 @@ class LocalStoreTests(unittest.TestCase):
     def test_push_and_fetch_are_noops(self):
         self.assertIsNone(self.store.push())
         self.assertIsNone(self.store.fetch())
+
+    def test_unsafe_paths_are_refused_and_outside_files_survive(self):
+        outside = self.root.parent / f"{self.root.name}-outside"
+        outside.write_bytes(b"keep")
+        self.addCleanup(outside.unlink)
+        store = LocalStore(self.root / "store")
+        for bad in ("../x", "/etc/passwd", "ab\\cd", f"../{outside.name}"):
+            with self.assertRaises(StoreError):
+                store.get(bad)
+            with self.assertRaises(StoreError):
+                store.remove([bad])
+        self.assertEqual(outside.read_bytes(), b"keep")
+
+    def test_remove_checks_every_path_before_deleting(self):
+        self.store.put(SHA, b"x")
+        with self.assertRaises(StoreError):
+            self.store.remove([blob_path(SHA), "../x"])
+        self.assertEqual(self.store.paths(), {blob_path(SHA)})
+
+    def test_bad_sha_is_refused(self):
+        with self.assertRaises(StoreError):
+            self.store.put("not-a-sha", b"x")
+        with self.assertRaises(StoreError):
+            self.store.put(SHA.upper(), b"x")
+
+    def test_check_path(self):
+        self.assertEqual(check_path(blob_path(SHA)), blob_path(SHA))
+        with self.assertRaises(StoreError):
+            check_path("cd/" + SHA)
+
+    def test_paths_skips_stray_temporary_files(self):
+        self.store.put(SHA, b"x")
+        (self.root / "ab" / ".tmp-leftover").write_bytes(b"y")
+        self.assertEqual(self.store.paths(), {blob_path(SHA)})
 
 
 if __name__ == "__main__":
