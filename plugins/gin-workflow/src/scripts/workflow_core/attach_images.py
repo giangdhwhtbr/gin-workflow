@@ -35,6 +35,8 @@ def clean(data: bytes, mime: str) -> bytes:
 
 
 def _png(data: bytes) -> bytes:
+    if not data.startswith(_PNG):
+        raise ValueError("not a PNG file")
     out, at = [_PNG], len(_PNG)
     while at < len(data):
         if at + 12 > len(data):
@@ -52,6 +54,8 @@ def _png(data: bytes) -> bytes:
 
 
 def _jpeg(data: bytes) -> bytes:
+    if not data.startswith(b"\xff\xd8"):
+        raise ValueError("not a JPEG file")
     out, at = [data[:2]], 2
     while at + 1 < len(data):
         if data[at] != 0xFF:
@@ -60,6 +64,10 @@ def _jpeg(data: bytes) -> bytes:
         if marker == 0xFF:  # fill byte
             at += 1
             continue
+        if marker == 0xD9:
+            raise ValueError("JPEG ends before image data")
+        if marker == 0xD8:
+            raise ValueError("unexpected SOI in JPEG")
         if marker == 0xDA:  # start of scan: the rest is image data
             out.append(data[at:])
             return b"".join(out)
@@ -79,6 +87,8 @@ def _jpeg(data: bytes) -> bytes:
 
 
 def _webp(data: bytes) -> bytes:
+    if len(data) < 12 or data[:4] != b"RIFF" or data[8:12] != b"WEBP":
+        raise ValueError("not a WebP file")
     end = 8 + struct.unpack("<I", data[4:8])[0]
     if end > len(data) or end < 12:
         raise ValueError("truncated WebP")

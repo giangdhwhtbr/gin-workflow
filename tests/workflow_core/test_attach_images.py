@@ -90,6 +90,44 @@ class CleanTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             clean(bad, "image/webp")
 
+    def test_short_or_empty_input_raises(self):
+        for mime, signature in (("image/png", PNG[:8]), ("image/jpeg", b"\xff\xd8"), ("image/webp", b"RIFF")):
+            for data in (b"", b"\xff", signature):
+                with self.subTest(mime=mime, data=data):
+                    with self.assertRaises(ValueError):
+                        clean(data, mime)
+
+    def test_wrong_signature_raises(self):
+        for mime, data in (("image/png", JPEG), ("image/jpeg", PNG), ("image/webp", GIF)):
+            with self.subTest(mime=mime):
+                with self.assertRaises(ValueError):
+                    clean(data, mime)
+
+    def test_webp_keeps_pad_byte_of_odd_chunk(self):
+        odd = webp((b"EXIF", b"e"), (b"VP8L", b"datas"))
+        out = clean(odd, "image/webp")
+        self.assertEqual(out, webp((b"VP8L", b"datas")))
+        self.assertEqual(struct.unpack("<I", out[4:8])[0], len(out) - 8)
+
+    def test_jpeg_keeps_restart_marker_before_scan(self):
+        data = JPEG[:2] + b"\xff\xd0" + JPEG[2:]
+        want = b"\xff\xd8\xff\xd0" + jpeg(APP0, DQT)[2:]
+        self.assertEqual(clean(data, "image/jpeg"), want)
+
+    def test_jpeg_drops_xmp_only_app1(self):
+        self.assertEqual(clean(jpeg(APP0, XMP), "image/jpeg"), jpeg(APP0))
+
+    def test_jpeg_without_scan_raises(self):
+        data = b"\xff\xd8" + b"\xff\xe0" + struct.pack(">H", 4) + b"ab"
+        with self.assertRaises(ValueError):
+            clean(data, "image/jpeg")
+
+    def test_jpeg_with_eoi_or_soi_before_scan_raises(self):
+        for marker in (b"\xd9", b"\xd8"):
+            with self.subTest(marker=marker):
+                with self.assertRaises(ValueError):
+                    clean(JPEG[:2] + b"\xff" + marker + JPEG[2:], "image/jpeg")
+
 
 if __name__ == "__main__":
     unittest.main()
