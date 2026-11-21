@@ -74,8 +74,8 @@ class AssignmentTests(unittest.TestCase):
         self.assertIn("ship opens the lane's PR", execute)
         self.assertNotIn("Ask for the command to create a PR from the pushed feature branch", execute)
 
-        # Routed tracks dispatch to their provider; orchestrate hands off a /goal
-        self.assertIn("provider other than the main harness", execute)
+        # A harness without a native subagent runs the track in the session; orchestrate hands off a /goal
+        self.assertIn("note `in_session` on the bead", execute)
         self.assertIn("/goal", orchestrate)
 
     def test_plan_validation_diagnostics(self):

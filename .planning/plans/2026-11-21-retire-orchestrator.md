@@ -177,6 +177,7 @@ execution_strategy:
   - Modify `tests/gin_qa/test_packaging.py:32-34`
   - Modify `tests/workflow_core/test_rename_sweep.py:13`
   - Modify `tests/workflow_core/test_config_examples.py:7-41`
+  - Test `tests/workflow_core/test_assignments.py:77` (added during execute: the full suite of this track found the assertion on an execute-skill phrase that Track 1 removed; it now asserts the `in_session` sentence, in its own commit)
 - **Provider role**: `backend`
 - **Model:** `sonnet`
 - **Effort:** `medium`
