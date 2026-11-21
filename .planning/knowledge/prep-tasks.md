@@ -19,8 +19,8 @@ Epic `gin-workflow-y4o8` (workflow `prep-tasks`, 2026-11-13). After `/gin:roadma
 - Open: a gin-console follow-up shows prep tasks apart from tracks (progress bar, Gantt, report child counts, ready list).
 
 **References**
-- `plugins/gin-workflow/src/scripts/workflow_core/{prep,close_guard,lifecycle_cli,goal,milestone,usage,usage_attribution,team_beads,team_cli,task_markdown}.py`; `plugins/gin-workflow/src/skills/allocate/`
-- Tests: `tests/workflow_core/test_prep.py`, `test_close_guard.py`, `test_lifecycle_cli.py`, `test_goal.py`, `test_milestone.py`, `test_usage.py`, `test_usage_attribution.py`, `test_task_markdown.py`, `test_team_beads.py`, `test_skill_routing.py`
+- `plugins/gin-workflow/src/scripts/workflow_core/{prep,close_guard,lifecycle_cli,goal,milestone,team_beads,team_cli,task_markdown}.py`; `plugins/gin-workflow/src/skills/allocate/`
+- Tests: `tests/workflow_core/test_prep.py`, `test_close_guard.py`, `test_lifecycle_cli.py`, `test_goal.py`, `test_milestone.py`, `test_task_markdown.py`, `test_team_beads.py`, `test_skill_routing.py`
 - Docs: `docs/concepts/lifecycle.md` (Prep tasks), `docs/guides/team.md`, `docs/guides/ba.md`, `docs/reference/cli.md`, `docs/roles.md`
 - `.planning/specs/2026-11-13-prep-tasks-design.md`, `.planning/plans/2026-11-13-prep-tasks.md`
 - Beads: `gin-workflow-y4o8`, `.1` to `.4`

@@ -10,7 +10,7 @@ Epic `gin-workflow-team-progress` (2026-11-14). A team lead could not see from `
   - The spec or plan text of an unmerged pull request is read with `git fetch origin refs/heads/<branch>` and `git show FETCH_HEAD:<file>`; a remote-tracking ref does not exist without that fetch.
   - `missing` reuses `team.verify_gate`, which gained keyword-only `before_merge` and `artifact_text`; their defaults keep `gin team check` unchanged.
   - `HostUnavailable` before the first successful lookup exits 2; after that, a failure stays in the row's `error`.
-- `gin usage report` adds `partial` and `partial_reasons` (`children_not_merged`, `not_collected`, `unattributed`, `log_sources`, `stale`, `unpriced`). It marks totals as incomplete instead of merging summaries, see [usage-collect](usage-collect.md).
+- `gin usage report` and its `partial` reasons were removed in gin 3.4.0, see [retire-ai-usage](retire-ai-usage.md).
 - The `progress` skill adds sub-steps under step 1, in this order: Milestone, Grouping (`--area`, `--repo`, "waiting on another area"), Approvals (`gin team pending`), Spec (its spec pull request is the pending row with gate `requirement_confirmed`), and QA state. QA state lives in the `qa-track` skill (`## QA state`), so progress names no `gin-qa`.
 
 **Consequences**
@@ -26,4 +26,4 @@ Epic `gin-workflow-team-progress` (2026-11-14). A team lead could not see from `
 - Related: [team-hosts](team-hosts.md), [milestone-lanes-and-forecast](milestone-lanes-and-forecast.md)
 
 **Scope**
-`gin team pending`, `gin usage report` totals, and the `progress` and `qa-track` skills.
+`gin team pending` and the `progress` and `qa-track` skills.

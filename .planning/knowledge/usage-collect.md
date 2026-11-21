@@ -1,5 +1,7 @@
 # Usage collect: one bd list, one history per bead
 
+Retired in gin 3.4.0: `gin usage` and the code below are deleted, see [retire-ai-usage](retire-ai-usage.md). This record is history.
+
 **Context**
 Bead `gin-workflow-y8g6` (2026-11-12). `usage.collect` on an epic ran `bd show` per bead, a parent-child `dep list`, and per bead `bd history` twice plus a discovered-from `dep list`: about 4 bd calls per child, around 30s for 10 tracks on Linux and far more on Windows.
 

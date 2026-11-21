@@ -9,8 +9,7 @@ Epics `gin-workflow-sprint-retro` and `gin-workflow-milestone-close` (2026-11-15
   - `[gin retro] <milestone-id> <member>` with `Went well:`, `Slowed us:`, `Change next:`; named, optional, newest per member counts.
   - `[gin close] <milestone-id>` with `Delivered:`, `Spillover:`, `Outcome:`, `Demo:`, `Retros:`, `Metrics:`, `Action:`.
 - Every open epic moves to the next milestone: the open one with the earliest `start` after the closing milestone's `start`. The write order create, move, estimate, comment, close is forced by the CLI: `move` refuses a closed milestone and `close` refuses open epics.
-- Metrics are team level only: `completion`, `estimate_accuracy`, `capacity_used`, `cost_per_epic`, `rework`, compared with the previous `[gin close]`.
-- `gin usage report --milestone` lists epics and their children in `beads`, and an epic's `quality` already includes its children. Sum quality only over entries whose `parent` is not another entry's `bead`, as `totals` does; summing all entries double counts (review finding F-1 of `gin-workflow-milestone-close.2`).
+- Metrics are team level only: `completion`, `estimate_accuracy`, `capacity_used`, and the velocity metrics, compared with the previous `[gin close]`. `cost_per_epic` and `rework` came from `gin usage report` and were dropped in gin 3.4.0 ([retire-ai-usage](retire-ai-usage.md)); a comparison uses only the metrics both `Metrics:` lines hold.
 - Lessons from a close become knowledge records through the `learn` Reconcile steps; `gin task remember` stores only short facts the PM chooses.
 
 **Consequences**
