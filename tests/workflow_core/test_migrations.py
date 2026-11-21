@@ -497,6 +497,8 @@ setup_cli_version: '2.2'
             for actions in (preview["actions"], result.get("actions", [])):
                 self.assertFalse(any(a.startswith("remove provider models:") for a in actions), actions)
             self.assertTrue(any(a.startswith("catalog entry for") for a in preview["actions"]), preview["actions"])
+            for actions in (preview["actions"], result.get("actions", [])):
+                self.assertIn("remove .agent-workflow/orchestrator.local.yaml", actions)
             self.assertFalse((workflow / "orchestrator.local.yaml").exists())
             written = yaml.safe_load((workflow / "config.yaml").read_text(encoding="utf-8"))
             self.assertEqual(["m1", "m2"], written["models"]["codex"]["models"])

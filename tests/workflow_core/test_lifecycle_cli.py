@@ -23,6 +23,18 @@ from tests.workflow_core.team_fixtures import calls, fake_cli, path_with
 from tests.workflow_core.test_workspace import make_workspace
 
 
+# One line of a real events.jsonl written by gin 3.2.0: the id of a terminal worker event excludes its payload.
+OLD_WORKER_EVENT = (
+    '{"event_id": "evt-8a485af6dbe53e95b7fb5e47bf7d56a7ed21100b07b9a1cf681a848834aa75b6", '
+    '"event_type": "worker.failed", '
+    '"idempotency_key": "integrity-provider-hardening:gin-workflow-x98:review-t1-claude-2:route:failed:none", '
+    '"payload": {"reason": "worker_routes_unavailable", "retry_identity": "review-t1-claude-2", '
+    '"worker_id": "worker-4b48a20f41467dd93fd7656a"}, '
+    '"task_id": "gin-workflow-x98", "timestamp": "2026-08-21T16:11:13.135733Z", '
+    '"workflow_id": "integrity-provider-hardening"}\n'
+)
+
+
 class TestLifecycleCLI(unittest.TestCase):
     def setUp(self):
         self.test_dir = tempfile.mkdtemp()
@@ -122,12 +134,13 @@ class TestLifecycleCLI(unittest.TestCase):
         self.assertNotIn("independence", data["project"])
 
     def test_state_reads_a_log_with_an_old_worker_event(self):
-        event = WorkflowEvent.create(
-            event_type="worker.failed", workflow_id="default-workflow", task_id="t-1",
-            payload={"provider": "antigravity", "reason": "worker_routes_unavailable"},
-        )
-        WorkflowEventStore(self.workflow_dir / "runtime" / "events.jsonl").append(event)
-        self.assertIn("gates", self._state_json())
+        log = self.workflow_dir / "runtime" / "events.jsonl"
+        log.parent.mkdir(parents=True, exist_ok=True)
+        with log.open("a", encoding="utf-8") as handle:
+            handle.write(OLD_WORKER_EVENT)
+        data = self._state_json()
+        self.assertIn("gates", data)
+        self.assertEqual([], [w for w in data["warnings"] if "event log unreadable" in w])
 
     def test_state_warns_about_retired_keys_on_an_older_schema(self):
         import io
