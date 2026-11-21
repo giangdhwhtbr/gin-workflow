@@ -36,7 +36,7 @@ Out of scope:
    - It prints `![<caption or name>](attachment:<sha256>)` per file; JSON output lists the entries.
    - A file whose sha256 the bead already holds adds no second entry and prints the existing reference.
 2. `gin attach list <bead> [--format text|json]` prints the bead's entries.
-3. `gin attach fetch [--bead ID --out DIR]` brings the local copy of the store up to date (`git-ref`: fetch `+refs/gin/attachments:refs/gin/attachments` from `origin`). With `--bead` and `--out`, it writes each of the bead's files to `DIR/<sha256>.<ext>` after checking its sha256.
+3. `gin attach fetch [--bead ID --out DIR]` brings the local copy of the store up to date (`git-ref`: fetch origin's ref into `refs/gin/attachments-origin` and merge it into `refs/gin/attachments`, keeping blobs not yet pushed). With `--bead` and `--out`, it writes each of the bead's files to `DIR/<sha256>.<ext>` after checking its sha256. A read-only reader that never runs `gin attach add` may fetch `+refs/gin/attachments:refs/gin/attachments` directly; any other clone runs `gin attach fetch`, because that forced fetch drops unpushed blobs.
 4. `gin attach push` sends local store commits that a failed `add` left unpushed (`git-ref` only; other stores print that nothing is pending).
 5. `gin attach prune [--apply] [--format text|json]` lists, then with `--apply` removes:
    - blobs that no bead's `metadata.attachments` references;
