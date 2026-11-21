@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import hashlib
 import json
 from pathlib import Path
@@ -220,3 +220,75 @@ def fetch(repo: Path, *, bead: str | None = None, out: Path | None = None, store
 def push(repo: Path, *, store: Store | None = None) -> str | None:
     repo = Path(repo)
     return (store or open_store(repo, load_settings(repo))).push()
+
+
+def _rows(repo: Path) -> list[dict[str, Any]]:
+    data = _bd(repo, ["list", "--all", "-n", "0", "--json"])
+    return [row for row in data if isinstance(row, dict)] if isinstance(data, list) else []
+
+
+def _unreadable(row: Mapping[str, Any]) -> bool:
+    metadata = row.get("metadata")
+    value = metadata.get("attachments") if isinstance(metadata, Mapping) else None
+    if isinstance(value, str):
+        try:
+            value = json.loads(value)
+        except ValueError:
+            return True
+    return value is not None and not isinstance(value, list)
+
+
+def _day(value: Any) -> datetime | None:
+    try:
+        moment = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return moment if moment.tzinfo else moment.replace(tzinfo=timezone.utc)
+
+
+def prune(repo: Path, *, apply: bool = False, now: datetime | None = None, store: Store | None = None) -> dict[str, Any]:
+    """Blobs no live entry references, and with retention_days those whose beads all closed long ago."""
+    repo = Path(repo)
+    settings = load_settings(repo)
+    store = store or open_store(repo, settings)
+    rows = _rows(repo)
+    broken = sorted(str(row.get("id")) for row in rows if _unreadable(row))
+    if broken:
+        raise AttachmentError("metadata.attachments is not a JSON list on " + ", ".join(broken)
+                              + "; fix it with bd update before pruning")
+    store.fetch()
+    users: dict[str, list[Mapping[str, Any]]] = {}
+    for row in rows:
+        for entry in entries(row):
+            sha = entry.get("sha256")
+            if entry.get("pruned_at") or not isinstance(sha, str):
+                continue
+            users.setdefault(entry.get("path") or blob_path(sha), []).append(row)
+    cutoff = None
+    if settings.retention_days is not None:
+        cutoff = (now or datetime.now(timezone.utc)) - timedelta(days=settings.retention_days)
+    candidates: list[dict[str, Any]] = []
+    for path in sorted(store.paths() | users.keys()):
+        referrers = users.get(path, [])
+        reason = None
+        if not referrers:
+            if path not in store.paths():
+                continue
+            reason = "orphan"
+        elif cutoff is not None and all(row.get("status") == "closed" for row in referrers):
+            closed = [_day(row.get("closed_at")) for row in referrers]
+            if all(closed) and max(closed) < cutoff:
+                reason = f"closed {max(closed).strftime('%Y-%m-%d')}"
+        if reason:
+            candidates.append({"path": path, "sha256": path.rsplit("/", 1)[-1], "reason": reason,
+                               "beads": sorted({str(row.get("id")) for row in referrers})})
+    if apply and candidates:
+        store.remove([item["path"] for item in candidates])
+        stamp = (now or datetime.now(timezone.utc)).astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        gone = {item["path"] for item in candidates}
+        touched = {str(row.get("id")): row for item in candidates for row in users.get(item["path"], [])}
+        for bead, row in touched.items():
+            kept = [dict(e, pruned_at=stamp) if not e.get("pruned_at") and isinstance(e.get("sha256"), str)
+                    and (e.get("path") or blob_path(e["sha256"])) in gone else e for e in entries(row)]
+            _bd(repo, ["update", "--set-metadata", f"attachments={json.dumps(kept, sort_keys=True)}", "--", bead])
+    return {"candidates": candidates, "applied": apply}

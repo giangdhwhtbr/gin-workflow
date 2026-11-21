@@ -32,6 +32,9 @@ def _parser() -> argparse.ArgumentParser:
     item.add_argument("--bead")
     item.add_argument("--out", type=Path)
     sub.add_parser("push", parents=[common])
+    item = sub.add_parser("prune", parents=[common])
+    item.add_argument("--apply", action="store_true")
+    item.add_argument("--format", choices=("text", "json"), default="text")
     return parser
 
 
@@ -68,6 +71,16 @@ def _run(args: argparse.Namespace) -> int:
             return 2
         for path in attachments.fetch(repo, bead=args.bead, out=args.out):
             print(path)
+        return 0
+    if args.command == "prune":
+        result = attachments.prune(repo, apply=args.apply)
+        if args.format == "json":
+            _emit(result)
+        else:
+            for item in result["candidates"]:
+                print(f"{item['path']} {item['reason']}")
+            if not args.apply and any(item["reason"] == "orphan" for item in result["candidates"]):
+                print("run bd dolt pull first: a blob whose entry has not reached this machine counts as an orphan")
         return 0
     warning = attachments.push(repo)
     if warning:
