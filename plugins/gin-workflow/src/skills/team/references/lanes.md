@@ -38,7 +38,7 @@ Read this in team mode. A lane is the tracks of one plan that one member does in
 ## Lane orchestrate
 
 - Run `/orchestrate` for the lane plan in the lane worktree. While `gin team check-plan <lane plan>` exits 1, create nothing.
-- Read the epic's children with `gin task list --parent <epic> --all --json`. For each track of the lane plan that has no bead with the line `Plan: <lane plan path>, Track <N>`, create one under the epic with that line and `Lane: <lane>` (in a workspace also `Repo:` and `Reads:`), the labels `track:<N>`, `area:<area>`, and `lane:<lane>`, and `--assignee <owner>`. Add the dependencies between them with `gin task dep add`, and make each track depend on every `external: <lead plan path>#lane-<name>` bead of the lane's `Depends on lanes:`.
+- Read the epic's children with `gin task list --parent <epic> --all --json`. For each track of the lane plan that has no bead with the line `Plan: <lane plan path>, Track <N>`, create one under the epic with `--no-inherit-labels`, holding that line and `Lane: <lane>` (in a workspace also `Repo:` and `Reads:`), the labels `track:<N>`, `area:<area>`, and `lane:<lane>`, and `--assignee <owner>`. Add the dependencies between them with `gin task dep add`, and make each track depend on every `external: <lead plan path>#lane-<name>` bead of the lane's `Depends on lanes:`.
 - Write the routes of these tracks only and run `gin routes resolve --workflow-id <epic id> --tracks <file> --json`; it merges them into the workflow's assignment manifest.
 - When every track has its bead, close the lane bead with `gin task close <lane bead> --reason "planned in <lane plan path>: <track bead ids>"`. Record no gate. After a failure, run it again: it creates only the missing beads.
 

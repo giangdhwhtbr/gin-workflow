@@ -65,11 +65,14 @@ class SkillRoutingTests(unittest.TestCase):
 
     def test_child_beads_do_not_inherit_the_epic_labels(self):
         # A track that inherits the epic's export:<cap> label makes `bd ship <cap>` refuse (gin-workflow-oh6p).
-        for relative, needle in (("skills/orchestrate/SKILL.md", "gin task create --parent <epic> --no-inherit-labels"),
-                                 ("skills/sdd/SKILL.md", "gin task create --parent <epic> --no-inherit-labels"),
-                                 ("skills/team/references/lanes.md", "--no-inherit-labels")):
+        for relative in ("skills/orchestrate/SKILL.md", "skills/sdd/SKILL.md"):
             with self.subTest(file=relative):
-                self.assertIn(needle, (SRC / relative).read_text(encoding="utf-8"))
+                text = (SRC / relative).read_text(encoding="utf-8")
+                self.assertIn("gin task create --parent <epic> --no-inherit-labels", text)
+        lanes = (SRC / "skills/team/references/lanes.md").read_text(encoding="utf-8")
+        flagged = lanes.count("under the epic with `--no-inherit-labels`")
+        self.assertEqual(2, flagged)  # lane beads and lane-plan track beads
+        self.assertEqual(lanes.count("under the epic"), flagged)
 
     def test_discuss_and_plan_delegate_exploration_to_researcher(self):
         for path in (SRC / "skills/discuss/SKILL.md", SRC / "skills/plan/SKILL.md"):
