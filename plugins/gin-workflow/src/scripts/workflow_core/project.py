@@ -102,10 +102,9 @@ def preset_assignments(*, stage: str, shape: str, rigor: str, task_tracking: str
     values: dict[str, Any] = {
         "project.stage": stage, "project.shape": shape, "project.monorepo": monorepo, "project.rigor": rigor,
         "project.worktree": preset["worktree"], "project.review": preset["review"],
-        "project.review_ledger": preset["review_ledger"], "provider_mode": "single",
+        "project.review_ledger": preset["review_ledger"],
         "providers.task_tracking": task_tracking,
         "routing.review.max_cycles": preset["max_cycles"],
-        "routing.review.independence": "session",
         "quick.max_files": 5,
     }
     if stack_intent:

@@ -75,9 +75,7 @@ class SetupCliTests(unittest.TestCase):
             payload = json.loads(result.stdout)
             self.assertEqual("proposed", payload["status"])
             self.assertIn('project.rigor="easy"', payload["assignments"])
-            self.assertIn('provider_mode="single"', payload["assignments"])
             self.assertIn('providers.task_tracking="markdown"', payload["assignments"])
-            self.assertIn('routing.review.independence="session"', payload["assignments"])
             self.assertEqual(["core"], payload["rule_packs"])
             self.assertIn('rules.packs=["core"]', payload["assignments"])
             self.assertEqual([], payload["rule_tool_checks"])
@@ -333,9 +331,9 @@ class SetupCliTests(unittest.TestCase):
                 {
                     "harness": "codex",
                     "policy": {"mode": "guarded"},
-                    "schema_version": "2.10",
-                    "setup_cli_version": "2.10",
-                    "workflow_version": "2.10",
+                    "schema_version": "2.11",
+                    "setup_cli_version": "2.11",
+                    "workflow_version": "2.11",
                 },
                 payload["configuration"],
             )
@@ -915,7 +913,9 @@ class SetupCliTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory, tempfile.TemporaryDirectory() as bin_dir:
             repository = Path(directory)
             self.assertEqual(0, self.run_cli(repository, "init", "--approve", "--non-interactive", "--harness", "claude").returncode)
-            self.assertEqual(0, self.run_cli(repository, "configure", "--approve", "--set", "provider_mode=multi").returncode)
+            (repository / ".agent-workflow/config.yaml").write_text(  # provider_mode is refused at 2.11
+                "schema_version: '2.10'\nworkflow_version: '2.10'\nsetup_cli_version: '2.10'\n"
+                "harness: claude\nprovider_mode: multi\n", encoding="utf-8")
             prov_reply = {"codex.low": {"available": True, "reason": "ready"}}
             fake_orchestrator(bin_dir, contract=2, capabilities=["doctor"], replies={"doctor": {"providers": prov_reply}})
             env = {**os.environ, "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}"}
@@ -930,7 +930,9 @@ class SetupCliTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory, tempfile.TemporaryDirectory() as empty_bin:
             repository = Path(directory)
             self.assertEqual(0, self.run_cli(repository, "init", "--approve", "--non-interactive", "--harness", "claude").returncode)
-            self.assertEqual(0, self.run_cli(repository, "configure", "--approve", "--set", "provider_mode=multi").returncode)
+            (repository / ".agent-workflow/config.yaml").write_text(  # provider_mode is refused at 2.11
+                "schema_version: '2.10'\nworkflow_version: '2.10'\nsetup_cli_version: '2.10'\n"
+                "harness: claude\nprovider_mode: multi\n", encoding="utf-8")
             env = {**os.environ, "PATH": empty_bin}
             res = self.run_cli(repository, "doctor", env=env)
             self.assertEqual(0, res.returncode, res.stderr)
@@ -943,7 +945,9 @@ class SetupCliTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory, tempfile.TemporaryDirectory() as bin_dir:
             repository = Path(directory)
             self.assertEqual(0, self.run_cli(repository, "init", "--approve", "--non-interactive", "--harness", "claude").returncode)
-            self.assertEqual(0, self.run_cli(repository, "configure", "--approve", "--set", "provider_mode=multi").returncode)
+            (repository / ".agent-workflow/config.yaml").write_text(  # provider_mode is refused at 2.11
+                "schema_version: '2.10'\nworkflow_version: '2.10'\nsetup_cli_version: '2.10'\n"
+                "harness: claude\nprovider_mode: multi\n", encoding="utf-8")
             fake_orchestrator(bin_dir, contract=2, capabilities=["doctor"], fail=["doctor"])
             env = {**os.environ, "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}"}
             res = self.run_cli(repository, "doctor", "--probe", env=env)

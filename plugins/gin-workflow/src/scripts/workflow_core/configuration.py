@@ -24,8 +24,8 @@ class ConfigValidationError(ValueError):
     """Raised when configuration is invalid or contains nonportable values."""
 
 
-SUPPORTED_WORKFLOW_VERSION = "2.10"
-SUPPORTED_SETUP_CLI_VERSION = "2.10"
+SUPPORTED_WORKFLOW_VERSION = "2.11"
+SUPPORTED_SETUP_CLI_VERSION = "2.11"
 
 
 BUILT_IN_DEFAULTS: dict[str, Any] = {
@@ -169,7 +169,7 @@ def role_providers(role: Mapping[str, Any]) -> list[str]:
 
 
 def legacy_worker_routing(config: Mapping[str, Any]) -> bool:
-    """Whether `routing:` still holds worker routing that schema 2.8 keeps under `orchestrator:`."""
+    """Whether `routing:` still holds worker routing, which schema 2.8 moved out and schema 2.11 removed."""
     routing = config.get("routing")
     if not isinstance(routing, Mapping):
         return False
@@ -180,6 +180,22 @@ def legacy_worker_routing(config: Mapping[str, Any]) -> bool:
         provider != "main_harness"
         for role in roles.values() if isinstance(role, Mapping) for provider in role_providers(role)
     )
+
+
+RETIRED_KEYS_NOTICE = (
+    "orchestrator, provider_mode, and routing.review.independence are ignored since gin 3.3.0; "
+    "run gin setup update --to-version 2.11 --approve"
+)
+
+
+def retired_keys(config: Mapping[str, Any]) -> list[str]:
+    """The keys schema 2.11 removed that `config` still holds, in a fixed order."""
+    routing = config.get("routing")
+    review = routing.get("review") if isinstance(routing, Mapping) else None
+    found = [key for key in ("orchestrator", "provider_mode") if key in config]
+    if isinstance(review, Mapping) and "independence" in review:
+        found.append("routing.review.independence")
+    return found
 
 
 def validate_portable_config(config: Mapping[str, Any]) -> None:
@@ -198,6 +214,11 @@ def validate_portable_config(config: Mapping[str, Any]) -> None:
         raise ConfigValidationError(
             "notifications was removed in schema 2.10; run gin setup update --to-version 2.10 --approve"
         )
+    if schema_version in SUPPORTED_CONFIG_VERSIONS and version_key(schema_version) >= version_key("2.11"):
+        for key in retired_keys(config):
+            raise ConfigValidationError(
+                f"{key} was removed in schema 2.11; run gin setup update --to-version 2.11 --approve"
+            )
     try:
         validate_config_schema(config)
     except DependencyUnavailableError:
@@ -223,8 +244,7 @@ def validate_portable_config(config: Mapping[str, Any]) -> None:
             if legacy_worker_routing(config):
                 raise ConfigValidationError(
                     "worker routing (routing.concurrency, queue, worker, circuit_breaker, or a role naming a "
-                    "provider other than main_harness) belongs under orchestrator:; "
-                    "run gin setup update --to-version 2.8 --approve"
+                    "provider other than main_harness) was removed in schema 2.11; delete it from routing:"
                 )
         elif isinstance(roles, Mapping):
             concurrency = routing.get("concurrency", {})

@@ -7,7 +7,12 @@ import unittest
 SCRIPTS = Path(__file__).resolve().parents[2] / "plugins/gin-workflow/src/scripts"
 sys.path.insert(0, str(SCRIPTS))
 
-from workflow_core.configuration import ConfigValidationError, validate_portable_config  # noqa: E402
+from workflow_core.configuration import (  # noqa: E402
+    RETIRED_KEYS_NOTICE,
+    ConfigValidationError,
+    retired_keys,
+    validate_portable_config,
+)
 from workflow_core.migrations import (  # noqa: E402
     MigrationError,
     apply_migration,
@@ -20,6 +25,14 @@ from workflow_core import setup_service  # noqa: E402
 
 V28 = {"schema_version": "2.8", "workflow_version": "2.8", "setup_cli_version": "2.8", "harness": "claude"}
 V29 = {**V28, "schema_version": "2.9", "workflow_version": "2.9", "setup_cli_version": "2.9"}
+V210 = {**V28, "schema_version": "2.10", "workflow_version": "2.10", "setup_cli_version": "2.10"}
+RETIRED = {
+    "provider_mode": "multi",
+    "orchestrator": {"roles": {"mobile": {"preferred": ["codex"]}, "backend": {"preferred": ["codex"]}},
+                     "worker": {"timeout_seconds": 900}},
+    "routing": {"roles": {"backend": {"preferred": ["main_harness"]}},
+                "review": {"independence": "provider", "max_cycles": 3}},
+}
 LOCAL_WITH_MODELS = {
     "schema_version": "2.8",
     "providers": {
@@ -254,13 +267,13 @@ setup_cli_version: '2.2'
                 any("gin setup update --to-version 2.9 --approve" in action for action in actions), actions
             )
 
-    def test_default_update_from_2_7_renames_the_local_file_and_moves_its_tier_models(self):
+    def test_update_2_7_to_2_10_renames_the_local_file_and_moves_its_tier_models(self):
         with tempfile.TemporaryDirectory() as directory:
             config = {**V28, "schema_version": "2.7", "workflow_version": "2.7", "setup_cli_version": "2.7"}
             repository, workflow = _write_repository(directory, config, LOCAL_WITH_MODELS, "providers.local.yaml")
             yaml = setup_service.require_yaml()
 
-            setup_service.update(repository, approve=True)
+            setup_service.update(repository, target_version="2.10", approve=True)
 
             self.assertFalse((workflow / "providers.local.yaml").exists())
             local = yaml.safe_load((workflow / "orchestrator.local.yaml").read_text(encoding="utf-8"))
@@ -370,6 +383,138 @@ setup_cli_version: '2.2'
             repository, _ = _write_repository(directory, {**V29, "notifications": {"telegram": True}})
             actions = setup_service.doctor(repository)["actions"]
             self.assertTrue(any("notifications is ignored since schema 2.10" in action for action in actions), actions)
+
+
+    def test_version_key_orders_2_11_after_2_10(self):
+        self.assertLess(version_key("2.10"), version_key("2.11"))
+
+    def test_migrates_2_10_to_2_11_dropping_the_retired_keys(self):
+        config = {**V210, **RETIRED}
+
+        migrated = migrate_config(config, "2.11")
+
+        for field in ("schema_version", "workflow_version", "setup_cli_version"):
+            self.assertEqual("2.11", migrated[field])
+        self.assertEqual([], retired_keys(migrated))
+        self.assertEqual({"backend": {"preferred": ["main_harness"]}, "mobile": {"preferred": ["main_harness"]}},
+                         migrated["routing"]["roles"])
+        self.assertEqual({"max_cycles": 3}, migrated["routing"]["review"])
+        self.assertIn("orchestrator", config)
+        self.assertEqual("provider", config["routing"]["review"]["independence"])
+
+    def test_2_10_to_2_11_removes_an_empty_review_and_adds_no_routing(self):
+        only_review = migrate_config({**V210, "routing": {"review": {"independence": "session"}}}, "2.11")
+        self.assertNotIn("routing", only_review)
+        self.assertNotIn("routing", migrate_config(V210, "2.11"))
+
+    def test_2_11_config_with_a_retired_key_is_rejected(self):
+        migrated = migrate_config(V210, "2.11")
+        cases = (("orchestrator", {"orchestrator": {}}), ("provider_mode", {"provider_mode": "single"}),
+                 ("routing.review.independence", {"routing": {"review": {"independence": "session"}}}))
+        for key, extra in cases:
+            with self.subTest(key=key):
+                with self.assertRaises(ConfigValidationError) as raised:
+                    validate_portable_config({**migrated, **extra})
+                self.assertIn(f"{key} was removed in schema 2.11", str(raised.exception))
+                self.assertIn("gin setup update --to-version 2.11 --approve", str(raised.exception))
+
+    def test_2_10_config_with_the_retired_keys_still_validates(self):
+        validate_portable_config({**V210, **RETIRED})
+
+    def test_update_to_2_11_backs_up_and_deletes_the_local_file(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repository, workflow = _write_repository(directory, {**V210, **RETIRED}, {"providers": {}})
+            local_before = (workflow / "orchestrator.local.yaml").read_bytes()
+
+            result = setup_service.update(repository, target_version="2.11", approve=True)
+
+            self.assertFalse((workflow / "orchestrator.local.yaml").exists())
+            self.assertEqual(local_before, (Path(result["backup"]) / "orchestrator.local.yaml").read_bytes())
+            self.assertIn("remove .agent-workflow/orchestrator.local.yaml", result["actions"])
+
+    def test_update_to_2_11_preview_keeps_the_local_file(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repository, workflow = _write_repository(directory, {**V210, **RETIRED}, {"providers": {}})
+
+            preview = setup_service.update(repository, target_version="2.11", approve=False)
+
+            self.assertIn("remove .agent-workflow/orchestrator.local.yaml", preview["actions"])
+            self.assertTrue((workflow / "orchestrator.local.yaml").is_file())
+            self.assertFalse((workflow / "backups").exists())
+
+    def test_rollback_restores_the_local_file_the_2_11_update_deleted(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repository, workflow = _write_repository(directory, {**V210, **RETIRED}, {"providers": {}})
+            local_before = (workflow / "orchestrator.local.yaml").read_bytes()
+            config_before = (workflow / "config.yaml").read_bytes()
+
+            result = setup_service.update(repository, target_version="2.11", approve=True)
+            setup_service.rollback(repository, backup=Path(result["backup"]))
+
+            self.assertEqual(local_before, (workflow / "orchestrator.local.yaml").read_bytes())
+            self.assertEqual(config_before, (workflow / "config.yaml").read_bytes())
+
+    def test_update_at_2_11_still_removes_a_leftover_local_file(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repository, workflow = _write_repository(directory, migrate_config(V210, "2.11"), {"providers": {}})
+
+            setup_service.update(repository, target_version="2.11", approve=True)
+
+            self.assertFalse((workflow / "orchestrator.local.yaml").exists())
+
+    def test_default_update_from_2_7_deletes_the_old_local_file_and_moves_its_tier_models(self):
+        with tempfile.TemporaryDirectory() as directory:
+            config = {**V28, "schema_version": "2.7", "workflow_version": "2.7", "setup_cli_version": "2.7"}
+            repository, workflow = _write_repository(directory, config, LOCAL_WITH_MODELS, "providers.local.yaml")
+            local_before = (workflow / "providers.local.yaml").read_bytes()
+            yaml = setup_service.require_yaml()
+
+            result = setup_service.update(repository, approve=True)
+
+            self.assertFalse((workflow / "providers.local.yaml").exists())
+            self.assertFalse((workflow / "orchestrator.local.yaml").exists())
+            self.assertEqual(local_before, (Path(result["backup"]) / "providers.local.yaml").read_bytes())
+            self.assertIn("remove .agent-workflow/providers.local.yaml", result["actions"])
+            self.assertFalse(any(action.startswith("rename") for action in result["actions"]), result["actions"])
+            written = yaml.safe_load((workflow / "config.yaml").read_text(encoding="utf-8"))
+            self.assertEqual("2.11", written["schema_version"])
+            self.assertEqual(["m1", "m2"], written["models"]["codex"]["models"])
+            self.assertEqual(["a", "b"], written["models"]["antigravity"]["models"])
+
+            setup_service.rollback(repository, backup=Path(result["backup"]))
+
+            self.assertEqual(local_before, (workflow / "providers.local.yaml").read_bytes())
+            self.assertFalse((workflow / "orchestrator.local.yaml").exists())
+
+    def test_update_to_2_11_moves_tier_models_and_leaves_no_local_file(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repository, workflow = _write_repository(directory, V210, LOCAL_WITH_MODELS)
+            yaml = setup_service.require_yaml()
+
+            setup_service.update(repository, target_version="2.11", approve=True)
+
+            self.assertFalse((workflow / "orchestrator.local.yaml").exists())
+            written = yaml.safe_load((workflow / "config.yaml").read_text(encoding="utf-8"))
+            self.assertEqual(["m1", "m2"], written["models"]["codex"]["models"])
+
+    def test_this_repository_config_migrates_to_2_11(self):
+        yaml = setup_service.require_yaml()
+        root = Path(__file__).resolve().parents[2]
+        config = yaml.safe_load((root / ".agent-workflow/config.yaml").read_text(encoding="utf-8"))
+
+        migrated = migrate_config(config, "2.11")
+
+        validate_portable_config(migrated)
+        self.assertEqual([], retired_keys(migrated))
+
+    def test_doctor_reports_retired_keys_on_an_older_schema(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repository, _ = _write_repository(directory, {**V210, **RETIRED})
+            self.assertIn(RETIRED_KEYS_NOTICE, setup_service.doctor(repository)["actions"])
+
+        with tempfile.TemporaryDirectory() as directory:
+            repository, _ = _write_repository(directory, migrate_config(V210, "2.11"))
+            self.assertNotIn(RETIRED_KEYS_NOTICE, setup_service.doctor(repository)["actions"])
 
 
 if __name__ == "__main__":

@@ -13,7 +13,7 @@ from typing import Any, Mapping, Sequence
 from .artifacts import ArtifactResolutionError, resolve_artifact
 from .catalog import catalog_for
 from .checkout import main_checkout
-from .configuration import ConfigValidationError, resolve_effective_config
+from .configuration import RETIRED_KEYS_NOTICE, ConfigValidationError, resolve_effective_config, retired_keys
 from .events import EventPersistenceError, WorkflowEvent, WorkflowEventStore
 from .prep import is_prep, tracks_of
 from .project import project_settings
@@ -587,7 +587,7 @@ def _state_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
                     "team": team_summary(repo_path, team)},
         "extensions": {"orchestrator": orchestrator_client.status()},
         "workspace": workspace.summary(workspace.locate(getattr(args, "start", repo_path))),
-        "warnings": [w for w in (orchestrator_client.warning(config.to_dict()), *causes, *unshared,
+        "warnings": [w for w in ((RETIRED_KEYS_NOTICE if retired_keys(config.to_dict()) else None), *causes, *unshared,
                                  _knowledge_warning(repo_path, config, events, workflow_id, gates_state,
                                                     epic=warn_epic)) if w],
         "recent_quick": [

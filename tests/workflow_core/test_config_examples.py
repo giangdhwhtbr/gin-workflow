@@ -8,7 +8,7 @@ PLUGIN = ROOT / "plugins/gin-workflow/src"
 SCRIPTS = PLUGIN / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 
-from workflow_core.configuration import require_yaml, validate_portable_config  # noqa: E402
+from workflow_core.configuration import require_yaml, retired_keys, validate_portable_config  # noqa: E402
 
 
 class ConfigExampleTests(unittest.TestCase):
@@ -20,16 +20,7 @@ class ConfigExampleTests(unittest.TestCase):
 
         validate_portable_config(portable)
 
-        roles = portable["orchestrator"]["roles"]
-        self.assertEqual(["claude"], roles["backend"]["preferred"])
-        self.assertEqual(["antigravity"], roles["frontend"]["preferred"])
-        self.assertEqual(["main_harness"], roles["review"]["preferred"])
-        self.assertIn("main_harness", roles["backend"]["fallback"])
-        self.assertIn("circuit_breaker", portable["orchestrator"])
         self.assertEqual(2, portable["routing"]["review"]["max_cycles"])
-        self.assertEqual(3, portable["orchestrator"]["circuit_breaker"]["failure_threshold"])
-        self.assertEqual(600, portable["orchestrator"]["queue"]["max_wait_seconds"])
-        self.assertEqual(2, portable["orchestrator"]["worker"]["max_retries"])
         self.assertEqual(86400, portable["policy"]["approval"]["ttl_seconds"])
         self.assertEqual("beads", portable["providers"]["task_tracking"])  # the example shows team mode
 
@@ -49,8 +40,7 @@ class ConfigExampleTests(unittest.TestCase):
         self.assertEqual("brownfield", portable["project"]["stage"])
         self.assertIn("checks", portable["verify"])
         self.assertIn("max_files", portable["quick"])
-        self.assertIn(portable["provider_mode"], ("single", "multi"))
-        self.assertEqual("provider", portable["routing"]["review"]["independence"])
+        self.assertEqual([], retired_keys(portable))
 
     def test_readme_links_the_provider_guide_and_docs_cover_routing(self):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")

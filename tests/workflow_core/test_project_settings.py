@@ -85,13 +85,11 @@ class TestPresets(unittest.TestCase):
         self.assertEqual(["docs", "frontend", "general", "qa", "review"],
                          sorted(config["routing"]["roles"]))
         self.assertEqual({"preferred": ["main_harness"]}, config["routing"]["roles"]["frontend"])
-        self.assertEqual("session", config["routing"]["review"]["independence"])
         self.assertEqual("pnpm run test: unit", config["verify"]["checks"]["test"])
         self.assertEqual("parallel", config["project"]["worktree"])
-        self.assertEqual("single", config["provider_mode"])
         self.assertEqual("markdown", config["providers"]["task_tracking"])
         settings = project_settings(config)
-        self.assertEqual(("frontend", "standard", "single"), (settings.shape, settings.rigor, settings.provider_mode))
+        self.assertEqual(("frontend", "standard"), (settings.shape, settings.rigor))
 
     def test_every_shape_preset_routes_qa_to_the_main_harness(self):
         from workflow_core.project import ROLES_BY_SHAPE
@@ -103,8 +101,6 @@ class TestPresets(unittest.TestCase):
     def test_preset_backend_standard_includes_single_harness_and_task_tracking(self):
         config = _apply(preset_assignments(stage="brownfield", shape="backend", rigor="standard", task_tracking="markdown"))
         validate_portable_config(config)
-        self.assertEqual("single", config["provider_mode"])
-        self.assertEqual("session", config["routing"]["review"]["independence"])
         self.assertEqual("markdown", config["providers"]["task_tracking"])
         self.assertEqual(["backend", "docs", "general", "qa", "review"],
                          sorted(config["routing"]["roles"]))

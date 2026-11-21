@@ -13,7 +13,14 @@ from .bundles import export_bundle, verify_bundle
 from .catalog import DEFAULT_CATALOGS
 from .checkout import main_checkout
 from .cli import CLI_VERSION
-from .configuration import legacy_worker_routing, require_yaml, resolve_effective_config, validate_portable_config
+from .configuration import (
+    RETIRED_KEYS_NOTICE,
+    legacy_worker_routing,
+    require_yaml,
+    resolve_effective_config,
+    retired_keys,
+    validate_portable_config,
+)
 from .project import preset_assignments, project_settings
 from .project_detect import detect_project
 from .executables import detect as detect_tools, doctor_report as executables_report, tool, write_local
@@ -484,6 +491,8 @@ def doctor(repository: Path, *, probe: bool = False, current: Path | None = None
             backend_actions.append(
                 "notifications is ignored since schema 2.10; run gin setup update --to-version 2.10 --approve"
             )
+        if retired_keys(effective_cfg):
+            backend_actions.append(RETIRED_KEYS_NOTICE)
         local_path = main_checkout(root) / ".agent-workflow/orchestrator.local.yaml"
         if local_path.is_file() and _local_tier_models(_read_local_file(local_path)):
             backend_actions.append(
@@ -726,6 +735,11 @@ def update(
             local_actions.append(f"remove provider models: from {local_source.relative_to(main)}")
             local_writes[new_local] = _yaml_text(rewritten).encode("utf-8")
             local_backup[local_source.name] = local_source.read_bytes()
+    retire_local = version_key(target_version) >= version_key("2.11") and local_source.is_file()
+    if retire_local:
+        local_writes.pop(new_local, None)
+        local_backup[local_source.name] = local_source.read_bytes()
+        local_actions.append(f"remove {local_source.relative_to(main).as_posix()}")
     validate_portable_config(migrated)
     resolved = resolve_effective_config(root, repository_config=migrated, write=False)
 
@@ -734,7 +748,7 @@ def update(
     if (local_actions or pin_actions) and proposal["status"] == "up_to_date":
         proposal["status"] = "migration_available"
     proposal["actions"] = [*proposal.get("actions", ()), *local_actions, *pin_actions]
-    if rename_local:
+    if rename_local and not retire_local:
         proposal["actions"] = [*proposal.get("actions", ()), f"rename {old_local.relative_to(main).as_posix()} to {new_local.name}"]
     payload = {**proposal, "configuration": migrated}
     if dry_run or not approve:
@@ -757,7 +771,10 @@ def update(
             atomic_write_many(pin_writes)
             res["status"] = "updated"
         res.setdefault("actions", []).extend(pin_actions)
-    if rename_local:
+    if retire_local:
+        local_source.unlink()
+        res.setdefault("actions", []).append(f"remove {local_source.relative_to(main).as_posix()}")
+    elif rename_local:
         if local_writes:
             old_local.unlink()
         else:

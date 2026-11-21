@@ -1,8 +1,7 @@
-schema_version: "2.10"
-workflow_version: "2.10"
-setup_cli_version: "2.10"
+schema_version: "2.11"
+workflow_version: "2.11"
+setup_cli_version: "2.11"
 harness: codex
-provider_mode: multi
 
 providers:
   task_tracking: beads  # team mode requires Beads; markdown is the default
@@ -61,45 +60,11 @@ routing:
     require_independent: true
     allow_self_review_fallback: false
     max_cycles: 2
-    independence: provider
 
 # models:
 #   claude:
 #     models: [haiku, sonnet, opus]
 #     efforts: [low, medium, high, xhigh, max]
-
-orchestrator:
-  roles:
-    backend:
-      preferred: [claude]
-      fallback: [main_harness]
-    frontend:
-      preferred: [antigravity]
-      fallback: [claude, main_harness]
-    review:
-      preferred: [main_harness]
-      fallback: [claude]
-      require_independent: true
-    docs:
-      preferred: [antigravity]
-      fallback: [main_harness]
-    general:
-      preferred: [main_harness]
-      fallback: [claude, antigravity]
-  concurrency:
-    claude: 2
-    antigravity: 2
-    codex: 1
-    opencode: 1
-  queue:
-    max_wait_seconds: 600
-  worker:
-    timeout_seconds: 900
-    max_retries: 2
-  circuit_breaker:
-    failure_threshold: 3
-    cooldown_seconds: 900
-    half_open_max_probes: 1
 
 policy:
   approval:
