@@ -2,6 +2,18 @@
 
 This page lists what changed in each release of gin-workflow and its add-ons (gin-qa, gin-ba), newest first. Releases before 3.1.0 are on the [GitHub releases page](https://github.com/giangdhwhtbr/gin-workflow/releases).
 
+## [3.4.0] - 2026-11-21
+
+gin no longer tracks AI usage. Collecting it took about a minute per epic at every track and at ship, and the figures missed most of the work, so the `gin usage` command, the price catalog, the per-epic budget, and the `report` skill are removed.
+
+### Upgrade notes
+
+- `gin usage collect` and `gin usage report` are gone; `execute`, `ship`, and `milestone-close` no longer run them. `ai_usage` already stored on beads stays, and nothing writes it any more.
+- `usage.budget_usd` is ignored, and `gin routes dispatch` no longer exits 3. `gin state` and `gin setup doctor` say so until you delete `usage:` from `.agent-workflow/config.yaml`; no `gin setup update` is needed.
+- `.agent-workflow/usage-prices.yaml` is no longer read; delete it.
+- The `report` skill (`/gin:report`, OpenCode `gin-report`) is removed; a project install removes gin's copy and keeps gin-qa's `report` skill.
+- `milestone-close` no longer computes `cost_per_epic` and `rework`.
+
 ## [3.3.0] - 2026-11-21
 
 gin now runs every stage in the harness you opened. The gin-orchestrator extension, which started worker processes on other harness CLIs, is removed, and so are the config keys that only it read. Review is always a fresh session or subagent of the same harness.

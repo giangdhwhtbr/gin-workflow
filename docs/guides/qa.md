@@ -104,7 +104,7 @@ The skill then shows each due case in ID order and asks the tester for `passed`,
 
 A failure asks for what happened, evidence references, and an optional external tracker reference, then runs `gin-qa cases bug`:
 
-- The bug is a bead filed through `gin task create`, linked to the case's epic with `discovered-from`. `gin usage collect` on that epic counts it in `quality.bugs`, and the [usage report](../reference/cli.md#gin-usage) shows the count from the last collect.
+- The bug is a bead filed through `gin task create`, linked to the case's epic with `discovered-from`.
 - The epic comes from the case's spec or change; see [`gin-qa cases bug`](../reference/cli.md#gin-qa-cases-bug) for the lookup. With no epic, the skill offers the open epics of the repository to pick from.
 - `gin-qa cases bug` files a bug for a case of any type. When the case's REQs belong to several epics, it exits 2 and names them; `--discovered-from` picks one.
 - The description holds the case file, the run, the preconditions, test data, steps, expected, the actual result, and the evidence.

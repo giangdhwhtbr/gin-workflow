@@ -54,7 +54,6 @@ Các quy tắc giúp cách chia này vận hành tốt:
 - Lan và Binh chạy `/gin:roadmap`, `plan`, các review, và các track `opus` hoặc `high`, như cutover legacy.
 - An, Em, Dung, Hoa, và Chi chạy song song các track có phạm vi rõ, ở `sonnet` và `medium` hoặc `haiku` và `low`.
 - Ghi `Owner:` của mọi track trong plan, để cách chia hiện rõ trong `gin team check-plan <plan>`.
-- Đặt `usage.budget_usd` trong `.agent-workflow/config.yaml` để giới hạn chi tiêu của mỗi epic. Xem [Báo cáo mức sử dụng AI](usage-report.md#budget).
 
 ## Làm thủ công khi hết quota AI { #working-manually-when-ai-quota-runs-out }
 

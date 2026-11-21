@@ -1,6 +1,6 @@
 # Skills reference
 
-Every skill is also a slash command: `/gin:<name>` (Claude Code) or the harness equivalent, `/gin-qa:<name>` for the QA add-on, `/gin-ba:<name>` for the BA add-on. In OpenCode, invoke a skill by id with `@<name>` (for example `@plan`; `learn` is `@gin-learn` and `report` is `@gin-report`, as for the other six generic skills, see [Troubleshooting](troubleshooting.md#opencode-does-not-show-the-gin-skills)); the lifecycle stages still run through the `gin` CLI. In GitHub Copilot CLI the skills register under their plain names (`setup`, `workflow`, `plan`, ...), as `copilot skill list` shows.
+Every skill is also a slash command: `/gin:<name>` (Claude Code) or the harness equivalent, `/gin-qa:<name>` for the QA add-on, `/gin-ba:<name>` for the BA add-on. In OpenCode, invoke a skill by id with `@<name>` (for example `@plan`; `learn` is `@gin-learn`, as for the other six generic skills, see [Troubleshooting](troubleshooting.md#opencode-does-not-show-the-gin-skills)); the lifecycle stages still run through the `gin` CLI. In GitHub Copilot CLI the skills register under their plain names (`setup`, `workflow`, `plan`, ...), as `copilot skill list` shows.
 
 ## gin: lifecycle stages
 
@@ -22,7 +22,6 @@ Run these in order for a feature. `workflow` picks the next one for you.
 | `workflow` | Route the current state to exactly one lifecycle stage, or diagnose a held workflow |
 | `quick` | Small, low-risk change without plan or beads: confirm, implement, verify per rigor, report. In team mode, started on the base branch, it pushes `quick/<slug>`, opens a pull request with the covering cases and the ship approval line, and records a `[gin quick]` comment on an epic or the active milestone |
 | `progress` | Report task status, blockers, open waivers, and next ready work without changing anything; for a milestone it lists the epics with `task list --parent <milestone-id>` |
-| `report` | Report AI usage per bead, epic or milestone (`--milestone <id>`: tokens, cost, quality signals) without changing anything |
 | `setup` | First-time repository configuration and requested setup maintenance |
 
 ## gin: supporting skills
@@ -50,7 +49,7 @@ Stages load these when needed; you can also invoke them directly.
 | `roadmap` | Turn the tech-doc set or a product brief into a confirmed roadmap and dependent Beads epics, with a project deadline and story points per epic, scored by the AI and converted to working days from the measured pace. Re-runs reconcile both. It proposes the team's way of working (Foundation, Spec cadence, Build, Integration, Quality, Load) for the PM to confirm, rates each epic's complexity, and reports the `gin milestone list` forecast. The file has a `## Summary` table, `Features:` and `Legacy:` per epic, and a `## Legacy coverage` table when `13-CAPABILITIES.md` exists; with the SDD layout each epic carries `Capabilities:`. A plain run proposes the milestone plan and the `Outcome:` and `Demo:` of each milestone. `--milestone <id>` plans one dated milestone with its own lanes, a `Spec ready by:` date, and an integration point. |
 | `allocate` | Propose, assign, and create prep tasks (`capture`, `mockup`, `spike`, `question`, `other`) under roadmap epics before discuss, for one epic or a milestone (`--milestone <id>`); the lead confirms one table first, and a re-run proposes only differences |
 | `retro` | Record one member's retro on an open milestone as a `[gin retro]` comment on the milestone bead: the member sees their epics with estimates and actual days, answers what went well, what slowed the work, and what to change, and confirms the text; a re-run adds a comment and the newest one counts. A milestone is `active` once `gin milestone kickstart` has set its kickoff and that date has come; until then the skill asks which milestone. |
-| `milestone-close` | Close a milestone in one guided run: summary of delivered and open epics, estimates, cost, Outcome and Demo, and retros; team-level metrics (completion, estimate accuracy, capacity used, cost per epic, rework, velocity, say/do, days per point) compared with the previous closed milestone; every open epic moves to the next milestone (by start date) with a reason from the retros or asked, and a decision; after confirmation it writes a `[gin close]` comment, closes the milestone, writes `Result:` and way-of-working changes to the roadmap file and lessons to knowledge records, and sets new estimates. A milestone is `active` once `gin milestone kickstart` has set its kickoff and that date has come; until then the skill asks which milestone. |
+| `milestone-close` | Close a milestone in one guided run: summary of delivered and open epics, estimates, Outcome and Demo, and retros; team-level metrics (completion, estimate accuracy, capacity used, velocity, say/do, days per point) compared with the previous closed milestone; every open epic moves to the next milestone (by start date) with a reason from the retros or asked, and a decision; after confirmation it writes a `[gin close]` comment, closes the milestone, writes `Result:` and way-of-working changes to the roadmap file and lessons to knowledge records, and sets new estimates. A milestone is `active` once `gin milestone kickstart` has set its kickoff and that date has come; until then the skill asks which milestone. |
 
 ## gin: documentation
 
@@ -251,11 +250,4 @@ Base URL: <url>. Accounts come from environment variables <names>. Flows: browse
 ```text
 /gin:ship
 Epic: <epic-id>. Open a pull request; do not merge yet.
-```
-
-`report`:
-
-```text
-/gin:report --milestone <milestone-id>
-Show cost and quality signals per epic.
 ```

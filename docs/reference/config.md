@@ -12,7 +12,6 @@ Installing the plugin never changes a repository. Run `/setup` once per reposito
 | `.agent-workflow/executables.local.yaml` | no | Machine-local paths of the external CLIs (`git`, `bd`, `gh`, `glab`, `npm`, `npx`, `gin`, `codegraph`); written by `setup init` and `setup refresh` |
 | `.agent-workflow/generated/effective-config.yaml` | no | The resolved configuration every skill reads |
 | `.agent-workflow/generated/config-provenance.yaml` | no | Which layer set each value |
-| `.agent-workflow/usage-prices.yaml` | your choice | Model prices for `gin usage` |
 | `.agent-workflow/runtime/` | no | Gate events (`events.jsonl`), assignment manifests, session harness override, evidence |
 | `.agent-workflow/backups/` | no | Backups taken before a migration |
 
@@ -112,7 +111,7 @@ Where the full suite (`test`, `build`, `e2e`) runs: `track` after each track, `p
 
 ### `usage`
 
-`budget_usd` (number above 0, optional): the AI spend ceiling of each epic, in USD. `gin usage collect --bead <epic>` compares the epic's cost with it and reports `ok`, `warn` (from 80%), `stop` (from 120%), or `unenforceable` (a used model has no price in `.agent-workflow/usage-prices.yaml`). At `stop`, `routes dispatch` refuses the next track (exit 3) until you raise the budget. See [AI usage report](../guides/usage-report.md#budget).
+`usage:` is ignored since gin 3.4.0; delete it. gin no longer tracks AI usage.
 
 ### `artifacts`
 
@@ -175,7 +174,7 @@ A configured harness entry replaces that harness's built-in entry as a whole. `m
 
 ### `providers`
 
-`task_tracking`: `markdown` or `beads`. Unset means `markdown`, or `beads` when `team:` is configured. `markdown` keeps one Markdown file per task under `.planning/tasks/` in the main checkout, git-ignored and local to this machine; it needs no `bd`. Team mode and `gin usage` require `beads`.
+`task_tracking`: `markdown` or `beads`. Unset means `markdown`, or `beads` when `team:` is configured. `markdown` keeps one Markdown file per task under `.planning/tasks/` in the main checkout, git-ignored and local to this machine; it needs no `bd`. Team mode requires `beads`.
 
 ### `team`
 
@@ -201,12 +200,3 @@ executables:
 ```
 
 A configured path is used while it is an executable file; otherwise the command falls back to `PATH`. A missing or invalid file never fails a command. `setup doctor` reports `stale`, `unconfigured`, `missing`, and `problems` under `checks_details.executables`. The file is not committed and is not exported in bundles. gin-qa does not read it: it imports nothing from gin-workflow and finds `gin` and `npx` on `PATH`.
-
-## `usage-prices.yaml`
-
-```yaml
-prices:
-  <model id>: {input: 3.0, output: 15.0, cache_read: 0.3, cache_write: 3.75}
-```
-
-Prices are per million tokens; USD is a convention, since the code applies no currency. Models without a price show `-` and are listed as `unpriced`.

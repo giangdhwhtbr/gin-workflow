@@ -521,10 +521,6 @@ gin milestone move <open-epic>... --to <next-id>
 gin milestone close <id> --reason "Catalog read path shipped; checkout epic moved to M2"
 ```
 ```text
-/gin:report --milestone <id>
-Question: what did the catalog epics cost, and which of them were reopened or had bugs found later?
-```
-```text
 /gin:progress milestone <id>
 Question: which epics are still open, and which tracks block them?
 ```

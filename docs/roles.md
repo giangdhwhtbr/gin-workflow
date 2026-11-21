@@ -17,7 +17,7 @@ In [team mode](guides/team.md) each member holds roles, each area of the reposit
 
 | Role | Skills | Files | Branch | Approves |
 |---|---|---|---|---|
-| PM | `/gin:roadmap`, `/gin:progress`, `/gin:report`; `/gin:roadmap --milestone` writes milestones, limited by `team.permissions.milestone`; owns the roadmap deadline and scope | `.planning/roadmap.md` (`docs/roadmap.md` with the SDD layout) | `roadmap/<topic>` | `roadmap` |
+| PM | `/gin:roadmap`, `/gin:progress`; `/gin:roadmap --milestone` writes milestones, limited by `team.permissions.milestone`; owns the roadmap deadline and scope | `.planning/roadmap.md` (`docs/roadmap.md` with the SDD layout) | `roadmap/<topic>` | `roadmap` |
 | BA | `/gin-ba:capture`, `/gin-ba:mockup`, `/gin:discuss` (capability epics), `/gin:explain`, `/gin:tech-doc`, `/gin:progress`, `gin task comment` (`[gin answer]`, `[gin accept]`) | `.planning/specs/` (`docs/specs/` and `docs/changes/` with the SDD layout) | `spec/<topic>` (`spec/<epic>-<slug>` with the SDD layout) | `requirement_confirmed` |
 | Tech lead | `/gin:setup`, `/gin:team-setup` (as lead), `/gin:tech-doc`, `/gin:discuss` (purely technical epics, such as an integration or platform epic), `/gin:allocate`, `/gin:plan`, `/gin:orchestrate`, `/gin:review`, `/gin:ship` | `.agent-workflow/config.yaml`, `.planning/codebase/` (`docs/codebase/` with the SDD layout), `.planning/plans/` (`04-plan.md` with the SDD layout), area source and test paths | `chore/team-setup`, `plan/<topic>`, `feat/<topic>-<lane>` | `plan_approved` for the areas they lead; the [sole-holder fallback](guides/team.md#approval-policies) covers a role whose only holder is the author; `roadmap` order and technical epics with the PM, when listed in `team.approvals.roadmap` |
 | Frontend lead | `/gin:plan` (reviews it for their areas), `/gin:review`, `/gin:ship`, plus the developer skills | source and test paths of the app areas they lead | `feat/<topic>-<lane>` | `plan_approved` for the app areas they lead; may be one of the `any` roles of `ship` |
@@ -44,8 +44,7 @@ Everyone except the tech lead starts from [joining a team](guides/team.md#join-i
 
 1. [Joining a team](guides/team.md#join-it-member)
 2. The Roadmap overview, Milestone planning, and Milestone review and spill-over sections of the [brownfield starter](starters/brownfield.md)
-3. [AI usage report](guides/usage-report.md)
-4. [Skills reference](reference/skills.md)
+3. [Skills reference](reference/skills.md)
 
 ### BA
 

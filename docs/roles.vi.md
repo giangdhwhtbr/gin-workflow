@@ -17,7 +17,7 @@ Trong [chế độ nhóm](guides/team.md), mỗi thành viên giữ các vai tr�
 
 | Vai trò | Skill | File | Branch | Phê duyệt |
 |---|---|---|---|---|
-| PM | `/gin:roadmap`, `/gin:progress`, `/gin:report`; `/gin:roadmap --milestone` ghi milestone, giới hạn bởi `team.permissions.milestone`; sở hữu deadline và scope của roadmap | `.planning/roadmap.md` (`docs/roadmap.md` với layout SDD) | `roadmap/<topic>` | `roadmap` |
+| PM | `/gin:roadmap`, `/gin:progress`; `/gin:roadmap --milestone` ghi milestone, giới hạn bởi `team.permissions.milestone`; sở hữu deadline và scope của roadmap | `.planning/roadmap.md` (`docs/roadmap.md` với layout SDD) | `roadmap/<topic>` | `roadmap` |
 | BA | `/gin-ba:capture`, `/gin-ba:mockup`, `/gin:discuss` (epic capability), `/gin:explain`, `/gin:tech-doc`, `/gin:progress`, `gin task comment` (`[gin answer]`, `[gin accept]`) | `.planning/specs/` (`docs/specs/` và `docs/changes/` với layout SDD) | `spec/<topic>` (`spec/<epic>-<slug>` với layout SDD) | `requirement_confirmed` |
 | Tech lead | `/gin:setup`, `/gin:team-setup` (với tư cách lead), `/gin:tech-doc`, `/gin:discuss` (epic thuần kỹ thuật, như epic integration hoặc platform), `/gin:allocate`, `/gin:plan`, `/gin:orchestrate`, `/gin:review`, `/gin:ship` | `.agent-workflow/config.yaml`, `.planning/codebase/` (`docs/codebase/` với layout SDD), `.planning/plans/` (`04-plan.md` với layout SDD), đường dẫn source và test của khu vực | `chore/team-setup`, `plan/<topic>`, `feat/<topic>-<lane>` | `plan_approved` cho các khu vực họ dẫn dắt; [phương án người giữ duy nhất](guides/team.md#approval-policies) áp dụng cho vai trò chỉ có tác giả là người giữ; thứ tự `roadmap` và các epic kỹ thuật cùng với PM, khi được liệt kê trong `team.approvals.roadmap` |
 | Frontend lead | `/gin:plan` (review plan cho các khu vực của họ), `/gin:review`, `/gin:ship`, cùng các skill của developer | đường dẫn source và test của các khu vực app mà họ dẫn dắt | `feat/<topic>-<lane>` | `plan_approved` cho các khu vực app mà họ dẫn dắt; có thể là một trong các vai trò `any` của `ship` |
@@ -44,8 +44,7 @@ Mọi người trừ tech lead bắt đầu từ [tham gia nhóm](guides/team.md
 
 1. [Tham gia nhóm](guides/team.md#join-it-member)
 2. Các mục Roadmap overview, Milestone planning, và Milestone review and spill-over của [starter brownfield](starters/brownfield.md)
-3. [Báo cáo sử dụng AI](guides/usage-report.md)
-4. [Tham chiếu skill](reference/skills.md)
+3. [Tham chiếu skill](reference/skills.md)
 
 ### BA { #ba }
 

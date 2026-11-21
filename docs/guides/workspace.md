@@ -81,7 +81,7 @@ Open: the parent checkout. Everything happens there; `/gin:roadmap` creates its 
 | Requirements | `/gin:discuss` |
 | Documenting the current system | `/gin:tech-doc` (reads `legacy/shop-portal` when it is present; otherwise it prints `gin workspace clone <path>`) |
 | Spec review | the review of the spec pull request |
-| Progress | `/gin:progress`, `/gin:report` |
+| Progress | `/gin:progress` |
 | Questions during build | answer `[gin question]` comments; see [during the build](ba.md#during-the-build) |
 | Acceptance | `[gin accept]` per epic |
 

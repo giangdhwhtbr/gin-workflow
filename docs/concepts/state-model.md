@@ -10,7 +10,6 @@ Each kind of workflow state has exactly one owner. When two sources disagree, th
 | Was a gate confirmed, approved, waived, or recorded? | the event store, `.agent-workflow/runtime/events.jsonl` |
 | What did review find, and is the current tree approved? | the review ledger, `.planning/reviews/<bead>/` |
 | Which worktree, branch, or provider route did a track use? | runtime metadata (derived, disposable) |
-| What did AI work on a bead cost? | the bead's `ai_usage` metadata |
 
 ## Task tracker
 
@@ -77,6 +76,3 @@ Worktree paths, branch names, assignment manifests (`runtime/assignments/<workfl
 - never let a local cache override the task tracker;
 - repair or discard stale runtime files rather than trusting them.
 
-## Usage summaries
-
-`gin usage collect` stores a summary in the bead's metadata under `ai_usage`. It records tokens and estimated cost per model and per lifecycle stage, and quality signals (reopens, bugs found later, review cycles, rejections, findings by severity, waivers). It holds aggregates only, never prompts, session ids, or log paths.

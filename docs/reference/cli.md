@@ -2,7 +2,7 @@
 
 The plugin ships two command-line tools that skills call and that you can run yourself:
 
-- `gin`: repository setup, lifecycle gates, rules, specs, team mode, and usage reports.
+- `gin`: repository setup, lifecycle gates, rules, specs, and team mode.
 - `review-ledger.py`: the review ledger for one bead.
 
 The local installer (`install.sh`, `install.ps1`) links `gin` into `~/.local/bin`. A marketplace install does not; see [Troubleshooting](troubleshooting.md#gin-command-not-found-after-a-marketplace-install).
@@ -318,9 +318,9 @@ Both actions always print JSON; `--json` is accepted and changes nothing.
 - a model or effort outside the catalog, or an effort for a catalog without efforts;
 - a `reasoning` field and no `model`; `model` and `effort` replace `reasoning`.
 
-`dispatch` prints the current route of one track from the manifest, `{"task_id", "provider", "model", "effort", "escalated"}`, and appends a `route.dispatched` event with that route to `.agent-workflow/runtime/events.jsonl` in the main checkout. `--escalate REASON` first moves the track one step up its provider's catalog: the next model at the same effort, or the next effort at the strongest model. It writes the new route and an `escalations` entry (`from`, `to`, `reason`) to the manifest. At the strongest model and highest effort it prints `{"status": "human_decision_required", ...}`, changes nothing, and exits 2. With `usage.budget_usd` set, it first reads the stored `ai_usage` of the epic (the one `orchestration-ready` recorded for the workflow, else the workflow id). At or above 120% of the budget it prints `{"status": "over_budget", "epic", "cost", "budget_usd"}`, changes nothing, and exits 3. When `bd` cannot be read it prints a warning and dispatches.
+`dispatch` prints the current route of one track from the manifest, `{"task_id", "provider", "model", "effort", "escalated"}`, and appends a `route.dispatched` event with that route to `.agent-workflow/runtime/events.jsonl` in the main checkout. `--escalate REASON` first moves the track one step up its provider's catalog: the next model at the same effort, or the next effort at the strongest model. It writes the new route and an `escalations` entry (`from`, `to`, `reason`) to the manifest. At the strongest model and highest effort it prints `{"status": "human_decision_required", ...}`, changes nothing, and exits 2.
 
-Exit codes: 0 all routes resolved and manifest written, or a route printed; 2 unresolved tracks, a missing or invalid manifest, a track missing from it or without a resolved route, an invalid configuration, an unknown provider, or a manifest route outside its provider's catalog on `--escalate`, nothing left to escalate to, or invalid arguments; 3 the epic is over budget (`dispatch`).
+Exit codes: 0 all routes resolved and manifest written, or a route printed; 2 unresolved tracks, a missing or invalid manifest, a track missing from it or without a resolved route, an invalid configuration, an unknown provider, or a manifest route outside its provider's catalog on `--escalate`, nothing left to escalate to, or invalid arguments.
 
 ## `gin paths`
 
@@ -423,17 +423,6 @@ The task-tracking entry point skills and agents use. With `providers.task_tracki
 `close` has one guard of its own. With `project.review_ledger: true`, closing a bead that has a parent epic (a track) needs a review ledger with a live approval. Otherwise the command names the ledger state, closes nothing, and exits 2. `--waive-review <reason> --actor <id>` records a `review.waived` event and then closes. `ship` lists those tracks. A bead without a parent, or `review_ledger: false`, closes as before. Running `bd close` directly skips the guard.
 
 Exit codes: 0 ok; 1 invalid configuration, invalid request, or malformed task file (the message names the file); 2 `close` refused by the review guard or given bad arguments; 127 `beads` is configured but `bd` is not installed. Other `bd` commands exit with `bd`'s own code.
-
-## `gin usage`
-
-```
-gin usage collect --bead ID [--best-effort]
-gin usage report [--bead ID | --epic ID | --milestone ID | --since YYYY-MM-DD]
-```
-
-`collect` reads local Claude Code and Codex logs, attributes token usage to the bead and its lifecycle stages, adds quality signals, and stores the summary in the bead's `ai_usage` metadata. `report` reads those summaries back; with no scope it covers every closed bead and every bead that has a summary, and lists closed beads without one as `not collected`. `--milestone ID` covers the epics under that milestone and their tracks; a non-milestone id exits 2. Costs come from `.agent-workflow/usage-prices.yaml`; unpriced models show `-`. With `usage.budget_usd` set, collecting an epic adds `budget: {budget_usd, cost, status}` to its summary and the status to the printed line. `report` prints totals per model, then per role and model (`role main <model>`, `role subagent <model>`). A Claude Code record whose log line has `"isSidechain": true` counts as `subagent`; every other record, including every Codex record, counts as `main`. When totals miss runs, JSON output adds `partial` and `partial_reasons`, and the text report prints `partial: <reasons>` after the total line.
-
-Exit codes: 0 ok; 2 error. With `--best-effort`, `collect` turns any error into a `warning:` line and exits 0, so it never blocks closing a bead.
 
 ## `review-ledger.py`
 

@@ -48,7 +48,7 @@ flowchart LR
     HK -.guards.-> GIT
 ```
 
-The harness loads the skills. Skills call `gin` for configuration, gates, rules, specs, team mode, and usage, and `review-ledger.py` for reviews. Tasks go through `gin task`, which serves Markdown files or runs `bd`. Nothing outside the repository holds workflow state except Beads (if used) and the harness logs that `usage collect` reads. See [State model](state-model.md) for who owns what.
+The harness loads the skills. Skills call `gin` for configuration, gates, rules, specs, and team mode; they call `review-ledger.py` for reviews. Tasks go through `gin task`, which serves Markdown files or runs `bd`. Nothing outside the repository holds workflow state except Beads (if used). See [State model](state-model.md) for who owns what.
 
 The optional `gin-ba` add-on has skills only and no CLI. With the SDD layout, `capture` and `mockup` write the business analyst's inputs into dated asset folders under `docs/specs/<capability>/assets/` through `gin specs assets`. `discuss` cites the confirmed folders. See [Business analyst](../guides/ba.md).
 
@@ -72,7 +72,7 @@ stateDiagram-v2
     progress --> execute: blocker cleared or gate waived
     note right of execute
         each track: implement, independent review,
-        usage collect, task close
+        task close
     end note
     note left of plan
         SDD layout: change folder and REQ-IDs
@@ -98,7 +98,6 @@ sequenceDiagram
     participant R as gin rules
     participant L as review-ledger.py
     participant V as Independent reviewer
-    participant U as gin usage
     A->>B: task ready, task update --claim
     A->>R: rules --files <scope>
     R-->>A: rule text for the developer
@@ -112,7 +111,6 @@ sequenceDiagram
         A->>L: fix-finding, new checkpoint
         V->>L: verify-finding, approve
     end
-    A->>U: usage collect --bead <id> --best-effort
     A->>B: task close <id>
     B-->>A: dependents become ready
 ```
@@ -152,20 +150,3 @@ flowchart LR
 ```
 
 The installer rebuilds `dist/` from `src/` for each selected platform and registers it with the harness. Three plugins build the same way: gin-workflow (the default, plugin id `gin`), `gin-qa`, and `gin-ba`. Each harness keeps a snapshot, so a fix committed to this repository reaches a machine only after the install runs again there. A marketplace install copies the plugin but not the launchers. See [Contributing](../contributing.md) and [Troubleshooting](../reference/troubleshooting.md).
-
-## Usage collection
-
-```mermaid
-flowchart LR
-    L1[~/.claude/projects/&lt;repo&gt;/*.jsonl] --> A
-    L2[~/.codex/sessions/**/rollout-*.jsonl] --> A
-    A[usage_logs: token records per model] --> B{usage_attribution}
-    B -->|inside a worktree| T[track bead: execute or review]
-    B -->|repository root| G[next gate: discuss, plan, orchestrate, quick, ship]
-    B -->|neither| UA[epic: unattributed]
-    T & G & UA --> S[usage: cost from usage-prices.yaml + quality signals]
-    S --> M[(bead metadata ai_usage)]
-    M --> R[gin usage report and /report]
-```
-
-`execute` and `ship` run `usage collect --best-effort` before closing a bead, so a collection error never blocks the close. It keeps only the timestamp, model, session, working directory, branch, and token counts of each log entry, never prompt text. See [Usage report](../guides/usage-report.md).

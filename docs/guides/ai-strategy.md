@@ -54,7 +54,6 @@ Rules that keep the split working:
 - Lan and Binh run `/gin:roadmap`, the `plan`, reviews, and the `opus` or `high` tracks, such as the legacy cutover.
 - An, Em, Dung, Hoa, and Chi run bounded tracks in parallel, at `sonnet` and `medium` or `haiku` and `low`.
 - Write the `Owner:` of every track in the plan, so the split is visible in `gin team check-plan <plan>`.
-- Set `usage.budget_usd` in `.agent-workflow/config.yaml` to cap the spend of each epic. See [AI usage report](usage-report.md#budget).
 
 ## Working manually when AI quota runs out
 

@@ -13,7 +13,7 @@ Read it on the [documentation site](https://giangdhwhtbr.github.io/gin-workflow/
 | [Architecture](docs/concepts/architecture.md) | how the pieces fit, with flow diagrams |
 | Concepts | [lifecycle and gates](docs/concepts/lifecycle.md), [state model](docs/concepts/state-model.md), [providers and routing](docs/concepts/providers.md) |
 | [Team roles](docs/roles.md) | who owns what in a team, and what each role reads |
-| Guides | [use cases](docs/guides/use-cases.md), [using AI effectively](docs/guides/ai-strategy.md), [working with Claude Code](docs/guides/claude-workflow.md), [customizing templates](docs/guides/customizing-templates.md), [recommended tools](docs/guides/recommended-tools.md), [Windows](docs/guides/windows.md), [rule packs](docs/guides/rules.md), [SDD living specs](docs/guides/sdd.md), [team mode](docs/guides/team.md), [team git agreement](docs/guides/git-flow.md), [workspace](docs/guides/workspace.md), [QA add-on](docs/guides/qa.md), [business analyst](docs/guides/ba.md), [AI usage report](docs/guides/usage-report.md), [upgrading](docs/guides/upgrading.md) |
+| Guides | [use cases](docs/guides/use-cases.md), [using AI effectively](docs/guides/ai-strategy.md), [working with Claude Code](docs/guides/claude-workflow.md), [customizing templates](docs/guides/customizing-templates.md), [recommended tools](docs/guides/recommended-tools.md), [Windows](docs/guides/windows.md), [rule packs](docs/guides/rules.md), [SDD living specs](docs/guides/sdd.md), [team mode](docs/guides/team.md), [team git agreement](docs/guides/git-flow.md), [workspace](docs/guides/workspace.md), [QA add-on](docs/guides/qa.md), [business analyst](docs/guides/ba.md), [upgrading](docs/guides/upgrading.md) |
 | Reference | [skills](docs/reference/skills.md), [CLI](docs/reference/cli.md), [configuration](docs/reference/config.md), [troubleshooting](docs/reference/troubleshooting.md) |
 | [Contributing](docs/contributing.md) | build, test, release |
 | [Changelog](docs/changelog.md) | what changed in each release |
@@ -61,7 +61,7 @@ codex plugin marketplace add giangdhwhtbr/gin-workflow --ref master
 codex plugin add gin@gin-workflow-marketplace
 ```
 
-Antigravity has no git-based install; use the installer above. OpenCode has no plugin marketplace either; the installer writes the skill bundle to `~/.config/opencode/skills/gin`, where OpenCode discovers it automatically. In OpenCode, invoke a skill with `@<skill>` (for example `@setup` or `@workflow`); the lifecycle stages still run through the `gin` CLI. Eight generic skills carry a `gin-` prefix in OpenCode (`@gin-learn`, `@gin-sdd`, `@gin-team`, `@gin-worktrees`, `@gin-debugging`, `@gin-review-response`, `@gin-parallel-agents`, `@gin-report`), so OpenCode's own built-in `report` skill is left intact.
+Antigravity has no git-based install; use the installer above. OpenCode has no plugin marketplace either; the installer writes the skill bundle to `~/.config/opencode/skills/gin`, where OpenCode discovers it automatically. In OpenCode, invoke a skill with `@<skill>` (for example `@setup` or `@workflow`); the lifecycle stages still run through the `gin` CLI. Seven generic skills carry a `gin-` prefix in OpenCode (`@gin-learn`, `@gin-sdd`, `@gin-team`, `@gin-worktrees`, `@gin-debugging`, `@gin-review-response`, `@gin-parallel-agents`), so generic names do not shadow OpenCode's built-ins.
 
 GitHub Copilot CLI: `--platform copilot` builds `dist/copilot/<plugin>` and registers it with `copilot plugin install`. Copilot loads the skills and the safety hook and can be the main harness; `gin setup` detects it from `.github/agents`. The hook runs through Copilot's `bash` hook type and finds its script only after a local install ([troubleshooting](docs/reference/troubleshooting.md#gin-pathscriptssafety_checkpy-not-found-hook-skipped)).
 
@@ -85,7 +85,7 @@ gin-workflow works alone. Two add-ons install from the same clone:
 /gin:ship                          merge, PR, keep, or discard
 ```
 
-`/gin:workflow` runs whichever stage comes next; `/gin:quick <change>` handles a small change; `/gin:progress` shows status; `/gin:report` shows AI cost and rework. Codex uses `$gin:<skill>`.
+`/gin:workflow` runs whichever stage comes next; `/gin:quick <change>` handles a small change; `/gin:progress` shows status. Codex uses `$gin:<skill>`.
 
 ## Skills
 
@@ -96,7 +96,6 @@ gin-workflow works alone. Two add-ons install from the same clone:
 | `review` | independent review in the review ledger |
 | `workflow`, `progress` | route to the next stage; show status |
 | `quick` | small change without plan or tasks |
-| `report` | AI usage per bead or epic |
 
 All skills, including the support skills and the `gin-qa` add-on: [skills reference](docs/reference/skills.md).
 

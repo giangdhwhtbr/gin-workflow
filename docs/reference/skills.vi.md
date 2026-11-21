@@ -1,6 +1,6 @@
 # Tham chiếu skill
 
-Mỗi skill cũng là một slash command: `/gin:<name>` (Claude Code) hoặc tương đương của harness, `/gin-qa:<name>` cho add-on QA, `/gin-ba:<name>` cho add-on BA. Trong OpenCode, gọi một skill theo id bằng `@<name>` (ví dụ `@plan`; `learn` là `@gin-learn` và `report` là `@gin-report`, như sáu skill chung khác, xem [Xử lý sự cố](troubleshooting.md#opencode-does-not-show-the-gin-skills)); các stage của lifecycle vẫn chạy qua CLI `gin`. Trong GitHub Copilot CLI, các skill được đăng ký dưới tên thuần (`setup`, `workflow`, `plan`, ...), như `copilot skill list` hiển thị.
+Mỗi skill cũng là một slash command: `/gin:<name>` (Claude Code) hoặc tương đương của harness, `/gin-qa:<name>` cho add-on QA, `/gin-ba:<name>` cho add-on BA. Trong OpenCode, gọi một skill theo id bằng `@<name>` (ví dụ `@plan`; `learn` là `@gin-learn`, như sáu skill chung khác, xem [Xử lý sự cố](troubleshooting.md#opencode-does-not-show-the-gin-skills)); các stage của lifecycle vẫn chạy qua CLI `gin`. Trong GitHub Copilot CLI, các skill được đăng ký dưới tên thuần (`setup`, `workflow`, `plan`, ...), như `copilot skill list` hiển thị.
 
 ## gin: các stage của lifecycle { #gin-lifecycle-stages }
 
@@ -22,7 +22,6 @@ Chạy chúng theo thứ tự cho một tính năng. `workflow` chọn stage k�
 | `workflow` | Điều hướng trạng thái hiện tại tới đúng một stage của lifecycle, hoặc chẩn đoán một workflow đang bị giữ |
 | `quick` | Thay đổi nhỏ, rủi ro thấp không cần plan hay bead: xác nhận, triển khai, kiểm chứng theo rigor, báo cáo. Trong team mode, khi bắt đầu từ nhánh base, skill push `quick/<slug>`, mở pull request kèm các case bao phủ và dòng nhắc ship approval, rồi ghi comment `[gin quick]` lên một epic hoặc milestone đang active |
 | `progress` | Báo cáo trạng thái task, blocker, waiver đang mở và công việc sẵn sàng kế tiếp mà không thay đổi gì; với milestone, nó liệt kê các epic bằng `task list --parent <milestone-id>` |
-| `report` | Báo cáo mức sử dụng AI theo bead, epic hoặc milestone (`--milestone <id>`: token, chi phí, tín hiệu chất lượng) mà không thay đổi gì |
 | `setup` | Cấu hình repository lần đầu và bảo trì setup khi được yêu cầu |
 
 ## gin: các skill hỗ trợ { #gin-supporting-skills }
@@ -50,7 +49,7 @@ Các stage nạp những skill này khi cần; bạn cũng có thể gọi trự
 | `roadmap` | Biến bộ tech-doc hoặc một product brief thành roadmap đã xác nhận cùng các epic Beads phụ thuộc nhau, kèm hạn chót dự án và story point cho mỗi epic, do AI chấm và quy ra ngày làm việc theo tốc độ đã đo. Khi chạy lại, skill đối chiếu cả hai. Skill đề xuất cách làm việc của team (Foundation, Spec cadence, Build, Integration, Quality, Load) để PM xác nhận, đánh giá độ phức tạp của từng epic và báo cáo dự báo của `gin milestone list`. File có bảng `## Summary`, `Features:` và `Legacy:` cho mỗi epic, và bảng `## Legacy coverage` khi có `13-CAPABILITIES.md`; với layout SDD mỗi epic mang dòng `Capabilities:`. Lần chạy không kèm tham số đề xuất kế hoạch milestone cùng `Outcome:` và `Demo:` của từng milestone. `--milestone <id>` lập kế hoạch cho một milestone có ngày với lane riêng, ngày `Spec ready by:` và integration point. |
 | `allocate` | Đề xuất, giao và tạo các prep task (`capture`, `mockup`, `spike`, `question`, `other`) dưới epic roadmap trước discuss, cho một epic hoặc một milestone (`--milestone <id>`); lead xác nhận một bảng trước, và lần chạy lại chỉ đề xuất phần khác biệt |
 | `retro` | Ghi retro của một member trên một milestone đang mở thành comment `[gin retro]` trên bead milestone: member xem các epic của mình kèm estimate và số ngày thực tế, trả lời điều gì làm tốt, điều gì làm chậm, nên đổi gì, rồi xác nhận nội dung; chạy lại thì thêm comment mới và comment mới nhất có hiệu lực. Milestone chỉ `active` khi đã chạy `gin milestone kickstart` và tới ngày kickoff; trước đó skill hỏi chọn milestone. |
-| `milestone-close` | Đóng một milestone trong một lần chạy: tổng hợp epic đã giao và còn mở, estimate, chi phí, Outcome và Demo, và retro; các chỉ số ở mức team (completion, estimate accuracy, capacity used, cost per epic, rework, velocity, say/do, days per point) so với milestone đã đóng trước đó; mọi epic còn mở chuyển sang milestone kế tiếp (theo ngày bắt đầu) kèm lý do lấy từ retro hoặc hỏi người chạy, và một quyết định; sau khi xác nhận, ghi comment `[gin close]`, đóng milestone, ghi `Result:` và thay đổi way of working vào file roadmap, ghi bài học vào knowledge record, và đặt estimate mới. Milestone chỉ `active` khi đã chạy `gin milestone kickstart` và tới ngày kickoff; trước đó skill hỏi chọn milestone. |
+| `milestone-close` | Đóng một milestone trong một lần chạy: tổng hợp epic đã giao và còn mở, estimate, Outcome và Demo, và retro; các chỉ số ở mức team (completion, estimate accuracy, capacity used, velocity, say/do, days per point) so với milestone đã đóng trước đó; mọi epic còn mở chuyển sang milestone kế tiếp (theo ngày bắt đầu) kèm lý do lấy từ retro hoặc hỏi người chạy, và một quyết định; sau khi xác nhận, ghi comment `[gin close]`, đóng milestone, ghi `Result:` và thay đổi way of working vào file roadmap, ghi bài học vào knowledge record, và đặt estimate mới. Milestone chỉ `active` khi đã chạy `gin milestone kickstart` và tới ngày kickoff; trước đó skill hỏi chọn milestone. |
 
 ## gin: tài liệu { #gin-documentation }
 
@@ -251,11 +250,4 @@ Base URL: <url>. Accounts come from environment variables <names>. Flows: browse
 ```text
 /gin:ship
 Epic: <epic-id>. Open a pull request; do not merge yet.
-```
-
-`report`:
-
-```text
-/gin:report --milestone <milestone-id>
-Show cost and quality signals per epic.
 ```
