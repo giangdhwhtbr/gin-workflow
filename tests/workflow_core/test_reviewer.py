@@ -140,6 +140,16 @@ class RouteTests(unittest.TestCase):
             route(self.root, self.base, model="sonnet", effort=None, implementer="codex",
                   config=config(self.root, harness="claude"))
 
+    def test_unknown_implementer_exits_2_naming_the_harness_without_traceback(self):
+        stderr = io.StringIO()
+        with mock.patch.object(reviewer, "load_effective_config", return_value=config(self.root, harness="claude")), \
+                mock.patch("sys.stderr", stderr):
+            code = reviewer.main(["--base", self.base, "--implementer", "nosuch", "--model", "g1",
+                                  "--repository", str(self.root), "--json"])
+        self.assertEqual(2, code)
+        self.assertIn("unknown harness: nosuch", stderr.getvalue())
+        self.assertNotIn("Traceback", stderr.getvalue())
+
     def test_json_flag_prints_the_routes_document(self):
         stdout = io.StringIO()
         with mock.patch.object(reviewer, "load_effective_config", return_value=config(self.root, harness="claude")), \

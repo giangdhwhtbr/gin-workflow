@@ -12,6 +12,7 @@ from workflow_core.assignments import (  # noqa: E402
     AssignmentResolutionError,
     RouteCandidate,
     resolve_main_harness,
+    write_assignment_manifest,
     validate_plan_assignments,
     write_assignments,
 )
@@ -181,6 +182,24 @@ class AssignmentTests(unittest.TestCase):
             data2 = yaml.safe_load(path.read_text(encoding="utf-8"))
             self.assertEqual([a["task_id"] for a in data2["assignments"]], ["t1", "t2"])
             self.assertEqual(data2["assignments"][0]["resolved"]["model"], "opus")
+
+    def test_write_assignment_manifest_is_deterministic_under_runtime_and_frozen(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repository = Path(directory)
+            request = AssignmentRequest("api-auth", "backend", "opus", "high", "claude")
+            manifest = AssignmentManifest("wf-1", request, (RouteCandidate("claude", "opus", False, "high"),))
+
+            first = write_assignment_manifest(repository, manifest)
+            content = first.read_bytes()
+            second = write_assignment_manifest(repository, manifest)
+
+            self.assertEqual(repository / ".agent-workflow/runtime/assignments/wf-1.yaml", first)
+            self.assertEqual(first, second)
+            self.assertEqual(content, second.read_bytes())
+            self.assertIn(b"provider: claude", content)
+            self.assertIn(b"model: opus", content)
+            with self.assertRaises((AttributeError, TypeError)):
+                manifest.candidates[0].provider = "changed"
 
 
 if __name__ == "__main__":

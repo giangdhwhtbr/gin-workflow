@@ -25,6 +25,25 @@ class SkillRoutingTests(unittest.TestCase):
         self.assertIn("gin:code-reviewer", text)
         self.assertNotIn("--tier", text)
 
+    def test_review_and_dispatch_skills_keep_their_rules(self):
+        review = (SRC / "skills/review/SKILL.md").read_text(encoding="utf-8")
+        ledger = (SRC / "skills/review/ledger.md").read_text(encoding="utf-8")
+        receiving = (SRC / "skills/review-response/SKILL.md").read_text(encoding="utf-8")
+        policy = (SRC / "skills/execute/references/delegation-policy.md").read_text(encoding="utf-8")
+        execute = (SRC / "skills/execute/SKILL.md").read_text(encoding="utf-8")
+
+        self.assertIn("After `project.max_cycles` cycles without approval, ask the user", review)
+        self.assertIn("maximum review cycles", ledger)
+        self.assertIn("original provider/model route", review)
+        self.assertIn("transition-requested --to changes-requested --actor-role reviewer", ledger)
+        self.assertIn("`reject` only invalidates an existing approval", ledger)
+        self.assertIn("never in shell variables", ledger)
+        self.assertIn("never stop a process you did not start", review)
+        self.assertIn("same-role fallback at that model and effort or higher", receiving)
+        self.assertIn("must not close", receiving)
+        self.assertIn("gin routes dispatch --workflow-id", execute)
+        self.assertIn("A requested route is never lowered", policy)
+
     def test_plan_skill_and_schema_use_catalog_routes(self):
         for path in (SRC / "skills/plan/SKILL.md", SRC / "skills/plan/plan-schema.md"):
             text = path.read_text(encoding="utf-8")
