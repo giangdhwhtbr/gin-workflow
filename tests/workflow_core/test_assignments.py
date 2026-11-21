@@ -196,6 +196,7 @@ class AssignmentTests(unittest.TestCase):
             self.assertEqual(repository / ".agent-workflow/runtime/assignments/wf-1.yaml", first)
             self.assertEqual(first, second)
             self.assertEqual(content, second.read_bytes())
+            self.assertIn(b"provider_role: backend", content)
             self.assertIn(b"provider: claude", content)
             self.assertIn(b"model: opus", content)
             with self.assertRaises((AttributeError, TypeError)):
