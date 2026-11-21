@@ -13,7 +13,7 @@ from .checkout import main_checkout
 from .events import WorkflowEvent, WorkflowEventStore
 from . import workspace
 
-# Not the name of the removed verification gate: usage attribution still maps that event to the `verify` stage.
+# Not the name of the removed verification gate.
 EVENT_TYPE = "checks.passed"
 WORKFLOW_ID = "checks"
 
