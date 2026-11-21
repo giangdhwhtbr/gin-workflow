@@ -18,7 +18,7 @@ def scanned():
         for path in ([root] if root.is_file() else sorted(root.rglob("*"))):
             rel = path.relative_to(ROOT).as_posix()
             if (path.is_file() and path.suffix in SUFFIXES and rel not in ALLOWED
-                    and not {"dist", "__pycache__", "fixtures"} & set(path.parts)):
+                    and not {"dist", "__pycache__", "fixtures"} & set(path.relative_to(ROOT).parts)):
                 yield rel, path.read_text(encoding="utf-8", errors="replace")
 
 
