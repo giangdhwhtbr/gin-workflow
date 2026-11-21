@@ -25,6 +25,7 @@ class StubClient:
     def __init__(self, objects=None):
         self.objects = dict(objects or {})
         self.calls = []
+        self.delete_response = {}
 
     def head_object(self, **kwargs):
         self.calls.append(("head_object", kwargs))
@@ -41,7 +42,8 @@ class StubClient:
         if kwargs["Key"] not in self.objects:
             raise StubError("NoSuchKey")
         body = self.objects[kwargs["Key"]]
-        return {"Body": mock.Mock(read=lambda: body)}
+        self.body = mock.Mock(read=lambda: body)
+        return {"Body": self.body}
 
     def get_paginator(self, name):
         assert name == "list_objects_v2"
@@ -59,6 +61,7 @@ class StubClient:
         self.calls.append(("delete_objects", kwargs))
         for item in kwargs["Delete"]["Objects"]:
             self.objects.pop(item["Key"], None)
+        return self.delete_response
 
 
 class S3StoreTests(unittest.TestCase):
@@ -90,6 +93,7 @@ class S3StoreTests(unittest.TestCase):
         stub = StubClient({f"ab/{SHA}": b"data"})
         store = S3Store("b", client=stub)
         self.assertEqual(store.get(f"ab/{SHA}"), b"data")
+        stub.body.close.assert_called_once_with()
         with self.assertRaises(StoreError):
             store.get(f"cd/{OTHER}")
         with self.assertRaises(StoreError):
@@ -109,6 +113,13 @@ class S3StoreTests(unittest.TestCase):
         deletes = [kw for name, kw in stub.calls if name == "delete_objects"]
         self.assertEqual([len(kw["Delete"]["Objects"]) for kw in deletes], [1000, 1000, 200])
         self.assertTrue(all(kw["Delete"]["Quiet"] is True for kw in deletes))
+
+    def test_remove_raises_on_per_key_errors(self):
+        stub = StubClient()
+        stub.delete_response = {"Errors": [{"Key": f"p/ab/{SHA}", "Code": "AccessDenied", "Message": "denied"}]}
+        with self.assertRaises(StoreError) as caught:
+            S3Store("b", prefix="p", client=stub).remove([f"ab/{SHA}"])
+        self.assertIn("AccessDenied", str(caught.exception))
 
     def test_remove_checks_all_paths_before_deleting(self):
         stub = StubClient()

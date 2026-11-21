@@ -71,7 +71,11 @@ class S3Store:
     def get(self, path: str) -> bytes:
         key = self._key(check_path(path))
         try:
-            return self.client.get_object(Bucket=self.bucket, Key=key)["Body"].read()
+            body = self.client.get_object(Bucket=self.bucket, Key=key)["Body"]
+            try:
+                return body.read()
+            finally:
+                body.close()
         except Exception as error:
             raise StoreError(f"cannot read s3 object {key}: {_describe(error)}") from error
 
@@ -95,9 +99,15 @@ class S3Store:
         for start in range(0, len(keys), BATCH):
             objects = [{"Key": key} for key in keys[start : start + BATCH]]
             try:
-                self.client.delete_objects(Bucket=self.bucket, Delete={"Objects": objects, "Quiet": True})
+                response = self.client.delete_objects(
+                    Bucket=self.bucket, Delete={"Objects": objects, "Quiet": True}
+                )
             except Exception as error:
                 raise StoreError(f"cannot delete from s3 bucket {self.bucket}: {_describe(error)}") from error
+            errors = response.get("Errors")
+            if errors:
+                detail = ", ".join(f"{e.get('Key')}: {e.get('Code')} {e.get('Message')}" for e in errors[:5])
+                raise StoreError(f"cannot delete from s3 bucket {self.bucket}: {detail}")
 
     def push(self) -> str | None:
         return None
