@@ -8,7 +8,7 @@ from pathlib import Path
 import re
 import shutil
 import subprocess
-from typing import Any, Mapping
+from typing import Any, Mapping, Sequence
 
 from . import cases as tc, e2e
 from .reqs import Effective, QaError
@@ -93,7 +93,7 @@ def _evidence_lines(evidence: list[str], attached: Mapping[str, tuple[str, str]]
 
 
 def description(case: tc.Case, run: str | None, previous: str | None, actual: str, evidence: list[str],
-                attached: Mapping[str, tuple[str, str]] = {}) -> str:
+                attached: Mapping[str, tuple[str, str]] | None = None) -> str:
     head = [f"- Case: {case.path}:{case.line}", *([f"- Run: {run}"] if run else []),
             *([f"- Previous bug: {previous}"] if previous else [])]
     sections = [("Preconditions", [f"- {item}" for item in case.preconditions]),
@@ -101,11 +101,11 @@ def description(case: tc.Case, run: str | None, previous: str | None, actual: st
                 ("Steps", [f"{number}. {step}" for number, step in enumerate(case.steps, 1)]),
                 ("Expected", [f"- {item}" for item in case.expected]),
                 ("Actual", [actual]),
-                ("Evidence", _evidence_lines(evidence, attached))]
+                ("Evidence", _evidence_lines(evidence, attached or {}))]
     return "\n\n".join(["\n".join(head), *(f"## {name}\n\n" + "\n".join(lines) for name, lines in sections if lines)])
 
 
-def rerun_note(run: str | None, actual: str, evidence: list[str], shas: list[str] = []) -> str:
+def rerun_note(run: str | None, actual: str, evidence: list[str], shas: Sequence[str] = ()) -> str:
     """One line with no double quote: a Windows .cmd shim cuts an argument at its first newline and re-parses quotes."""
     evidence = [*evidence, *(f"attachment:{sha}" for sha in shas)]
     day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
@@ -114,33 +114,44 @@ def rerun_note(run: str | None, actual: str, evidence: list[str], shas: list[str
     return "; ".join(parts).replace('"', "'")
 
 
-def _images(project: Path, eff: Effective, case: tc.Case, run: str | None,
-            evidence: list[str]) -> list[tuple[Path, str, int | None, str]]:
-    """(file, label, step, local path) of every image to attach: image files named in `evidence`, then the screenshot
-    of each failed step of the case's results in the e2e run folder `run`, when it names one."""
+def _images(root: Path, eff: Effective, case: tc.Case, run: str | None,
+            evidence: list[str]) -> tuple[list[tuple[Path, str, int | None, str]], list[str]]:
+    """((file, label, step, local path) of every image to attach, warnings). Images: files named in `evidence` that
+    resolve, symlinks followed, inside `root` or the project root with an image suffix; then the screenshot of each
+    failed step of the case's results in the e2e run folder `run`, when it names one. `root` holds the evidence."""
     found: dict[Path, tuple[Path, str, int | None, str]] = {}
+    warnings: list[str] = []
+    base = root.resolve()
+    allowed = (base, eff.project_root.resolve())
+
+    def local(path: Path) -> str:
+        return path.relative_to(base).as_posix() if base in path.parents else str(path)
+
     for value in evidence:
-        path = project / value
-        if path.is_file() and path.suffix.lower() in IMAGE_SUFFIXES:
-            found.setdefault(path.resolve(), (path, f"{case.id}: {path.name}", None, value))
+        path = (root / value).resolve()
+        if path.is_file() and path.suffix.lower() in IMAGE_SUFFIXES and any(top in path.parents for top in allowed):
+            found.setdefault(path, (path, f"{case.id}: {path.name}", None, value))
     try:
-        folder = e2e._run_folder(project, eff, run)[0] if run else None
+        folder = e2e._run_folder(root, eff, run)[0] if run else None
     except QaError:
         folder = None
-    case_dir = folder / case.id.lower() if folder else None
-    if folder and case_dir and e2e._contained(folder, case_dir):
-        for result_dir in e2e._result_folders(case_dir):
-            data = e2e._result(result_dir / "result.json")[0] if e2e._contained(folder, result_dir) else None
-            for step in data["steps"] if data else []:
-                if not isinstance(step, dict) or step.get("status") != "failed":
-                    continue
-                shot = e2e._artifact(result_dir, step.get("screenshot"))
-                if shot is None or shot.suffix.lower() not in IMAGE_SUFFIXES:
-                    continue
-                number = step.get("n") if isinstance(step.get("n"), int) else None
-                label = f"{case.id} step {number}: {step.get('title')}" if number else f"{case.id}: {shot.name}"
-                found.setdefault(shot, (shot, label, number, shot.relative_to(project.resolve()).as_posix()))
-    return list(found.values())
+    try:
+        case_dir = folder / case.id.lower() if folder else None
+        if folder and case_dir and e2e._contained(folder, case_dir):
+            for result_dir in e2e._result_folders(case_dir):
+                data = e2e._result(result_dir / "result.json")[0] if e2e._contained(folder, result_dir) else None
+                for step in data["steps"] if data else []:
+                    if not isinstance(step, dict) or step.get("status") != "failed":
+                        continue
+                    shot = e2e._artifact(result_dir, step.get("screenshot"))
+                    if shot is None or shot.suffix.lower() not in IMAGE_SUFFIXES:
+                        continue
+                    number = step.get("n") if isinstance(step.get("n"), int) else None
+                    label = f"{case.id} step {number}: {step.get('title')}" if number else f"{case.id}: {shot.name}"
+                    found.setdefault(shot, (shot, label, number, local(shot)))
+    except (QaError, OSError, ValueError) as error:
+        warnings.append(f"{run}: failed step screenshots not read: {error}")
+    return list(found.values()), warnings
 
 
 def _attach(project: Path, bug: str, case_id: str,
@@ -186,7 +197,9 @@ def file_bug(root: Path, eff: Effective, case_id: str, actual: str, evidence: li
     if previous:
         old, _ = _show(project, previous)  # a value that is not a readable bead counts as no open bug
         if old is not None and old.get("status") not in (None, "closed"):
-            attached, warnings = _attach(project, previous, case_id, _images(project, eff, case, run, evidence))
+            images, warnings = _images(root, eff, case, run, evidence)
+            attached, failed = _attach(project, previous, case_id, images)
+            warnings += failed
             shas = [sha for _, sha in attached.values()]
             added = _gin_workflow(project, "task", "update", previous, "--append-notes",
                                   rerun_note(run, actual, evidence, shas))
@@ -214,7 +227,7 @@ def file_bug(root: Path, eff: Effective, case_id: str, actual: str, evidence: li
     argv = ["task", "create", "-t", "bug", "--title", f"{case_id}: {case.title}".replace('"', "'"),
             "--body-file", "-", "--deps", f"discovered-from:{epic}", "-p", priority,
             *(["--external-ref", external_ref] if external_ref else []), "--json"]
-    images = _images(project, eff, case, run, evidence)
+    images, scan_warnings = _images(root, eff, case, run, evidence)
     # every image path is listed as plain evidence first, so a failed attach leaves the local path in the bug
     listed = [*evidence, *(local for _, _, _, local in images if local not in evidence)]
     created = _gin_workflow(project, *argv, stdin=description(case, run, previous, actual, listed))
@@ -229,6 +242,7 @@ def file_bug(root: Path, eff: Effective, case_id: str, actual: str, evidence: li
         raise QaError(f"filed {bug} but could not record it: {error}; "
                       f"run gin-qa cases result {case_id} failed --bug {bug}") from error
     attached, warnings = _attach(project, bug, case_id, images)
+    warnings = [*scan_warnings, *warnings]
     if attached:
         try:
             body = description(case, run, previous, actual, listed, attached)

@@ -11,7 +11,7 @@ import unittest
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from qa_fixtures import (ADDED_BLOCK, AUTH_SPEC, LAUNCHER, case_file, delta, hash8, make_change,  # noqa: E402
-                         make_repo, python_stub, qa, write)
+                         commit_all, make_repo, make_workspace_qa, python_stub, qa, write)
 
 # `specs` runs this checkout's gin. Any other call is logged to calls.jsonl with its stdin and answered
 # from answers.json, keyed by its first three words, then its first two. No answer: bd's unknown-id failure.
@@ -408,6 +408,55 @@ class TestAttachments(BugCase):
         row = json.loads(result.stdout)
         self.assertEqual(([self.SHA], 1), (row["attachments"], len(row["warnings"])))
         self.assertIn("locked", row["warnings"][0])
+
+    def test_a_corrupt_result_json_warns_and_the_bug_is_still_filed(self):
+        (self.root / self.RUN / "tc-auth-001/result.json").write_bytes(b"\xff\xfe\x00{")
+        self.answer({"task show gw-epic": shown("gw-epic", "open"), "task create": CREATED})
+        result = self.bug("TC-AUTH-001", "--actual", "Error", "--run", self.RUN, "--format", "json")
+        self.assertEqual(0, result.returncode, result.stderr)
+        warnings = json.loads(result.stdout)["warnings"]
+        self.assertEqual(1, len(warnings))
+        self.assertIn(self.RUN, warnings[0])
+        self.assertIn("warning: ", result.stderr)
+        self.assertEqual(1, len(self.creates()))
+
+    def test_only_image_files_inside_the_repository_are_attached(self):
+        outside = self.base / "outside.png"
+        outside.write_bytes(b"png")
+        (self.root / "link.png").symlink_to(outside)
+        (self.root / "text.png.txt").write_text("x", encoding="utf-8")
+        self.answer({"task show gw-epic": shown("gw-epic", "open"), "task create": CREATED})
+        values = [str(outside), "../outside.png", "link.png", "text.png.txt"]
+        result = self.bug("TC-AUTH-001", "--actual", "Error", *(a for v in values for a in ("--evidence", v)))
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual([], self.of("attach"))
+        [create] = self.creates()
+        for value in values:
+            self.assertIn(f"- {value}\n" if value != values[-1] else f"- {value}", create["stdin"])
+
+    def test_a_qa_repository_apart_from_the_project_resolves_paths_from_its_own_root(self):
+        parent, child = make_workspace_qa(self.base / "ws")
+        write(parent, "docs/specs/auth/spec.md", AUTH_SPEC)
+        write(child, "cases/auth/TC-AUTH-001-sign-in.manual.md", case_file("TC-AUTH-001", "REQ: REQ-AUTH-001@00000000"))
+        run = "evidence/2026-11-04T08-00-00"
+        write(child, f"{run}/run.json", json.dumps({"specs": ["e2e/auth/tc-auth-001.spec.ts"]}))
+        write(child, f"{run}/tc-auth-001/02.png", "png-bytes")
+        write(child, f"{run}/tc-auth-001/result.json", json.dumps({
+            "tc": "TC-AUTH-001", "status": "failed", "steps": [
+                {"n": 2, "title": "2. Click", "status": "failed", "screenshot": "02.png"}]}))
+        write(child, "shot.png", "png-bytes")
+        commit_all(child, "case")
+        self.answer({"task show gw-epic": shown("gw-epic", "open"), "task create": CREATED,
+                     "attach add": self.attached(), "task update": {}})
+        result = qa(None, self.bin, "bug", "TC-AUTH-001", "--actual", "Error", "--run", run, "--evidence", "shot.png",
+                    "--discovered-from", "gw-epic", "--format", "json", cwd=child)
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual([self.SHA, self.SHA], json.loads(result.stdout)["attachments"])
+        files = [Path(call["argv"][3]).relative_to(child.resolve()).as_posix() for call in self.of("attach", "add")]
+        self.assertEqual(["shot.png", f"{run}/tc-auth-001/02.png"], files)
+        [update] = self.of("task", "update")
+        self.assertIn(f"  local: {run}/tc-auth-001/02.png", update["stdin"])
+        self.assertIn("  local: shot.png", update["stdin"])
 
     def test_no_image_means_no_attach_and_no_rewrite(self):
         self.answer({"task show gw-epic": shown("gw-epic", "open"), "task create": CREATED})
