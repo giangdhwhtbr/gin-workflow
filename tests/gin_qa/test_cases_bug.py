@@ -107,7 +107,7 @@ class TestLegacy(BugCase):
                           "--evidence", "https://logs.example/42", "--run", "manual 2026-11-04", "--format", "json")
         self.assertEqual(0, result.returncode, result.stderr)
         self.assertEqual({"tc": "TC-AUTH-001", "bug": "gw-bug1", "epic": "gw-epic", "created": True,
-                          "appended": False, "file": FILE}, json.loads(result.stdout))
+                          "appended": False, "file": FILE, "attachments": [], "warnings": []}, json.loads(result.stdout))
         [call] = self.creates()
         argv = call["argv"]
         self.assertEqual(["task", "create", "-t", "bug"], argv[:4])
@@ -190,7 +190,7 @@ class TestLegacy(BugCase):
         result = self.bug("TC-AUTH-001", "--actual", "Still broken", "--format", "json")
         self.assertEqual(0, result.returncode, result.stderr)
         self.assertEqual({"tc": "TC-AUTH-001", "bug": "gw-7", "epic": None, "created": False, "appended": True,
-                          "file": FILE},
+                          "file": FILE, "attachments": [], "warnings": []},
                          json.loads(result.stdout))
         self.assertEqual([], self.creates())
         self.assertIn("- **Bug:** gw-7\n", self.path.read_text(encoding="utf-8"))
@@ -299,6 +299,122 @@ class TestLegacy(BugCase):
         self.assertEqual(2, result.returncode)
         self.assertIn("database locked", result.stderr)
         self.assertEqual(before, self.path.read_text(encoding="utf-8"))
+
+
+class TestAttachments(BugCase):
+    SHA = "a" * 64
+    RUN = "qa/evidence/2026-11-04T08-00-00"
+
+    def setUp(self):
+        super().setUp()
+        self.root = make_repo(self.base / "repo", layout="legacy")
+        write(self.root, SPEC, "# Login\n\nEpic: gw-epic\nStatus: confirmed\n")
+        self.path = write(self.root, FILE, CASE)
+        write(self.root, "shot.png", "png-bytes")
+        write(self.root, f"{self.RUN}/run.json", json.dumps({"specs": ["qa/e2e/auth/tc-auth-001.spec.ts"]}))
+        write(self.root, f"{self.RUN}/tc-auth-001/02.png", "png-bytes")
+        write(self.root, f"{self.RUN}/tc-auth-001/result.json", json.dumps({
+            "tc": "TC-AUTH-001", "status": "failed", "steps": [
+                {"n": 1, "title": "1. Open /login", "status": "passed", "screenshot": "01.png"},
+                {"n": 2, "title": "2. Click Sign in", "status": "failed", "screenshot": "02.png"},
+                {"n": 3, "title": "3. Escape", "status": "failed", "screenshot": "../../../../shot.png"}]}))
+
+    def attached(self, sha: str | None = None) -> dict:
+        entry = {"sha256": sha or self.SHA, "path": "aa/x", "name": "x"}
+        return {"stdout": json.dumps({"bead": "gw-bug1", "entries": [entry], "refused": [], "warning": None})}
+
+    def of(self, *head: str) -> list[dict]:
+        return [call for call in self.calls() if call["argv"][:len(head)] == list(head)]
+
+    def test_a_failed_step_screenshot_is_attached_and_the_description_rewritten(self):
+        self.answer({"task show gw-epic": shown("gw-epic", "open"), "task create": CREATED,
+                     "attach add": self.attached(), "task update": {}})
+        result = self.bug("TC-AUTH-001", "--actual", "Error page", "--run", self.RUN, "--format", "json")
+        self.assertEqual(0, result.returncode, result.stderr)
+        row = json.loads(result.stdout)
+        self.assertEqual(([self.SHA], []), (row["attachments"], row["warnings"]))
+        [add] = self.of("attach", "add")  # step 3 points outside its folder; step 1 has no file
+        self.assertEqual("gw-bug1", add["argv"][2])
+        self.assertEqual(f"{self.RUN}/tc-auth-001/02.png", str(Path(add["argv"][3]).relative_to(self.root.resolve())))
+        self.assertEqual("TC-AUTH-001", self.option(add["argv"], "--case"))
+        self.assertEqual("2", self.option(add["argv"], "--step"))
+        self.assertEqual("json", self.option(add["argv"], "--format"))
+        self.assertEqual("TC-AUTH-001 step 2: 2. Click Sign in", self.option(add["argv"], "--caption"))
+        [update] = self.of("task", "update")
+        self.assertEqual(["task", "update", "gw-bug1", "--body-file", "-"], update["argv"])
+        self.assertIn(f"- ![TC-AUTH-001 step 2: 2. Click Sign in](attachment:{self.SHA})\n"
+                      f"  local: {self.RUN}/tc-auth-001/02.png", update["stdin"])
+        [create] = self.creates()
+        self.assertIn(f"- {self.RUN}/tc-auth-001/02.png", create["stdin"])
+        self.assertNotIn("attachment:", create["stdin"])
+        order = [call["argv"][:2] for call in self.calls() if call["argv"][:2] in (
+            ["task", "create"], ["attach", "add"], ["task", "update"])]
+        self.assertEqual([["task", "create"], ["attach", "add"], ["task", "update"]], order)
+
+    def test_an_evidence_image_is_attached_and_other_evidence_stays_plain(self):
+        self.answer({"task show gw-epic": shown("gw-epic", "open"), "task create": CREATED,
+                     "attach add": self.attached(), "task update": {}})
+        result = self.bug("TC-AUTH-001", "--actual", "Error", "--evidence", "shot.png", "--evidence", "see log")
+        self.assertEqual(0, result.returncode, result.stderr)
+        [add] = self.of("attach", "add")
+        self.assertNotIn("--step", add["argv"])
+        [update] = self.of("task", "update")
+        self.assertIn(f"- ![TC-AUTH-001: shot.png](attachment:{self.SHA})\n  local: shot.png\n- see log",
+                      update["stdin"])
+
+    def test_the_open_bug_gets_the_attachment_before_the_note(self):
+        write(self.root, FILE, CASE.replace("- **Priority:** low\n",
+                                            "- **Priority:** low\n- **Result:** failed\n- **Bug:** gw-7\n"))
+        self.answer({"task show gw-7": shown("gw-7", "open"), "attach add": self.attached(), "task update": {}})
+        result = self.bug("TC-AUTH-001", "--actual", "Still", "--evidence", "shot.png", "--evidence", "see log")
+        self.assertEqual(0, result.returncode, result.stderr)
+        order = [call["argv"][:2] for call in self.calls() if call["argv"][0] in ("attach", "task")
+                 and call["argv"][1] in ("add", "update")]
+        self.assertEqual([["attach", "add"], ["task", "update"]], order)
+        self.assertEqual("gw-7", self.of("attach", "add")[0]["argv"][2])
+        note = self.option(self.of("task", "update")[0]["argv"], "--append-notes")
+        self.assertRegex(note, rf"Evidence: shot\.png, see log, attachment:{self.SHA}$")
+
+    def test_a_failing_attach_only_warns(self):
+        self.answer({"task show gw-epic": shown("gw-epic", "open"), "task create": CREATED,
+                     "attach add": {"stderr": "error: store unreachable\n", "code": 2}})
+        result = self.bug("TC-AUTH-001", "--actual", "Error", "--run", self.RUN, "--format", "json")
+        self.assertEqual(0, result.returncode, result.stderr)
+        row = json.loads(result.stdout)
+        self.assertEqual([], row["attachments"])
+        self.assertEqual(1, len(row["warnings"]))
+        self.assertIn("store unreachable", row["warnings"][0])
+        self.assertIn("warning: ", result.stderr)
+        self.assertIn("store unreachable", result.stderr)
+        self.assertEqual([], self.of("task", "update"))
+        self.assertIn("- **Bug:** gw-bug1\n", self.path.read_text(encoding="utf-8"))
+
+    def test_a_refused_file_a_bad_answer_and_a_failed_rewrite_only_warn(self):
+        refused = {"stdout": json.dumps({"bead": "gw-bug1", "entries": [],
+                                         "refused": [{"name": "shot.png", "reason": "not an image"}]}), "code": 1}
+        self.answer({"task show gw-epic": shown("gw-epic", "open"), "task create": CREATED, "attach add": refused})
+        result = self.bug("TC-AUTH-001", "--actual", "Error", "--evidence", "shot.png", "--format", "json")
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertIn("not an image", json.loads(result.stdout)["warnings"][0])
+        self.answer({"task show gw-epic": shown("gw-epic", "open"), "task create": CREATED,
+                     "attach add": {"stdout": "not json"}})
+        result = self.bug("TC-AUTH-001", "--actual", "Error", "--evidence", "shot.png", "--format", "json")
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual(1, len(json.loads(result.stdout)["warnings"]))
+        self.answer({"task show gw-epic": shown("gw-epic", "open"), "task create": CREATED,
+                     "attach add": self.attached(), "task update": {"stderr": "locked\n", "code": 1}})
+        result = self.bug("TC-AUTH-001", "--actual", "Error", "--evidence", "shot.png", "--format", "json")
+        self.assertEqual(0, result.returncode, result.stderr)
+        row = json.loads(result.stdout)
+        self.assertEqual(([self.SHA], 1), (row["attachments"], len(row["warnings"])))
+        self.assertIn("locked", row["warnings"][0])
+
+    def test_no_image_means_no_attach_and_no_rewrite(self):
+        self.answer({"task show gw-epic": shown("gw-epic", "open"), "task create": CREATED})
+        result = self.bug("TC-AUTH-001", "--actual", "Error", "--evidence", "see log", "--evidence", "notes.txt")
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual([], self.of("attach"))
+        self.assertEqual([], self.of("task", "update"))
 
 
 class TestSdd(BugCase):

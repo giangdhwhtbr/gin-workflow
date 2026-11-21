@@ -242,6 +242,8 @@ def _run(args: argparse.Namespace) -> int:
         row = bugs.file_bug(root, eff, args.id, args.actual, args.evidence, external_ref=args.external_ref,
                             discovered_from=args.discovered_from, run=args.run)
         _emit(row, args.format, f"{row['tc']} failed {row['bug']}")
+        for warning in row["warnings"]:
+            print(f"warning: {warning}", file=sys.stderr)
         return 0
     if args.command == "to-manual":
         row = e2e.to_manual(root, eff, args.id, args.reason)

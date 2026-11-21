@@ -8,14 +8,15 @@ from pathlib import Path
 import re
 import shutil
 import subprocess
-from typing import Any
+from typing import Any, Mapping
 
-from . import cases as tc
+from . import cases as tc, e2e
 from .reqs import Effective, QaError
 
 _EPIC = re.compile(r"^Epic: (\S+)$", re.MULTILINE)
 _WORKFLOW = re.compile(r"^Workflow: (\S+)$", re.MULTILINE)
 PRIORITY = {"high": "1", "medium": "2", "low": "3"}
+IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
 
 
 def _gin_workflow(root: Path, *args: str, stdin: str = "") -> subprocess.CompletedProcess[str]:
@@ -79,7 +80,20 @@ def epic_of(root: Path, eff: Effective, case: tc.Case) -> list[str]:
     return list(dict.fromkeys(eff.reqs[req]["epic"] for req, _ in case.reqs if eff.reqs.get(req, {}).get("epic")))
 
 
-def description(case: tc.Case, run: str | None, previous: str | None, actual: str, evidence: list[str]) -> str:
+def _evidence_lines(evidence: list[str], attached: Mapping[str, tuple[str, str]]) -> list[str]:
+    """An evidence value that was attached becomes an image line and its local path; any other stays a plain line."""
+    lines: list[str] = []
+    for item in evidence:
+        if item in attached:
+            label, sha = attached[item]
+            lines += [f"- ![{label}](attachment:{sha})", f"  local: {item}"]
+        else:
+            lines.append(f"- {item}")
+    return lines
+
+
+def description(case: tc.Case, run: str | None, previous: str | None, actual: str, evidence: list[str],
+                attached: Mapping[str, tuple[str, str]] = {}) -> str:
     head = [f"- Case: {case.path}:{case.line}", *([f"- Run: {run}"] if run else []),
             *([f"- Previous bug: {previous}"] if previous else [])]
     sections = [("Preconditions", [f"- {item}" for item in case.preconditions]),
@@ -87,16 +101,76 @@ def description(case: tc.Case, run: str | None, previous: str | None, actual: st
                 ("Steps", [f"{number}. {step}" for number, step in enumerate(case.steps, 1)]),
                 ("Expected", [f"- {item}" for item in case.expected]),
                 ("Actual", [actual]),
-                ("Evidence", [f"- {item}" for item in evidence])]
+                ("Evidence", _evidence_lines(evidence, attached))]
     return "\n\n".join(["\n".join(head), *(f"## {name}\n\n" + "\n".join(lines) for name, lines in sections if lines)])
 
 
-def rerun_note(run: str | None, actual: str, evidence: list[str]) -> str:
+def rerun_note(run: str | None, actual: str, evidence: list[str], shas: list[str] = []) -> str:
     """One line with no double quote: a Windows .cmd shim cuts an argument at its first newline and re-parses quotes."""
+    evidence = [*evidence, *(f"attachment:{sha}" for sha in shas)]
     day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     parts = [f"Re-run {day}", *([f"Run: {run}"] if run else []), f"Actual: {actual}",
              *([f"Evidence: {', '.join(evidence)}"] if evidence else [])]
     return "; ".join(parts).replace('"', "'")
+
+
+def _images(project: Path, eff: Effective, case: tc.Case, run: str | None,
+            evidence: list[str]) -> list[tuple[Path, str, int | None, str]]:
+    """(file, label, step, local path) of every image to attach: image files named in `evidence`, then the screenshot
+    of each failed step of the case's results in the e2e run folder `run`, when it names one."""
+    found: dict[Path, tuple[Path, str, int | None, str]] = {}
+    for value in evidence:
+        path = project / value
+        if path.is_file() and path.suffix.lower() in IMAGE_SUFFIXES:
+            found.setdefault(path.resolve(), (path, f"{case.id}: {path.name}", None, value))
+    try:
+        folder = e2e._run_folder(project, eff, run)[0] if run else None
+    except QaError:
+        folder = None
+    case_dir = folder / case.id.lower() if folder else None
+    if folder and case_dir and e2e._contained(folder, case_dir):
+        for result_dir in e2e._result_folders(case_dir):
+            data = e2e._result(result_dir / "result.json")[0] if e2e._contained(folder, result_dir) else None
+            for step in data["steps"] if data else []:
+                if not isinstance(step, dict) or step.get("status") != "failed":
+                    continue
+                shot = e2e._artifact(result_dir, step.get("screenshot"))
+                if shot is None or shot.suffix.lower() not in IMAGE_SUFFIXES:
+                    continue
+                number = step.get("n") if isinstance(step.get("n"), int) else None
+                label = f"{case.id} step {number}: {step.get('title')}" if number else f"{case.id}: {shot.name}"
+                found.setdefault(shot, (shot, label, number, shot.relative_to(project.resolve()).as_posix()))
+    return list(found.values())
+
+
+def _attach(project: Path, bug: str, case_id: str,
+            images: list[tuple[Path, str, int | None, str]]) -> tuple[dict[str, tuple[str, str]], list[str]]:
+    """`gin attach add` per image: ({local path: (label, sha256)}, warnings). Nothing here raises."""
+    attached: dict[str, tuple[str, str]] = {}
+    warnings: list[str] = []
+    for file, label, step, local in images:
+        label = " ".join(label.replace('"', "'").replace("[", "(").replace("]", ")").split())
+        argv = ["attach", "add", bug, str(file), "--case", case_id, *(["--step", str(step)] if step else []),
+                "--caption", label, "--format", "json"]
+        try:
+            done = _gin_workflow(project, *argv)
+        except (QaError, OSError) as error:
+            warnings.append(f"{local}: not attached: {error}")
+            continue
+        try:
+            answer = json.loads(done.stdout) if done.returncode in (0, 1) else None
+            sha = answer["entries"][0]["sha256"] if answer and answer["entries"] else None
+            refused = [f"{item['name']}: {item['reason']}" for item in answer["refused"]] if answer else []
+        except (ValueError, KeyError, TypeError, IndexError):
+            answer, sha, refused = None, None, []
+        if isinstance(sha, str) and sha:
+            attached[local] = (label, sha)
+            if answer.get("warning"):
+                warnings.append(f"{local}: {answer['warning']}")
+        else:
+            reason = "; ".join(refused) or done.stderr.strip() or f"gin attach add exited {done.returncode}"
+            warnings.append(f"{local}: not attached: {reason}")
+    return attached, warnings
 
 
 def file_bug(root: Path, eff: Effective, case_id: str, actual: str, evidence: list[str], *,
@@ -112,12 +186,15 @@ def file_bug(root: Path, eff: Effective, case_id: str, actual: str, evidence: li
     if previous:
         old, _ = _show(project, previous)  # a value that is not a readable bead counts as no open bug
         if old is not None and old.get("status") not in (None, "closed"):
-            added = _gin_workflow(project, "task", "update", previous, "--append-notes", rerun_note(run, actual, evidence))
+            attached, warnings = _attach(project, previous, case_id, _images(project, eff, case, run, evidence))
+            shas = [sha for _, sha in attached.values()]
+            added = _gin_workflow(project, "task", "update", previous, "--append-notes",
+                                  rerun_note(run, actual, evidence, shas))
             if added.returncode != 0:  # before the case changes, so the tester can run this again
                 raise QaError(added.stderr.strip() or f"gin task update exited {added.returncode}")
             row = tc.record_result(root, eff.cases_dir, case_id, "failed", run, previous)
             return {"tc": case_id, "bug": previous, "epic": None, "created": False, "appended": True,
-                    "file": row["file"]}
+                    "file": row["file"], "attachments": shas, "warnings": warnings}
     if discovered_from:
         epic = discovered_from
     else:
@@ -137,7 +214,10 @@ def file_bug(root: Path, eff: Effective, case_id: str, actual: str, evidence: li
     argv = ["task", "create", "-t", "bug", "--title", f"{case_id}: {case.title}".replace('"', "'"),
             "--body-file", "-", "--deps", f"discovered-from:{epic}", "-p", priority,
             *(["--external-ref", external_ref] if external_ref else []), "--json"]
-    created = _gin_workflow(project, *argv, stdin=description(case, run, previous, actual, evidence))
+    images = _images(project, eff, case, run, evidence)
+    # every image path is listed as plain evidence first, so a failed attach leaves the local path in the bug
+    listed = [*evidence, *(local for _, _, _, local in images if local not in evidence)]
+    created = _gin_workflow(project, *argv, stdin=description(case, run, previous, actual, listed))
     if created.returncode != 0:
         raise QaError(created.stderr.strip() or f"gin task create exited {created.returncode}")
     bug = (_record(created.stdout) or {}).get("id")
@@ -148,5 +228,15 @@ def file_bug(root: Path, eff: Effective, case_id: str, actual: str, evidence: li
     except (ValueError, OSError) as error:
         raise QaError(f"filed {bug} but could not record it: {error}; "
                       f"run gin-qa cases result {case_id} failed --bug {bug}") from error
-    return {"tc": case_id, "bug": bug, "epic": epic, "created": True, "appended": False,
-            "file": row["file"]}
+    attached, warnings = _attach(project, bug, case_id, images)
+    if attached:
+        try:
+            body = description(case, run, previous, actual, listed, attached)
+            rewritten = _gin_workflow(project, "task", "update", bug, "--body-file", "-", stdin=body)
+            if rewritten.returncode != 0:
+                reason = rewritten.stderr.strip() or f"gin task update exited {rewritten.returncode}"
+                warnings.append(f"{bug}: description not updated: {reason}")
+        except (QaError, OSError) as error:
+            warnings.append(f"{bug}: description not updated: {error}")
+    return {"tc": case_id, "bug": bug, "epic": epic, "created": True, "appended": False, "file": row["file"],
+            "attachments": [sha for _, sha in attached.values()], "warnings": warnings}
