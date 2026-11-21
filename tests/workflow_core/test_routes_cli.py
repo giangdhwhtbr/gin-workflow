@@ -11,7 +11,6 @@ sys.path.insert(0, str(SCRIPTS))
 
 from workflow_core import cli, routes
 from workflow_core.setup_service import refresh
-from tests.workflow_core.orchestrator_fakes import fake_orchestrator, on_path
 
 
 class TestRoutesCLI(unittest.TestCase):
@@ -22,7 +21,6 @@ class TestRoutesCLI(unittest.TestCase):
         cfg_dir.mkdir(parents=True, exist_ok=True)
         config_content = (
             "harness: claude\n"
-            "provider_mode: single\n"
             "schema_version: '2.7'\n"
             "routing:\n"
             "  roles:\n"
@@ -114,7 +112,7 @@ class TestRoutesCLI(unittest.TestCase):
         # Antigravity main harness with effort
         cfg_dir = self.root / ".agent-workflow"
         (cfg_dir / "config.yaml").write_text(
-            "harness: antigravity\nprovider_mode: single\nschema_version: '2.9'\nrouting:\n  roles:\n    backend:\n      preferred: [main_harness]\n",
+            "harness: antigravity\nschema_version: '2.9'\nrouting:\n  roles:\n    backend:\n      preferred: [main_harness]\n",
             encoding="utf-8",
         )
         refresh(self.root)
@@ -202,216 +200,21 @@ class TestRoutesCLI(unittest.TestCase):
         self.assertEqual(code, 0)
         output = json.loads(stdout.getvalue())
         lib_dir = Path(output["lib_dir"])
-        self.assertTrue((lib_dir / "workflow_core/ext.py").is_file())
+        self.assertTrue((lib_dir / "workflow_core/cli.py").is_file())
 
-    def _set_multi_mode(self):
-        cfg_dir = self.root / ".agent-workflow"
-        config_content = (
-            "harness: claude\n"
-            "provider_mode: multi\n"
-            "schema_version: '2.8'\n"
-            "routing:\n"
-            "  roles:\n"
-            "    backend:\n"
-            "      preferred:\n"
-            "      - main_harness\n"
-        )
-        (cfg_dir / "config.yaml").write_text(config_content, encoding="utf-8")
-        refresh(self.root)
-
-    def test_multi_mode_delegates_and_writes_the_returned_routes(self):
-        self._set_multi_mode()
-        codex_route = {
-            "task_id": "t1",
-            "requested": {"provider_role": "backend", "model": "sonnet", "effort": "medium"},
-            "resolved": {"provider": "codex", "model": "opus", "fallback": False},
-            "fallback": [],
-        }
-        with tempfile.TemporaryDirectory() as fake_dir:
-            fake_orchestrator(
-                fake_dir,
-                contract=2,
-                capabilities=["routes"],
-                replies={
-                    "routes resolve": {
-                        "workflow_id": "wf-multi",
-                        "main_harness": "claude",
-                        "routes": [codex_route],
-                        "diagnostics": [],
-                    }
-                },
-            )
-            with on_path(fake_dir):
-                code, output = self._resolve(
-                    "wf-multi",
-                    [{"task_id": "t1", "provider_role": "backend", "model": "sonnet", "effort": "medium"}],
-                )
-                self.assertEqual(0, code)
-                self.assertEqual("wf-multi", output["workflow_id"])
-                self.assertEqual("codex", output["routes"][0]["resolved"]["provider"])
-                manifest_path = self.root / output["manifest"]
-                self.assertTrue(manifest_path.is_file())
-                self.assertIn("codex", manifest_path.read_text(encoding="utf-8"))
-
-    def test_delegation_forwards_model_and_effort(self):
-        self._set_multi_mode()
-        received_tracks = None
-
-        def fake_call(cmd):
-            nonlocal received_tracks
-            tracks_idx = cmd.index("--tracks") + 1
-            received_tracks = json.loads(Path(cmd[tracks_idx]).read_text(encoding="utf-8"))
-            return {
-                "workflow_id": "wf-fwd",
-                "main_harness": "claude",
-                "routes": [{
-                    "task_id": "t1",
-                    "requested": {"provider_role": "backend", "model": "sonnet", "effort": "medium"},
-                    "resolved": {"provider": "claude", "model": "sonnet", "effort": "medium", "selection_mode": "explicit"},
-                    "fallback": [],
-                }],
-                "diagnostics": [],
-            }
-
-        with patch("workflow_core.orchestrator_client.delegates", return_value=True), \
-             patch("workflow_core.orchestrator_client.call", side_effect=fake_call):
-            code, output = self._resolve(
-                "wf-fwd",
-                [{"task_id": "t1", "provider_role": "backend", "model": "sonnet", "effort": "medium"}],
-            )
-            self.assertEqual(0, code)
-            self.assertIsNotNone(received_tracks)
-            self.assertEqual("sonnet", received_tracks[0]["model"])
-            self.assertEqual("medium", received_tracks[0]["effort"])
-
-    def test_delegation_keeps_repo_in_the_manifest(self):
-        import yaml
-
-        self._set_multi_mode()
-
-        def route(task_id):
-            return {
-                "task_id": task_id,
-                "requested": {"provider_role": "backend", "model": "sonnet", "effort": "medium"},
-                "resolved": {"provider": "claude", "model": "sonnet", "effort": "medium", "selection_mode": "explicit"},
-                "fallback": [],
-            }
-
-        reply = {"workflow_id": "wf-orch-repo", "main_harness": "claude",
-                 "routes": [route("t1"), route("t2")], "diagnostics": []}
-        with patch("workflow_core.orchestrator_client.delegates", return_value=True), \
-             patch("workflow_core.orchestrator_client.call", return_value=reply):
-            code, payload = self._resolve("wf-orch-repo", [
-                {"task_id": "t1", "provider_role": "backend", "model": "sonnet", "effort": "medium",
-                 "repo": "services/api"},
-                {"task_id": "t2", "provider_role": "backend", "model": "sonnet", "effort": "medium"},
-            ])
-        self.assertEqual(0, code, payload)
-        manifest = yaml.safe_load((self.root / payload["manifest"]).read_text(encoding="utf-8"))
-        self.assertEqual("services/api", manifest["assignments"][0]["repo"])
-        self.assertEqual("services/api", manifest["tracks"]["t1"]["repo"])
-        self.assertNotIn("repo", manifest["assignments"][1])
-        self.assertNotIn("repo", manifest["tracks"]["t2"])
-
-    def test_multi_mode_diagnostics_from_orchestrator_exit_2_and_write_nothing(self):
-        self._set_multi_mode()
-        with tempfile.TemporaryDirectory() as fake_dir:
-            fake_orchestrator(
-                fake_dir,
-                contract=2,
-                capabilities=["routes"],
-                replies={
-                    "routes resolve": {
-                        "workflow_id": "wf-diag",
-                        "main_harness": "claude",
-                        "routes": [],
-                        "diagnostics": ["t1.route: capacity exceeded"],
-                    }
-                },
-            )
-            with on_path(fake_dir):
-                code, output = self._resolve(
-                    "wf-diag",
-                    [{"task_id": "t1", "provider_role": "backend", "model": "sonnet", "effort": "medium"}],
-                )
-                self.assertEqual(2, code)
-                self.assertEqual(["t1.route: capacity exceeded"], output["diagnostics"])
-                self.assertFalse((self.root / ".agent-workflow/runtime/assignments/wf-diag.yaml").exists())
-
-    def test_failing_orchestrator_falls_back_with_a_warning(self):
-        self._set_multi_mode()
-        with tempfile.TemporaryDirectory() as fake_dir:
-            fake_orchestrator(fake_dir, contract=2, capabilities=["routes"], fail=["routes resolve"])
-            with on_path(fake_dir):
-                code, output = self._resolve(
-                    "wf-fail",
-                    [{"task_id": "t1", "provider_role": "backend", "model": "sonnet", "effort": "medium"}],
-                )
-                self.assertEqual(0, code)
-                self.assertEqual("claude", output["routes"][0]["resolved"]["provider"])
-                self.assertTrue(
-                    any("gin-orchestrator failed" in w and "routing every track to the main harness" in w for w in output["warnings"]),
-                    output["warnings"],
-                )
-                manifest_path = self.root / output["manifest"]
-                self.assertTrue(manifest_path.is_file())
-
-    def test_role_owned_by_the_absent_orchestrator_routes_to_the_main_harness(self):
-        self._set_multi_mode()
+    def test_a_role_under_an_unmigrated_orchestrator_block_routes_to_the_main_harness(self):
         config = self.root / ".agent-workflow/config.yaml"
         config.write_text(config.read_text(encoding="utf-8")
                           + "orchestrator:\n  roles:\n    mobile:\n      preferred:\n      - codex\n", encoding="utf-8")
         refresh(self.root)
-        with tempfile.TemporaryDirectory() as empty_dir, on_path(empty_dir), patch.dict("os.environ", {"PATH": empty_dir}):
-            code, output = self._resolve("wf-owned", [{"task_id": "t1", "provider_role": "mobile", "model": "haiku", "effort": "low"},
-                                                      {"task_id": "t2", "provider_role": "nope", "model": "haiku", "effort": "low"}])
-            self.assertEqual(2, code)
-            self.assertEqual(["track t2: unknown provider role: nope"], output["diagnostics"])
-            code, output = self._resolve("wf-owned", [{"task_id": "t1", "provider_role": "mobile", "model": "haiku", "effort": "low"}])
-            self.assertEqual(0, code, output)
-            self.assertEqual("claude", output["routes"][0]["resolved"]["provider"])
-            self.assertTrue(any("orchestrator_missing" in w for w in output["warnings"]), output["warnings"])
-
-    def test_malformed_orchestrator_reply_falls_back_with_a_warning(self):
-        self._set_multi_mode()
-        for reply in (["t1"], {"routes": None}, {"diagnostics": "bad"}):
-            with tempfile.TemporaryDirectory() as fake_dir:
-                fake_orchestrator(fake_dir, contract=2, capabilities=["routes"], replies={"routes resolve": reply})
-                with on_path(fake_dir):
-                    code, output = self._resolve(
-                        "wf-bad",
-                        [{"task_id": "t1", "provider_role": "backend", "model": "sonnet", "effort": "medium"}],
-                    )
-                    self.assertEqual(0, code, reply)
-                    self.assertEqual("claude", output["routes"][0]["resolved"]["provider"])
-                    self.assertTrue(any("orchestrator_failed" in w for w in output["warnings"]), output["warnings"])
-
-    def test_missing_routes_capability_falls_back(self):
-        self._set_multi_mode()
-        with tempfile.TemporaryDirectory() as fake_dir:
-            fake_orchestrator(fake_dir, contract=2, capabilities=["doctor"])
-            with on_path(fake_dir):
-                code, output = self._resolve(
-                    "wf-nocap",
-                    [{"task_id": "t1", "provider_role": "backend", "model": "sonnet", "effort": "medium"}],
-                )
-                self.assertEqual(0, code)
-                self.assertEqual("claude", output["routes"][0]["resolved"]["provider"])
-
-    def test_single_mode_never_calls_the_orchestrator(self):
-        with tempfile.TemporaryDirectory() as fake_dir:
-            fake_orchestrator(
-                fake_dir,
-                contract=2,
-                fail=["version", "routes", "routes resolve"],
-            )
-            with on_path(fake_dir):
-                code, output = self._resolve(
-                    "wf-single",
-                    [{"task_id": "t1", "provider_role": "backend", "model": "sonnet", "effort": "medium"}],
-                )
-                self.assertEqual(0, code)
-                self.assertEqual("claude", output["routes"][0]["resolved"]["provider"])
+        code, output = self._resolve("wf-owned", [{"task_id": "t1", "provider_role": "mobile", "model": "haiku", "effort": "low"},
+                                                  {"task_id": "t2", "provider_role": "nope", "model": "haiku", "effort": "low"}])
+        self.assertEqual(2, code)
+        self.assertEqual(["track t2: unknown provider role: nope"], output["diagnostics"])
+        code, output = self._resolve("wf-owned", [{"task_id": "t1", "provider_role": "mobile", "model": "haiku", "effort": "low"}])
+        self.assertEqual(0, code, output)
+        self.assertEqual("claude", output["routes"][0]["resolved"]["provider"])
+        self.assertEqual([], output["warnings"])
 
     def _write_manifest(self, workflow_id, entries):
         import yaml

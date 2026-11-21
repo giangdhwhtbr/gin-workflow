@@ -17,7 +17,6 @@ sys.path.insert(0, str(ROOT / "plugins/gin-workflow/src/scripts"))
 
 from workflow_core import setup_service  # noqa: E402
 from workflow_core.cli import CLI_VERSION  # noqa: E402
-from tests.workflow_core.orchestrator_fakes import fake_orchestrator, on_path  # noqa: E402
 from tests.workflow_core.team_fixtures import fake_cli  # noqa: E402
 
 
@@ -75,6 +74,8 @@ class SetupCliTests(unittest.TestCase):
             payload = json.loads(result.stdout)
             self.assertEqual("proposed", payload["status"])
             self.assertIn('project.rigor="easy"', payload["assignments"])
+            self.assertFalse(any(a.startswith(("provider_mode", "routing.review.independence"))
+                                 for a in payload["assignments"]))
             self.assertIn('providers.task_tracking="markdown"', payload["assignments"])
             self.assertEqual(["core"], payload["rule_packs"])
             self.assertIn('rules.packs=["core"]', payload["assignments"])
@@ -908,70 +909,6 @@ class SetupCliTests(unittest.TestCase):
             self.assertEqual(0, res.returncode, res.stderr)
             payload = json.loads(res.stdout)
             self.assertTrue(any("setup update --to-version 2.8" in action for action in payload.get("actions", [])))
-
-    def test_doctor_probe_delegates_in_multi_mode(self):
-        with tempfile.TemporaryDirectory() as directory, tempfile.TemporaryDirectory() as bin_dir:
-            repository = Path(directory)
-            self.assertEqual(0, self.run_cli(repository, "init", "--approve", "--non-interactive", "--harness", "claude").returncode)
-            (repository / ".agent-workflow/config.yaml").write_text(  # provider_mode is refused at 2.11
-                "schema_version: '2.10'\nworkflow_version: '2.10'\nsetup_cli_version: '2.10'\n"
-                "harness: claude\nprovider_mode: multi\n", encoding="utf-8")
-            prov_reply = {"codex.low": {"available": True, "reason": "ready"}}
-            fake_orchestrator(bin_dir, contract=2, capabilities=["doctor"], replies={"doctor": {"providers": prov_reply}})
-            env = {**os.environ, "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}"}
-            res = self.run_cli(repository, "doctor", "--probe", env=env)
-            self.assertEqual(0, res.returncode, res.stderr)
-            payload = json.loads(res.stdout)
-            self.assertEqual(prov_reply, payload["checks_details"]["providers"])
-            self.assertTrue(payload["checks"]["providers"])
-            self.assertTrue(payload["checks_details"]["orchestrator"]["available"])
-
-    def test_doctor_reports_orchestrator_missing_with_the_install_command(self):
-        with tempfile.TemporaryDirectory() as directory, tempfile.TemporaryDirectory() as empty_bin:
-            repository = Path(directory)
-            self.assertEqual(0, self.run_cli(repository, "init", "--approve", "--non-interactive", "--harness", "claude").returncode)
-            (repository / ".agent-workflow/config.yaml").write_text(  # provider_mode is refused at 2.11
-                "schema_version: '2.10'\nworkflow_version: '2.10'\nsetup_cli_version: '2.10'\n"
-                "harness: claude\nprovider_mode: multi\n", encoding="utf-8")
-            env = {**os.environ, "PATH": empty_bin}
-            res = self.run_cli(repository, "doctor", env=env)
-            self.assertEqual(0, res.returncode, res.stderr)
-            payload = json.loads(res.stdout)
-            self.assertFalse(payload["checks_details"]["orchestrator"]["available"])
-            self.assertEqual("orchestrator_missing", payload["checks_details"]["orchestrator"]["reason"])
-            self.assertTrue(any("orchestrator_missing" in a and "./install.sh --plugin gin-orchestrator" in a for a in payload.get("actions", [])))
-
-    def test_doctor_probe_failure_reports_orchestrator_failed(self):
-        with tempfile.TemporaryDirectory() as directory, tempfile.TemporaryDirectory() as bin_dir:
-            repository = Path(directory)
-            self.assertEqual(0, self.run_cli(repository, "init", "--approve", "--non-interactive", "--harness", "claude").returncode)
-            (repository / ".agent-workflow/config.yaml").write_text(  # provider_mode is refused at 2.11
-                "schema_version: '2.10'\nworkflow_version: '2.10'\nsetup_cli_version: '2.10'\n"
-                "harness: claude\nprovider_mode: multi\n", encoding="utf-8")
-            fake_orchestrator(bin_dir, contract=2, capabilities=["doctor"], fail=["doctor"])
-            env = {**os.environ, "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}"}
-            res = self.run_cli(repository, "doctor", "--probe", env=env)
-            payload = json.loads(res.stdout)
-            self.assertFalse(payload["checks"]["providers"])
-            self.assertEqual("orchestrator_failed", payload["checks_details"]["providers"]["reason"])
-
-    def test_models_delegates_or_returns_an_empty_list(self):
-        with tempfile.TemporaryDirectory() as directory, tempfile.TemporaryDirectory() as bin_dir:
-            repository = Path(directory)
-            fake_orchestrator(bin_dir, contract=2, capabilities=["models"], replies={"models": [{"id": "m1"}]})
-            env = {**os.environ, "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}"}
-            res = self.run_cli(repository, "models", "--provider", "codex", env=env)
-            self.assertEqual(0, res.returncode, res.stderr)
-            payload = json.loads(res.stdout)
-            self.assertEqual([{"id": "m1"}], payload["models"])
-
-        with tempfile.TemporaryDirectory() as directory, tempfile.TemporaryDirectory() as empty_bin:
-            repository = Path(directory)
-            env = {**os.environ, "PATH": empty_bin}
-            res = self.run_cli(repository, "models", "--provider", "codex", env=env)
-            self.assertEqual(0, res.returncode, res.stderr)
-            payload = json.loads(res.stdout)
-            self.assertEqual([], payload["models"])
 
     def test_init_writes_ginrc_with_the_installed_version(self):
         with tempfile.TemporaryDirectory() as directory:

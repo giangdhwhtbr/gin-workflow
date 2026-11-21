@@ -11,6 +11,7 @@ import unittest
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from team_fixtures import calls, fake_cli, git, path_with, run_cli, write  # noqa: E402
+from workflow_core.events import WorkflowEvent, WorkflowEventStore  # noqa: E402
 from workflow_core.setup_service import refresh  # noqa: E402
 
 USAGE = {"version": 1, "cost": 2.5,
@@ -91,6 +92,15 @@ class UsageCliTests(unittest.TestCase):
         lines = text.splitlines()
         total_idx = next(i for i, line in enumerate(lines) if line.startswith("total:"))
         self.assertEqual(lines[total_idx + 1], "partial: not_collected, unpriced")
+
+    def test_report_reads_a_log_with_an_old_worker_event(self):
+        event = WorkflowEvent.create(
+            event_type="worker.failed", workflow_id="default-workflow", task_id="t1",
+            payload={"provider": "antigravity", "reason": "worker_routes_unavailable"},
+        )
+        WorkflowEventStore(self.repo / ".agent-workflow/runtime/events.jsonl").append(event)
+        done = run_cli(self.repo, "usage", "report", "--format", "json", env=self.env)
+        self.assertEqual(done.returncode, 0, done.stderr)
 
     def test_report_clean_has_no_partial_line(self):
         clean = {"version": 1, "cost": 1.0,

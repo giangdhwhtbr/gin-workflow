@@ -28,9 +28,7 @@ class ProjectSettings:
     rigor: str = "standard"
     stack_intent: str = ""
     packages: tuple[Mapping[str, Any], ...] = ()
-    provider_mode: str = "single"
     verify_commands: Mapping[str, str] = field(default_factory=dict)
-    independence: str = "session"
     worktree: str = "parallel"
     review: str = "independent"
     review_ledger: bool = False
@@ -67,9 +65,7 @@ def project_settings(config: Mapping[str, Any]) -> ProjectSettings:
         rigor=rigor,
         stack_intent=str(project.get("stack_intent", "")),
         packages=tuple(project.get("packages", ()) or ()),
-        provider_mode=str(config.get("provider_mode", "single")),
         verify_commands=commands,
-        independence=str(review.get("independence", "session")),
         worktree=str(project.get("worktree", preset["worktree"])),
         review=str(project.get("review", preset["review"])),
         review_ledger=bool(project.get("review_ledger", preset["review_ledger"])),

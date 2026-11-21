@@ -35,7 +35,6 @@ from .migrations import (
 from .executable_resolver import resolve_harness_executable
 from .provider_config import DEFAULT_EXECUTABLES
 from . import agents_block
-from . import orchestrator_client
 from . import snapshot
 from . import version_pin
 from . import workspace as workspace_mod
@@ -452,7 +451,7 @@ def status(repository: Path, **_: Any) -> dict[str, Any]:
     }
 
 
-def doctor(repository: Path, *, probe: bool = False, current: Path | None = None, **_: Any) -> dict[str, Any]:
+def doctor(repository: Path, *, current: Path | None = None, **_: Any) -> dict[str, Any]:
     _dependencies()
     root = Path(repository).resolve()
     entry = workspace_mod.locate(current).entry if current is not None else None
@@ -616,21 +615,6 @@ def doctor(repository: Path, *, probe: bool = False, current: Path | None = None
             checks_details["workspace"] = detail
             actions.extend(f"workspace: {action}" for action in detail["actions"])
 
-        if effective.get("provider_mode") == "multi":
-            checks_details["orchestrator"] = orchestrator_client.status()
-            if probe and orchestrator_client.delegates(effective, "doctor"):
-                try:
-                    providers = orchestrator_client.call(["doctor", "--repository", str(root)])["providers"]
-                    checks_details["providers"] = providers
-                    checks["providers"] = all(v["available"] for v in providers.values())
-                except (orchestrator_client.OrchestratorError, KeyError, TypeError, AttributeError):
-                    checks["providers"] = False
-                    checks_details["providers"] = {"reason": orchestrator_client.FAILED}
-            if not checks_details["orchestrator"].get("available"):
-                warn = orchestrator_client.warning(effective)
-                if warn:
-                    actions.append(warn)
-
     installed = CLI_VERSION
     found = version_pin.verdict(installed, root)
     checks_details["version"] = {"installed": installed, "required": found.required, "status": found.status}
@@ -638,8 +622,7 @@ def doctor(repository: Path, *, probe: bool = False, current: Path | None = None
         actions.append("version: no .ginrc; run gin setup update --approve")
     elif found.status == "newer_major":
         actions.append(f"version: .ginrc {found.required} is an older major version; run gin setup update --approve")
-    for name, version in ((version_pin.QA, version_pin.qa_version()),
-                          ("gin-orchestrator", orchestrator_client.status().get("version"))):
+    for name, version in ((version_pin.QA, version_pin.qa_version()),):
         if version and version != installed:
             actions.append(f"version: {name} {version} differs from gin {installed}; run ./install.sh --plugin {name}")
 
@@ -720,6 +703,7 @@ def update(
     local_actions: list[str] = []
     local_writes: dict[Path, bytes] = {}
     local_backup: dict[str, bytes] = {}
+    retire_local = version_key(target_version) >= version_key("2.11") and local_source.is_file()
     if version_key(target_version) >= version_key("2.9") and local_source.is_file():
         local = _read_local_file(local_source)
         tiered = _local_tier_models(local)
@@ -732,10 +716,10 @@ def update(
             rewritten = copy.deepcopy(local)
             for provider in tiered:
                 rewritten["providers"][provider].pop("models")
-            local_actions.append(f"remove provider models: from {local_source.relative_to(main)}")
+            if not retire_local:
+                local_actions.append(f"remove provider models: from {local_source.relative_to(main)}")
             local_writes[new_local] = _yaml_text(rewritten).encode("utf-8")
             local_backup[local_source.name] = local_source.read_bytes()
-    retire_local = version_key(target_version) >= version_key("2.11") and local_source.is_file()
     if retire_local:
         local_writes.pop(new_local, None)
         local_backup[local_source.name] = local_source.read_bytes()
@@ -932,19 +916,9 @@ def preset(repository: Path, *, project_stage: str | None = None, project_shape:
             "warnings": [f"no {key} command detected" for key in missing], "actions": []}
 
 
-def models(repository: Path, *, provider: str | None = None, **_: Any) -> dict[str, Any]:
-    if not provider:
-        raise SetupError("--provider is required")
-    from . import orchestrator_client
-
-    listed = orchestrator_client.models(provider)
-    return {"status": "listed", "provider": provider, "models": listed, "manual_entry": True, "actions": []}
-
-
 COMMANDS = {
     "detect": detect,
     "preset": preset,
-    "models": models,
     "init": initialize,
     "configure": configure,
     "refresh": refresh,

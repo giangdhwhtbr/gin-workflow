@@ -20,7 +20,6 @@ ACTIONS = {
     "detect": "detect project stage, shape, monorepo, stack, packages, verify commands, and code-index state",
     "preset": "turn --project-stage, --project-shape, --rigor, --task-tracking (plus --monorepo, --workspace, "
               "--stack-intent) into --set assignments",
-    "models": "list the models a provider CLI reports (--provider)",
     "init": "first setup: write .agent-workflow/config.yaml, the generated files, executables.local.yaml, "
             "and the AGENTS.md block (--dry-run previews; --approve adds a missing block)",
     "configure": "change repository configuration (--set key=value)",
@@ -28,7 +27,7 @@ ACTIONS = {
                "executables.local.yaml, and re-render an existing AGENTS.md block",
     "update": "propose, then with --approve apply, a schema migration (--to-version)",
     "doctor": "check configuration, the main harness executable, verify commands, hooks, external CLI paths, "
-              "the code index, and the AGENTS.md block (--probe asks the orchestrator for provider health)",
+              "the code index, and the AGENTS.md block",
     "status": "show whether the repository is initialized and the generated files exist",
     "diff": "show how the generated configuration differs from what the current inputs would produce",
     "rollback": "restore a validated backup (--backup PATH)",
@@ -60,7 +59,6 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--bundle", type=Path)
     parser.add_argument("--reset", action="store_true")
     parser.add_argument("--clear", action="store_true")
-    parser.add_argument("--probe", action="store_true")
     parser.add_argument("--project-stage", choices=STAGES)
     parser.add_argument("--project-shape", choices=SHAPES)
     parser.add_argument("--rigor", choices=RIGORS)
@@ -68,7 +66,6 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--monorepo", action="store_true")
     parser.add_argument("--workspace", action="store_true")
     parser.add_argument("--stack-intent", default="")
-    parser.add_argument("--provider", choices=("claude", "codex", "antigravity", "opencode", "copilot"))
     return parser
 
 
@@ -114,11 +111,9 @@ def _version(argv: Sequence[str]) -> int:
         if found.status in ("older", "newer_major") or (found.status == "invalid" and found.reason is None):
             print(f"{version_pin.message(found, CLI_VERSION)} Tell the user before any other work.")
         return 0
-    from . import orchestrator_client  # not under --hook: it may start git and read YAML
-
     found = version_pin.verdict(CLI_VERSION, options.repository or Path.cwd())
     compatible = found.status in ("none", "compatible")
-    probed = ((version_pin.QA, version_pin.qa_version()), ("gin-orchestrator", orchestrator_client.status().get("version")))
+    probed = ((version_pin.QA, version_pin.qa_version()),)
     companions = {name: version for name, version in probed if version}
     if options.format == "json":
         print(json.dumps({"installed": CLI_VERSION, "required": found.required,

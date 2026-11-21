@@ -18,7 +18,7 @@ from .events import EventPersistenceError, WorkflowEvent, WorkflowEventStore
 from .prep import is_prep, tracks_of
 from .project import project_settings
 from .tasks import backend as tasks_backend
-from . import epic_kind, orchestrator_client, workspace
+from . import epic_kind, workspace
 from .team import load_team, summary as team_summary, team_for_repo
 from .router import _STAGE_GATES, route_next_stage, _gate_status
 from .waivers import (
@@ -585,7 +585,6 @@ def _state_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
         "remedies": list(decision.remedies),
         "project": {**project_settings(config.to_dict()).to_dict(),
                     "team": team_summary(repo_path, team)},
-        "extensions": {"orchestrator": orchestrator_client.status()},
         "workspace": workspace.summary(workspace.locate(getattr(args, "start", repo_path))),
         "warnings": [w for w in ((RETIRED_KEYS_NOTICE if retired_keys(config.to_dict()) else None), *causes, *unshared,
                                  _knowledge_warning(repo_path, config, events, workflow_id, gates_state,

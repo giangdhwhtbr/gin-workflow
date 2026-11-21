@@ -491,8 +491,12 @@ setup_cli_version: '2.2'
             repository, workflow = _write_repository(directory, V210, LOCAL_WITH_MODELS)
             yaml = setup_service.require_yaml()
 
-            setup_service.update(repository, target_version="2.11", approve=True)
+            preview = setup_service.update(repository, target_version="2.11", dry_run=True)
+            result = setup_service.update(repository, target_version="2.11", approve=True)
 
+            for actions in (preview["actions"], result.get("actions", [])):
+                self.assertFalse(any(a.startswith("remove provider models:") for a in actions), actions)
+            self.assertTrue(any(a.startswith("catalog entry for") for a in preview["actions"]), preview["actions"])
             self.assertFalse((workflow / "orchestrator.local.yaml").exists())
             written = yaml.safe_load((workflow / "config.yaml").read_text(encoding="utf-8"))
             self.assertEqual(["m1", "m2"], written["models"]["codex"]["models"])

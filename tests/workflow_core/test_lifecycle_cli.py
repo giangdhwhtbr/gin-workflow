@@ -19,7 +19,6 @@ from workflow_core.cli import main as cli_main
 from workflow_core.configuration import RETIRED_KEYS_NOTICE
 from workflow_core.events import EventPersistenceError, WorkflowEvent, WorkflowEventStore
 from workflow_core.lifecycle_cli import main as lifecycle_main
-from tests.workflow_core.orchestrator_fakes import fake_orchestrator, on_path
 from tests.workflow_core.team_fixtures import calls, fake_cli, path_with
 from tests.workflow_core.test_workspace import make_workspace
 
@@ -116,48 +115,19 @@ class TestLifecycleCLI(unittest.TestCase):
         self.assertEqual(0, exit_code)
         self.assertIsNone(data["catalog"])
 
-    def test_state_reports_extensions_orchestrator(self):
-        import io
-        from unittest.mock import patch
+    def test_state_has_no_extensions_and_no_retired_project_keys(self):
+        data = self._state_json()
+        self.assertNotIn("extensions", data)
+        self.assertNotIn("provider_mode", data["project"])
+        self.assertNotIn("independence", data["project"])
 
-        expected_keys = {"available", "version", "contract", "capabilities", "reason"}
-        # Unavailable
-        with tempfile.TemporaryDirectory() as empty_dir:
-            with on_path(empty_dir):
-                import os
-                os.environ["PATH"] = empty_dir
-                with patch("sys.stdout", new=io.StringIO()) as fake_out:
-                    lifecycle_main([
-                        "state",
-                        "--repository", str(self.repo_path),
-                        "--format", "json",
-                    ])
-                data = json.loads(fake_out.getvalue())
-                self.assertIn("extensions", data)
-                self.assertIn("orchestrator", data["extensions"])
-                orch = data["extensions"]["orchestrator"]
-                self.assertEqual(expected_keys, set(orch.keys()))
-                self.assertFalse(orch["available"])
-                self.assertEqual("orchestrator_missing", orch["reason"])
-
-        # Available
-        with tempfile.TemporaryDirectory() as fake_dir:
-            fake_orchestrator(fake_dir, contract=2, capabilities=["health", "doctor"])
-            with on_path(fake_dir):
-                with patch("sys.stdout", new=io.StringIO()) as fake_out:
-                    lifecycle_main([
-                        "state",
-                        "--repository", str(self.repo_path),
-                        "--format", "json",
-                    ])
-                data = json.loads(fake_out.getvalue())
-                self.assertIn("extensions", data)
-                orch = data["extensions"]["orchestrator"]
-                self.assertEqual(expected_keys, set(orch.keys()))
-                self.assertTrue(orch["available"])
-                self.assertIsNone(orch["reason"])
-                self.assertEqual(2, orch["contract"])
-                self.assertEqual(["health", "doctor"], orch["capabilities"])
+    def test_state_reads_a_log_with_an_old_worker_event(self):
+        event = WorkflowEvent.create(
+            event_type="worker.failed", workflow_id="default-workflow", task_id="t-1",
+            payload={"provider": "antigravity", "reason": "worker_routes_unavailable"},
+        )
+        WorkflowEventStore(self.workflow_dir / "runtime" / "events.jsonl").append(event)
+        self.assertIn("gates", self._state_json())
 
     def test_state_warns_about_retired_keys_on_an_older_schema(self):
         import io
