@@ -260,9 +260,31 @@ gin attach add <bead> <file>... [--caption TEXT] [--case ID] [--step N] [--forma
 gin attach list <bead> [--format text|json] [--repository PATH]
 gin attach fetch [--bead ID --out DIR] [--repository PATH]
 gin attach push [--repository PATH]
+gin attach prune [--apply] [--format text|json] [--repository PATH]
 ```
 
 Attaches PNG, JPEG, WebP, or GIF images to a bead and keeps them in the store set by `attachments.store`, `git-ref` by default. It needs `providers.task_tracking: beads`.
+
+Any bead can carry attachments. The [`attachments`](config.md#attachments) config section sets the store, the size limit, and the retention.
+
+- `add` stores each file and lists it in the bead's `metadata.attachments`. It prints one `![caption](attachment:<sha256>)` line per file, and the caption defaults to the file name. `--case` and `--step` record the QA case and step the image belongs to. A file already attached to the bead is not added twice.
+- `add` accepts PNG, JPEG, WebP, and GIF by their first bytes, not by the file name. It removes EXIF and XMP metadata before hashing, and leaves GIF unchanged. A file that is not an image, is malformed, or is larger than `max_bytes` is refused with a line on stderr; the other files are still added.
+- `list` prints `<sha256>  <mime>  <bytes>  <name>` per entry, with `(pruned)` after an entry whose blob was pruned. `--format json` prints `{"bead", "entries"}`.
+- `fetch` brings the store up to date. With `--bead ID --out DIR` it also writes the bead's images to `DIR` as `<sha256>.<ext>` and prints each path; the two options go together. A blob whose bytes do not match its `sha256` stops the command.
+- `push` sends the `git-ref` store to `origin`. It exits 2 when there is no `origin` or the push fails. `add` pushes on its own; when that fails it keeps the entry, warns on stderr, and still exits 0, and `gin attach push` retries.
+- `prune` lists the blobs to delete and changes nothing without `--apply`. A blob is a candidate when no bead entry references it (`orphan`), or, with `retention_days` set, when every bead that references it closed more than that many days ago (`closed <date>`). `--apply` deletes the blobs and sets `pruned_at` on the entries. `--format json` prints `{"candidates": [{"path", "sha256", "reason", "beads"}], "applied"}`.
+
+Run `bd dolt pull` before `gin attach prune --apply`. A blob whose entry has not reached this machine counts as an orphan, so the machine that added an entry must have run `bd dolt push` first. Prune stops, and deletes nothing, when a bead's `metadata.attachments` cannot be read.
+
+An entry in `metadata.attachments` has the fields `sha256`, `name`, `mime`, `bytes`, `caption`, `case`, `step`, `added_by`, `added_at`, `store`, and `path`, plus `pruned_at` once the blob is pruned. A Markdown description or note points at an image with `![caption](attachment:<sha256>)`.
+
+The stores:
+
+- `git-ref` (default) keeps blobs in one commit history on `refs/gin/attachments`, at `<aa>/<sha256>` where `<aa>` is the first two hex digits. It needs git 2.29 or later. Its pushes run the repository's pre-push hooks, because gin passes no `--no-verify`.
+- `local` keeps blobs under `.agent-workflow/attachments/` in the main checkout, which setup gitignores.
+- `s3` keeps private objects at `<prefix>/<aa>/<sha256>` in a bucket, and needs `boto3`.
+
+To read images, a read-only clone that never runs `gin attach add` fetches the ref with `git fetch origin +refs/gin/attachments:refs/gin/attachments`. It then reads a blob with `git cat-file blob refs/gin/attachments:<aa>/<sha256>`. Any clone that writes attachments runs `gin attach fetch` instead, because the forced fetch drops blobs that are not pushed yet.
 
 Exit codes: 0 ok; 1 at least one file refused; 2 usage, a missing bead or tracker, a configuration error, or a store that cannot be reached.
 
@@ -498,6 +520,14 @@ Exit 2, writing nothing, when:
 - `task show` on the epic fails for another reason, or `task create` fails (their stderr is passed on).
 
 When the bead is created but the result cannot be recorded, it exits 2 and names the bead and the `cases result` command to run.
+
+Images are attached to the bug with [`gin attach add`](#gin-attach), in the bug that is created or the open bug that is kept:
+
+- Each `--evidence` file that exists inside the repository and has an image suffix is attached.
+- When `--run` names an e2e run folder, the screenshot of each failed step of the case's results there is attached, with the case and step recorded.
+- The bug's Evidence section lists each attached image as `![label](attachment:<sha256>)` followed by a `local: <path>` line. A kept bug gets `attachment:<sha256>` values in its `Re-run` line.
+- A problem with an image prints `warning: ...` on stderr and never stops the bug; the local path stays in the Evidence section.
+- The JSON result gains `attachments` (the `sha256` values) and `warnings`.
 
 Output: text `TC-AUTH-001 failed gw-12`; JSON `{"tc", "bug", "epic", "created", "appended", "file"}`. `appended` is true when the result went into the notes of an open bug.
 

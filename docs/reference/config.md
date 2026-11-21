@@ -188,6 +188,22 @@ Present when the repository is the parent of several repositories ([guide](../gu
 
 Used by the `gin-qa` add-on: `dir` (default `qa`, a path inside the repository), `cases` (default `qa/cases`), `guidelines` (default `qa/guidelines.md`), `e2e` (default `qa/e2e`). `dir` is the QA home of a single repository and is ignored when the workspace has a `shape: qa` child, which is the QA home instead; it needs gin-workflow 3.1 or later. The defaults of the other keys are under the QA home, and an explicit value is relative to the repository that holds it. See [the QA home](../guides/qa.md#the-qa-home).
 
+### `attachments`
+
+Used by [`gin attach`](cli.md#gin-attach). It needs gin-workflow 3.5.0 or later; older versions reject the config at schema validation.
+
+| Key | Values | Default |
+|---|---|---|
+| `store` | `git-ref`, `local`, `s3` | `git-ref` |
+| `max_bytes` | integer of 1 or more: the size limit of one image after metadata is removed | `10485760` |
+| `retention_days` | integer of 1 or more: `gin attach prune` also deletes blobs whose beads all closed longer ago | unset: blobs of closed beads are kept |
+| `s3.bucket` | bucket name; required when `store` is `s3` | none |
+| `s3.prefix` | key prefix | none |
+| `s3.endpoint_url` | endpoint of an S3-compatible service | none |
+| `s3.region` | region name | none |
+
+The `local` store lives in `.agent-workflow/attachments/` of the main checkout, which setup gitignores. The `s3` store needs `python3 -m pip install boto3`. Credentials come from boto3's default chain (environment, shared credentials file, instance role) and never from config. The role needs `s3:PutObject`, `s3:GetObject`, and `s3:ListBucket`, plus `s3:DeleteObject` for prune.
+
 ## `executables.local.yaml`
 
 `setup init` and `setup refresh` record where each external CLI lives on this machine, so a harness whose `PATH` differs from your shell still finds it. Only the tools found are listed.

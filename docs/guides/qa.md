@@ -108,6 +108,7 @@ A failure asks for what happened, evidence references, and an optional external 
 - The epic comes from the case's spec or change; see [`gin-qa cases bug`](../reference/cli.md#gin-qa-cases-bug) for the lookup. With no epic, the skill offers the open epics of the repository to pick from.
 - `gin-qa cases bug` files a bug for a case of any type. When the case's REQs belong to several epics, it exits 2 and names them; `--discovered-from` picks one.
 - The description holds the case file, the run, the preconditions, test data, steps, expected, the actual result, and the evidence.
+- Image evidence inside the repository and the screenshots of the failed steps of the case's e2e run are attached to the bug and shown in its description; the local path stays next to each image. See [`gin attach`](../reference/cli.md#gin-attach).
 - When the case's `Bug:` names a bead whose status is set and not `closed`, no bug is filed and the case keeps it; the new actual result and evidence go into the bead's notes as one `Re-run` line. A closed bug gets a new bug that names it as the previous bug; see [`gin-qa cases bug`](../reference/cli.md#gin-qa-cases-bug) for other values.
 - Teams that track bugs in Jira or Linear file the ticket there and pass its key with `--external-ref`; the flag only records the key on the bead.
 - When `## Bugs` in the guidelines says `External reference: required`, a failure is not filed without a reference, and the reference must match the pattern the line names.

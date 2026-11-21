@@ -10,6 +10,7 @@ Each kind of workflow state has exactly one owner. When two sources disagree, th
 | Was a gate confirmed, approved, waived, or recorded? | the event store, `.agent-workflow/runtime/events.jsonl` |
 | What did review find, and is the current tree approved? | the review ledger, `.planning/reviews/<bead>/` |
 | Which worktree, branch, or provider route did a track use? | runtime metadata (derived, disposable) |
+| Where do bead images live? | `refs/gin/attachments`, or the configured store, listed in the bead's `metadata.attachments` ([`gin attach`](../reference/cli.md#gin-attach)) |
 
 ## Task tracker
 
