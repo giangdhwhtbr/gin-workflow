@@ -13,7 +13,7 @@ from typing import Any
 
 from . import team
 from .attach_images import EXTENSIONS, clean, sniff
-from .attach_store import LocalStore, Store, blob_path
+from .attach_store import LocalStore, Store, StoreError, blob_path
 from .checkout import main_checkout
 from .configuration import ConfigValidationError, resolve_effective_config
 from .executables import tool
@@ -80,11 +80,30 @@ def _bd(repo: Path, argv: Sequence[str]) -> Any:
 
 
 def _show(repo: Path, bead: str) -> dict[str, Any]:
-    data = _bd(repo, ["show", bead, "--json"])
+    if not bead or bead.startswith("-"):
+        raise AttachmentError(f"invalid bead id: {bead!r}")
+    data = _bd(repo, ["show", "--json", "--", bead])
     row = data[0] if isinstance(data, list) and data else data
     if not isinstance(row, dict) or not row:
         raise AttachmentError(f"{bead}: no such bead")
     return row
+
+
+def _held(bead: str, row: Mapping[str, Any]) -> list[dict[str, Any]]:
+    """The bead's entries; corrupt `metadata.attachments` raises instead of reading as empty."""
+    metadata = row.get("metadata")
+    value = metadata.get("attachments") if isinstance(metadata, Mapping) else None
+    if value is None:
+        return []
+    if isinstance(value, str):
+        try:
+            value = json.loads(value)
+        except ValueError:
+            value = None
+    if not isinstance(value, list):
+        raise AttachmentError(f"{bead}: metadata.attachments is not a JSON list; "
+                              "fix it with bd update before adding")
+    return entries(row)
 
 
 def entries(row: Mapping[str, Any]) -> list[dict[str, Any]]:
@@ -116,9 +135,9 @@ def add(repo: Path, bead: str, files: Sequence[Path], *, caption: str | None = N
     repo = Path(repo)
     settings = load_settings(repo)
     store = store or open_store(repo, settings)
-    held = entries(_show(repo, bead))
+    held = _held(bead, _show(repo, bead))
     stamp = (now or datetime.now(timezone.utc)).astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-    author = team.git_email(main_checkout(repo.resolve()))
+    author = team.git_email(main_checkout(repo.resolve())) or None
     result: list[dict[str, Any]] = []
     refused: list[dict[str, str]] = []
     new: list[dict[str, Any]] = []
@@ -153,13 +172,13 @@ def add(repo: Path, bead: str, files: Sequence[Path], *, caption: str | None = N
         result.append(entry)
     warning = None
     if new:
-        _bd(repo, ["update", bead, "--set-metadata", f"attachments={json.dumps([*held, *new], sort_keys=True)}"])
+        _bd(repo, ["update", "--set-metadata", f"attachments={json.dumps([*held, *new], sort_keys=True)}", "--", bead])
         warning = store.push()
     return Added(result, refused, warning)
 
 
 def list_entries(repo: Path, bead: str) -> list[dict[str, Any]]:
-    return entries(_show(Path(repo), bead))
+    return _held(bead, _show(Path(repo), bead))
 
 
 def fetch(repo: Path, *, bead: str | None = None, out: Path | None = None, store: Store | None = None) -> list[Path]:
@@ -169,16 +188,31 @@ def fetch(repo: Path, *, bead: str | None = None, out: Path | None = None, store
     if bead is None or out is None:
         return []
     out = Path(out)
-    out.mkdir(parents=True, exist_ok=True)
+    if out.exists() and not out.is_dir():
+        raise AttachmentError(f"{out} is not a directory")
+    try:
+        out.mkdir(parents=True, exist_ok=True)
+    except OSError as error:
+        raise AttachmentError(f"cannot create {out}: {error.strerror or error}") from error
     written = []
     for entry in list_entries(repo, bead):
         if entry.get("pruned_at"):
             continue
-        data = store.get(entry.get("path") or blob_path(entry["sha256"]))
-        if hashlib.sha256(data).hexdigest() != entry["sha256"]:
-            raise AttachmentError(f"{entry['name']}: stored bytes do not match sha256 {entry['sha256']}")
-        target = out / f"{entry['sha256']}.{EXTENSIONS[entry['mime']]}"
-        target.write_bytes(data)
+        label = f"{bead}: entry {entry.get('name') or entry.get('sha256')}"
+        sha = entry.get("sha256")
+        if not isinstance(sha, str) or entry.get("mime") not in EXTENSIONS:
+            raise AttachmentError(f"{label} has no sha256 or an unknown mime")
+        try:
+            data = store.get(entry.get("path") or blob_path(sha))
+        except StoreError as error:
+            raise AttachmentError(f"{label}: {error}") from error
+        if hashlib.sha256(data).hexdigest() != sha:
+            raise AttachmentError(f"{label}: stored bytes do not match sha256 {sha}")
+        target = out / f"{sha}.{EXTENSIONS[entry['mime']]}"
+        try:
+            target.write_bytes(data)
+        except OSError as error:
+            raise AttachmentError(f"cannot write {target}: {error.strerror or error}") from error
         written.append(target)
     return written
 

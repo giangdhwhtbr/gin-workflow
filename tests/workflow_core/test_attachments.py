@@ -181,6 +181,53 @@ class AttachmentsTests(unittest.TestCase):
         entry = self.add([self.png]).entries[0]
         self.assertEqual(attachments.list_entries(self.repo, self.bead), [entry])
 
+    def test_fetch_out_that_is_a_file_raises(self):
+        self.add([self.png])
+        out = self.tmp / "afile"
+        out.write_text("x")
+        with self.assertRaises(AttachmentError) as caught:
+            attachments.fetch(self.repo, bead=self.bead, out=out, store=self.store)
+        self.assertIn("is not a directory", str(caught.exception))
+
+    def test_bead_id_that_looks_like_a_flag_is_refused_before_bd(self):
+        for bead in ("", "-x", "--json"):
+            with mock.patch.object(attachments, "_bd") as bd_call:
+                with self.assertRaises(AttachmentError):
+                    attachments.list_entries(self.repo, bead)
+                with self.assertRaises(AttachmentError):
+                    attachments.add(self.repo, bead, [self.png], store=self.store)
+            bd_call.assert_not_called()
+
+    def test_fetch_names_the_entry_with_an_unknown_mime_or_missing_sha(self):
+        for bad in ({"sha256": self.sha, "name": "f.png", "mime": "image/tiff", "path": blob_path(self.sha)},
+                    {"name": "g.png", "mime": "image/png"}):
+            bd(self.repo, "update", self.bead, "--set-metadata", f"attachments={json.dumps([bad])}")
+            with self.assertRaises(AttachmentError) as caught:
+                attachments.fetch(self.repo, bead=self.bead, out=self.tmp / "out", store=self.store)
+            self.assertIn(self.bead, str(caught.exception))
+            self.assertIn(bad["name"], str(caught.exception))
+
+    def test_corrupt_metadata_is_not_overwritten(self):
+        for value in ("nope", json.dumps({"a": 1})):
+            bd(self.repo, "update", self.bead, "--set-metadata", f"attachments={value}")
+            with self.assertRaises(AttachmentError) as caught:
+                self.add([self.png])
+            self.assertEqual(str(caught.exception), f"{self.bead}: metadata.attachments is not a JSON list; "
+                             "fix it with bd update before adding")
+            with self.assertRaises(AttachmentError):
+                attachments.list_entries(self.repo, self.bead)
+
+    def test_added_by_is_none_without_a_git_email(self):
+        with mock.patch.object(attachments.team, "git_email", return_value=""):
+            entry = self.add([self.png]).entries[0]
+        self.assertIsNone(entry["added_by"])
+
+    def test_fetch_skips_pruned_entries(self):
+        entry = self.add([self.png]).entries[0]
+        bd(self.repo, "update", self.bead, "--set-metadata",
+           f"attachments={json.dumps([{**entry, 'pruned_at': '2026-11-20T00:00:00Z'}])}")
+        self.assertEqual(attachments.fetch(self.repo, bead=self.bead, out=self.tmp / "out", store=self.store), [])
+
 
 if __name__ == "__main__":
     unittest.main()
