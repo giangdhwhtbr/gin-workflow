@@ -63,6 +63,14 @@ class SkillRoutingTests(unittest.TestCase):
         self.assertNotIn('"reasoning"', text)
         self.assertNotIn("model names never enter", text)
 
+    def test_child_beads_do_not_inherit_the_epic_labels(self):
+        # A track that inherits the epic's export:<cap> label makes `bd ship <cap>` refuse (gin-workflow-oh6p).
+        for relative, needle in (("skills/orchestrate/SKILL.md", "gin task create --parent <epic> --no-inherit-labels"),
+                                 ("skills/sdd/SKILL.md", "gin task create --parent <epic> --no-inherit-labels"),
+                                 ("skills/team/references/lanes.md", "--no-inherit-labels")):
+            with self.subTest(file=relative):
+                self.assertIn(needle, (SRC / relative).read_text(encoding="utf-8"))
+
     def test_discuss_and_plan_delegate_exploration_to_researcher(self):
         for path in (SRC / "skills/discuss/SKILL.md", SRC / "skills/plan/SKILL.md"):
             text = path.read_text(encoding="utf-8")

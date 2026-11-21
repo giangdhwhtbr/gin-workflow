@@ -20,7 +20,7 @@ Applies only when `gin state --format json` reports `project.layout: sdd`. Paths
 Write `<change>/04-plan.md`. Each track's Metadata adds `Requirements: REQ-…`; every `ADDED`/`MODIFIED` REQ in the delta belongs to at least one track. Record `plan-approved --workflow-id <epic>`.
 
 ## orchestrate
-Reuse the epic as parent. Each track bead: `gin task create --parent <epic> --spec-id <epic>-<slug> --labels req:<REQ-ID>,…` from its `Requirements:`.
+Each track bead: `gin task create --parent <epic> --no-inherit-labels --spec-id <epic>-<slug> --labels req:<REQ-ID>,…` from its `Requirements:`.
 
 ## execute and review
 New or changed tests carry the REQ-ID in the test name or a comment (`# REQ-AUTH-003`). The reviewer checks that each scenario of the track's REQs has a test and treats the acceptance-coverage rows of the `qa-track` skill (Review coverage) that are missing or stale as missing tests.
