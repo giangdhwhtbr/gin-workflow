@@ -20,7 +20,7 @@ Epic `gin-workflow-rm-windows-parity` (2026-11-02) made the CLI, the safety hook
 - Bug `gin-workflow-2125` (2026-11-19): 25 Windows failures, all from tests added after the last green run (2026-11-09), not a runner change. Rules learned: git marks loose objects read-only, so removing a temp repo needs an `onexc`/`onerror` handler that sets `stat.S_IWRITE` and retries (`ignore_errors=True` only leaks the repo); a CLI fake must be a `.cmd` (`team_fixtures.fake_cli`, the path `orchestrator_fakes.fake_orchestrator` returns, `qa_fixtures` stubs), and an echoed payload goes through `@echo`; `Path.home()` reads `USERPROFILE`, so a faked home sets it with `HOME`; `chmod` on a directory blocks nothing on Windows or as root, so a forced write error puts a regular file where a folder is needed; a `gin` child with a minimal env gets `PATH` from `dirname(which("git"))` plus `os.defpath`. A Windows fix is proven only by dispatching `test.yml` on the branch before merge.
 
 **References**
-- `plugins/gin-orchestrator/src/scripts/gin_orchestrator/native_cli.py` (`_cmd_shim_line`, `_taskkill_tree`)
+- `plugins/gin-orchestrator/src/scripts/gin_orchestrator/native_cli.py` (`_cmd_shim_line`, `_taskkill_tree`); deleted with gin 3.3.0 ([retire-orchestrator](retire-orchestrator.md)), so the worker-spawn points of this record are history and the shim and hook points still apply
 - `plugins/gin-workflow/src/scripts/workflow_core/executable_resolver.py`, `hooks.py`
 - `plugins/gin-workflow/src/scripts/safety_check.py`, `tests/test_safety_check.py`
 - `install.ps1` (shim content, `Register-UserPath`), `.planning/specs/2026-11-02-windows-parity-design.md` R3, R8, R9, R10

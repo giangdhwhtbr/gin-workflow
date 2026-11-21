@@ -1,5 +1,8 @@
 # Non-Claude main harness: dispatch rule, worker agents, retries
 
+**Status**
+Superseded on 2026-11-21 by [retire-orchestrator](retire-orchestrator.md): gin 3.3.0 removed gin-orchestrator and its dispatch. What still holds from this record is the agent packaging in the installers (the per-harness agent names and tool-name translations). The dispatch rule, retries, circuit breaker, and worker observations below are history.
+
 **Context**
 Epic `gin-workflow-dura` (shipped 2026-11-04) made tracks, reviews, and explorations run at the catalog model and effort when Codex, Antigravity, OpenCode, or Copilot is the main harness. Claude Code dispatch was already shipped in `gin-workflow-btt3`.
 
