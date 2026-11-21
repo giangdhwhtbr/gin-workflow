@@ -17,7 +17,6 @@ $ErrorActionPreference = 'Stop'
 
 $LauncherVersion = '3.2.0'
 $QaLauncherVersion = '3.2.0'
-$OrchLauncherVersion = '3.2.0'
 $ScriptRoot = $PSScriptRoot
 $UserHome = $env:HOME
 if ([string]::IsNullOrWhiteSpace($UserHome)) {
@@ -704,7 +703,6 @@ function Install-Launcher {
     $packages = switch ($Name) {
         'gin-workflow' { @('workflow_core', 'review_ledger') }
         'gin-qa' { @('gin_qa') }
-        'gin-orchestrator' { @('gin_orchestrator') }
     }
 
     if (Test-Path -LiteralPath $launcherShim) {
@@ -834,6 +832,40 @@ function Remove-LegacyPlugin {
         }
     }
     # Best effort: the old plugin may not be registered, and then the harness CLI exits non-zero.
+    if ((Test-Platform 'codex') -and (Get-Command codex -ErrorAction SilentlyContinue)) {
+        & codex plugin remove "$old@gin-workflow-marketplace" *> $null
+    }
+    if ((Test-Platform 'copilot') -and (Get-Command copilot -ErrorAction SilentlyContinue)) {
+        & copilot plugin uninstall $old *> $null
+    }
+}
+
+# gin-orchestrator was removed in gin 3.3.0: its launcher and its global
+# plugin installs go, for each selected harness.
+function Remove-RetiredOrchestrator {
+    $old = 'gin-orchestrator'
+    Remove-ManagedLauncher -Name $old
+    if ($DryRun) {
+        return
+    }
+    $retiredDirectories = @()
+    if ((Test-Platform 'claude') -and (Get-Command claude -ErrorAction SilentlyContinue) -and
+        (Test-Path -LiteralPath (Join-Path $UserHome ".claude/skills/$old"))) {
+        $retiredDirectories += Join-Path $UserHome ".claude/skills/$old"
+        Disable-ClaudePlugin -Name $old
+    }
+    if (Test-Platform 'opencode') {
+        $retiredDirectories += Join-Path $UserHome ".config/opencode/skills/$old"
+    }
+    if ((Test-Platform 'antigravity') -and (Get-Command agy -ErrorAction SilentlyContinue)) {
+        $retiredDirectories += Join-Path $UserHome ".gemini/config/plugins/$old"
+    }
+    foreach ($directory in $retiredDirectories) {
+        if (Test-Path -LiteralPath $directory) {
+            Remove-Item -LiteralPath $directory -Recurse -Force
+        }
+    }
+    # Best effort: the plugin may not be registered, and then the harness CLI exits non-zero.
     if ((Test-Platform 'codex') -and (Get-Command codex -ErrorAction SilentlyContinue)) {
         & codex plugin remove "$old@gin-workflow-marketplace" *> $null
     }
@@ -1036,8 +1068,12 @@ if (-not [string]::IsNullOrWhiteSpace($Project)) {
     $Project = [IO.Path]::GetFullPath((Resolve-Path -LiteralPath $Project).Path)
 }
 
+if ($Plugin -eq 'gin-orchestrator') {
+    throw 'Error: gin-orchestrator was removed in gin 3.3.0'
+}
+
 $Plugins = switch ($Plugin) {
-    'all' { @('gin-workflow', 'gin-qa', 'gin-orchestrator', 'gin-ba') }
+    'all' { @('gin-workflow', 'gin-qa', 'gin-ba') }
     default { @($Plugin) }
 }
 
@@ -1064,7 +1100,6 @@ if ($Uninstall) {
         (Join-Path $ScriptRoot 'plugins/gin-workflow/dist'),
         (Join-Path $ScriptRoot 'plugins/gin-workflow-advanced/dist'),
         (Join-Path $ScriptRoot 'plugins/gin-qa/dist'),
-        (Join-Path $ScriptRoot 'plugins/gin-orchestrator/dist'),
         (Join-Path $ScriptRoot 'plugins/gin-ba/dist')
     )) {
         if (Test-Path -LiteralPath $directory) {
@@ -1080,21 +1115,12 @@ if ($Uninstall) {
     if ($Plugins -contains 'gin-workflow') {
         Remove-ManagedLauncher -Name 'gin'
         Remove-ManagedLauncher -Name 'gin-workflow'
+        Remove-ManagedLauncher -Name 'gin-orchestrator'
     }
     Unregister-UserPath
     if ($Plugins -contains 'gin-workflow') { Unregister-ProfileAlias }
     Write-Output 'Removed generated dist output, the gin launcher, the global OpenCode skill install, and the Copilot plugin registration, under the gin and the old gin-workflow name. Project installs and the Claude Code, Codex, and Antigravity registrations are left for manual removal.'
     return
-}
-
-if ($Plugins -contains 'gin-orchestrator' -and $Plugins -notcontains 'gin-workflow') {
-    $workflowShim = Join-Path $UserHome '.local/bin/gin.cmd'
-    $workflowTarget = Join-Path (Join-Path (Join-Path $UserHome '.local/lib/gin') $LauncherVersion) 'gin'
-    if (-not (Test-Path -LiteralPath $workflowShim -PathType Leaf) -or
-        -not [IO.File]::ReadAllText($workflowShim).Contains("`"$workflowTarget`"", [StringComparison]::Ordinal)) {
-        Write-Output "gin-orchestrator requires gin $LauncherVersion; installing it first."
-        $Plugins = @('gin-workflow') + $Plugins
-    }
 }
 
 # An installed add-on runs its own library copy, which calls gin; installing gin
@@ -1103,7 +1129,7 @@ if ($Plugins -contains 'gin-orchestrator' -and $Plugins -notcontains 'gin-workfl
 # project, where gin-qa's `setup` would replace gin's in the shared .opencode/skills.
 $refreshedAddons = @()
 if ($Plugins -contains 'gin-workflow') {
-    foreach ($addon in @('gin-qa', 'gin-orchestrator')) {
+    foreach ($addon in @('gin-qa')) {
         $addonShim = Join-Path $UserHome ".local/bin/$addon.cmd"
         $addonRoot = Join-Path $UserHome ".local/lib/$addon"
         if ($Plugins -notcontains $addon -and (Test-ManagedLauncherShim -Path $addonShim -ManagedRoot $addonRoot -Name $addon)) {
@@ -1119,6 +1145,8 @@ if ($Plugins -contains 'gin-workflow') {
     }
 }
 
+Remove-RetiredOrchestrator
+
 foreach ($name in $Plugins) {
     if ($name -eq 'gin-ba') {
         Write-GinMissingWarning -Name 'gin-ba'
@@ -1126,7 +1154,6 @@ foreach ($name in $Plugins) {
         $version = switch ($name) {
             'gin-workflow' { $LauncherVersion }
             'gin-qa' { $QaLauncherVersion }
-            'gin-orchestrator' { $OrchLauncherVersion }
         }
         Install-Launcher -Name $name -Version $version
     }

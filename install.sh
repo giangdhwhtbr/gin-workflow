@@ -11,7 +11,6 @@ DRY_RUN=false
 TARGET_PLUGIN="gin-workflow"
 LAUNCHER_VERSION="3.2.0"
 QA_LAUNCHER_VERSION="3.2.0"
-ORCH_LAUNCHER_VERSION="3.2.0"
 MODIFY_PATH=true
 PATH_MARKER='# gin-workflow PATH'
 
@@ -40,7 +39,7 @@ while [[ "$#" -gt 0 ]]; do
       ;;
     --plugin)
       if [ -z "${2:-}" ]; then
-        echo "Error: --plugin requires a value (gin-workflow|gin-qa|gin-ba|gin-orchestrator|all)" >&2
+        echo "Error: --plugin requires a value (gin-workflow|gin-qa|gin-ba|all)" >&2
         exit 1
       fi
       TARGET_PLUGIN="$2"
@@ -87,17 +86,18 @@ case "$TARGET_PLUGIN" in
     PLUGINS=(gin-ba)
     ;;
   gin-orchestrator)
-    PLUGINS=(gin-orchestrator)
+    echo "Error: gin-orchestrator was removed in gin 3.3.0" >&2
+    exit 1
     ;;
   all)
-    PLUGINS=(gin-workflow gin-qa gin-orchestrator gin-ba)
+    PLUGINS=(gin-workflow gin-qa gin-ba)
     ;;
   core|advanced)
     echo "Warning: --plugin $TARGET_PLUGIN is deprecated; using gin-workflow." >&2
     PLUGINS=(gin-workflow)
     ;;
   *)
-    echo "Error: --plugin must be 'gin-workflow', 'gin-qa', 'gin-ba', 'gin-orchestrator', or 'all' (got '$TARGET_PLUGIN')" >&2
+    echo "Error: --plugin must be 'gin-workflow', 'gin-qa', 'gin-ba', or 'all' (got '$TARGET_PLUGIN')" >&2
     exit 1
     ;;
 esac
@@ -716,7 +716,6 @@ install_launcher() {
   case "$dir" in
     gin-workflow) packages="workflow_core review_ledger" ;;
     gin-qa) packages=gin_qa ;;
-    gin-orchestrator) packages=gin_orchestrator ;;
   esac
 
   if [ -e "$launcher_link" ] || [ -L "$launcher_link" ]; then
@@ -798,6 +797,33 @@ remove_legacy_plugin() {
     rm -rf "${HOME}/.gemini/config/plugins/$old"
   fi
   # Best effort: the old plugin may not be registered, and then the harness CLI exits non-zero.
+  if matches_platform "codex" && [ "$HAS_CODEX" = true ]; then
+    codex plugin remove "$old@gin-workflow-marketplace" >/dev/null 2>&1 || true
+  fi
+  if matches_platform "copilot" && [ "$HAS_COPILOT" = true ]; then
+    copilot plugin uninstall "$old" >/dev/null 2>&1 || true
+  fi
+}
+
+# gin-orchestrator was removed in gin 3.3.0: its launcher and its global
+# plugin installs go, for each selected harness.
+remove_retired_orchestrator() {
+  local old=gin-orchestrator
+  remove_managed_launcher "$old"
+  if [ "$DRY_RUN" = true ]; then
+    return
+  fi
+  if matches_platform "claude" && [ "$HAS_CLAUDE" = true ] && [ -d "${HOME}/.claude/skills/$old" ]; then
+    disable_claude_plugin "$old"
+    rm -rf "${HOME}/.claude/skills/$old"
+  fi
+  if matches_platform "opencode"; then
+    rm -rf "${HOME}/.config/opencode/skills/$old"
+  fi
+  if matches_platform "antigravity" && [ "$HAS_AGY" = true ]; then
+    rm -rf "${HOME}/.gemini/config/plugins/$old"
+  fi
+  # Best effort: the plugin may not be registered, and then the harness CLI exits non-zero.
   if matches_platform "codex" && [ "$HAS_CODEX" = true ]; then
     codex plugin remove "$old@gin-workflow-marketplace" >/dev/null 2>&1 || true
   fi
@@ -1003,7 +1029,7 @@ if [ "$UNINSTALL" = true ]; then
     rm -rf "${HOME}/.config/opencode/skills/${p_id}"
   done
   # After the OpenCode agents: a --link install lists them through dist.
-  rm -rf plugins/gin-workflow/dist plugins/gin-workflow-advanced/dist plugins/gin-qa/dist plugins/gin-orchestrator/dist plugins/gin-ba/dist
+  rm -rf plugins/gin-workflow/dist plugins/gin-workflow-advanced/dist plugins/gin-qa/dist plugins/gin-ba/dist
   if command -v copilot &> /dev/null; then
     for p_id in "${ids[@]}"; do
       # Best effort: a plugin that is not registered makes the CLI exit non-zero.
@@ -1013,16 +1039,11 @@ if [ "$UNINSTALL" = true ]; then
   if [[ " ${PLUGINS[*]} " == *" gin-workflow "* ]]; then
     remove_managed_launcher gin
     remove_managed_launcher gin-workflow
+    remove_managed_launcher gin-orchestrator
   fi
   unregister_path
   echo "Removed generated dist output, the gin launcher, the global OpenCode skill install, and the Copilot plugin registration, under the gin and the old gin-workflow name. Project installs (a repository's .opencode/) and the Claude Code, Codex, and Antigravity registrations are left for manual removal."
   exit 0
-fi
-
-if [[ " ${PLUGINS[*]} " == *" gin-orchestrator "* && " ${PLUGINS[*]} " != *" gin-workflow "* ]] &&
-   [ "$(readlink "${HOME}/.local/bin/gin" 2>/dev/null)" != "${HOME}/.local/lib/gin/$LAUNCHER_VERSION/gin" ]; then
-  echo "gin-orchestrator requires gin $LAUNCHER_VERSION; installing it first."
-  PLUGINS=(gin-workflow "${PLUGINS[@]}")
 fi
 
 # An installed add-on runs its own library copy, which calls gin; installing gin
@@ -1031,7 +1052,7 @@ fi
 # project, where gin-qa's `setup` would replace gin's in the shared .opencode/skills.
 REFRESHED_ADDONS=()
 if [[ " ${PLUGINS[*]} " == *" gin-workflow "* ]]; then
-  for addon in gin-qa gin-orchestrator; do
+  for addon in gin-qa; do
     if [[ " ${PLUGINS[*]} " != *" $addon "* ]] &&
        is_managed_launcher_link "${HOME}/.local/bin/$addon" "${HOME}/.local/lib/$addon" "$addon"; then
       echo "Refreshing the installed $addon add-on."
@@ -1046,11 +1067,12 @@ if [[ " ${PLUGINS[*]} " == *" gin-workflow "* ]]; then
   fi
 fi
 
+remove_retired_orchestrator
+
 for p_name in "${PLUGINS[@]}"; do
   case "$p_name" in
     gin-workflow) install_launcher "$p_name" "$LAUNCHER_VERSION" ;;
     gin-qa) install_launcher "$p_name" "$QA_LAUNCHER_VERSION" ;;
-    gin-orchestrator) install_launcher "$p_name" "$ORCH_LAUNCHER_VERSION" ;;
     gin-ba) warn_if_gin_missing gin-ba ;;
   esac
   if [ -n "$PROJECT_DIR" ] && [[ " ${REFRESHED_ADDONS[*]:-} " == *" $p_name "* ]]; then

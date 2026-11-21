@@ -124,7 +124,6 @@ assert_workflow_v22_layout() {
 rm -rf plugins/gin-workflow/dist
 rm -rf plugins/gin-workflow-advanced/dist
 rm -rf plugins/gin-qa/dist
-rm -rf plugins/gin-orchestrator/dist
 rm -rf plugins/gin-ba/dist
 
 output_file="$(mktemp)"
@@ -143,7 +142,6 @@ assert_contains "$output_file" "would install gin launcher version $RELEASE_VERS
 assert_contains "$output_file" "would link gin launcher on PATH at"
 assert_not_contains "$output_file" "gin-qa"
 assert_not_exists "plugins/gin-qa/dist"
-assert_not_exists "plugins/gin-orchestrator/dist"
 assert_not_exists "plugins/gin-ba/dist"
 
 assert_exists "plugins/gin-workflow/dist/claude-code/skills/tech-doc/SKILL.md"
@@ -234,28 +232,20 @@ assert_exists "plugins/gin-ba/dist/claude-code/skills/capture/references/legacy-
 assert_not_exists "plugins/gin-ba/dist/claude-code/scripts/gin-ba"
 assert_contains ".claude-plugin/marketplace.json" "\"path\": \"plugins/gin-ba/src\""
 
-# gin-orchestrator needs gin-workflow: an empty HOME installs gin-workflow first.
+# gin-orchestrator was removed in gin 3.3.0: the installer refuses it.
 empty_home="$(mktemp -d)"
-HOME="$empty_home" ./install.sh --platform claude --plugin gin-orchestrator --dry-run >"$output_file"
-assert_contains "$output_file" "gin-orchestrator requires gin $RELEASE_VERSION; installing it first."
-assert_contains "$output_file" "Processing plugin: gin-orchestrator"
-assert_contains "$output_file" "would install gin-orchestrator launcher version $RELEASE_VERSION to"
-assert_line_order "$output_file" "installing it first." "would install gin launcher version $RELEASE_VERSION to"
-assert_line_order "$output_file" "would install gin launcher version $RELEASE_VERSION to" "would install gin-orchestrator launcher version $RELEASE_VERSION to"
-assert_exists "plugins/gin-orchestrator/dist/claude-code/.claude-plugin/plugin.json"
-assert_exists "plugins/gin-orchestrator/dist/claude-code/skills/providers/SKILL.md"
-assert_exists "plugins/gin-orchestrator/dist/claude-code/scripts/gin-orchestrator"
-assert_exists "plugins/gin-orchestrator/dist/claude-code/scripts/gin_orchestrator/cli.py"
-assert_exists "plugins/gin-orchestrator/dist/claude-code/examples/orchestrator.local.example.yaml"
-assert_contains ".claude-plugin/marketplace.json" "\"path\": \"plugins/gin-orchestrator/src\""
+if HOME="$empty_home" ./install.sh --platform claude --plugin gin-orchestrator --dry-run >"$output_file" 2>&1; then
+  echo "Expected --plugin gin-orchestrator to be refused" >&2
+  exit 1
+fi
+assert_contains "$output_file" "gin-orchestrator was removed in gin 3.3.0"
+assert_not_exists "plugins/gin-orchestrator/src"
 
 HOME="$empty_home" ./install.sh --platform claude --plugin all --dry-run >"$output_file"
 assert_contains "$output_file" "Processing plugin: gin-workflow"
 assert_contains "$output_file" "Processing plugin: gin-qa"
-assert_contains "$output_file" "Processing plugin: gin-orchestrator"
 assert_contains "$output_file" "Processing plugin: gin-ba"
-assert_not_contains "$output_file" "installing it first"
-assert_contains "$output_file" "would install gin-orchestrator launcher version $RELEASE_VERSION to"
+assert_not_contains "$output_file" "gin-orchestrator"
 rm -rf "$empty_home"
 
 ./install.sh --platform codex --dry-run >"$output_file"
@@ -487,28 +477,6 @@ assert_contains "$output_file" "Refreshing the installed gin-qa add-on."
 assert_exists "$addon_project/.opencode/skills/setup/SKILL.md"
 assert_not_exists "$addon_project/.opencode/skills/gin-qa-setup"
 
-# gin-workflow is already installed in MOCK_HOME, so gin-orchestrator installs alone.
-HOME="$MOCK_HOME" ./install.sh --platform claude --plugin gin-orchestrator >"$output_file" 2>&1
-assert_not_contains "$output_file" "installing it first"
-assert_exists "$MOCK_HOME/.claude/skills/gin-orchestrator/skills/providers/SKILL.md"
-assert_contains "$MOCK_HOME/.claude/settings.json" '"gin-orchestrator@skills-dir": true'
-assert_exists "$MOCK_HOME/.local/lib/gin-orchestrator/$RELEASE_VERSION/gin_orchestrator/cli.py"
-assert_not_exists "$MOCK_HOME/.local/lib/gin-orchestrator/$RELEASE_VERSION/templates"
-assert_not_exists "$MOCK_HOME/.local/lib/gin-orchestrator/$RELEASE_VERSION/worktree-create.sh"
-orch_version="$(HOME="$MOCK_HOME" PATH="$MOCK_HOME/.local/bin:$PATH" "$MOCK_HOME/.local/bin/gin-orchestrator" version --json)"
-case "$orch_version" in
-  *'"contract": 2'*) ;;
-  *) echo "Unexpected gin-orchestrator version: $orch_version" >&2; exit 1 ;;
-esac
-
-# A HOME without gin-workflow gets it first.
-orch_home="$MOCK_HOME/orchestrator-home"
-mkdir -p "$orch_home"
-HOME="$orch_home" ./install.sh --platform claude --plugin gin-orchestrator >"$output_file" 2>&1
-assert_contains "$output_file" "gin-orchestrator requires gin $RELEASE_VERSION; installing it first."
-assert_exists "$orch_home/.local/lib/gin/$RELEASE_VERSION/workflow_core/cli.py"
-assert_exists "$orch_home/.local/bin/gin-orchestrator"
-
 # Success path with the installed launchers: write cases, edit a requirement, re-pin.
 QA_REPO="$MOCK_HOME/qa-repo"
 mkdir -p "$QA_REPO/.agent-workflow" "$QA_REPO/docs/specs/auth" "$QA_REPO/qa/cases"
@@ -562,11 +530,10 @@ assert_contains "$QA_REPO/.gitignore" "/qa/evidence/"
 qa_e2e plan auth >"$output_file"
 assert_contains "$output_file" "missing TC-AUTH-001 qa/e2e/auth/tc-auth-001.spec.ts"
 
-for plugin in gin-workflow gin-qa gin-orchestrator; do
+for plugin in gin-workflow gin-qa; do
   case "$plugin" in
     gin-workflow) launcher=gin; old_version=2.1; current_version="$RELEASE_VERSION" ;;
     gin-qa) launcher=gin-qa; old_version=0.4; current_version="$RELEASE_VERSION" ;;
-    gin-orchestrator) launcher=gin-orchestrator; old_version=0.0; current_version="$RELEASE_VERSION" ;;
   esac
 
   UPGRADE_HOME="$MOCK_HOME/upgrade-home-$launcher"
@@ -668,7 +635,7 @@ assert_exists "$legacy_home/.config/opencode/agents/gin-mine.md"
 # Installing gin refreshes the add-ons whose launchers the installer manages, so
 # their library copies stop calling the old CLI name.
 addon_home="$MOCK_HOME/addon-home"
-for addon in gin-qa gin-orchestrator; do
+for addon in gin-qa; do
   addon_version="$RELEASE_VERSION"
   mkdir -p "$addon_home/.local/lib/$addon/$addon_version" "$addon_home/.local/bin"
   printf '%s\n' '# stale add-on copy' > "$addon_home/.local/lib/$addon/$addon_version/$addon"
@@ -677,13 +644,27 @@ done
 # gin-ba has no launcher: its Claude skills folder marks it installed.
 mkdir -p "$addon_home/.claude/skills/gin-ba"
 HOME="$addon_home" ./install.sh --platform claude >"$output_file" 2>&1
-for addon in gin-qa gin-orchestrator; do
+for addon in gin-qa; do
   assert_contains "$output_file" "Refreshing the installed $addon add-on."
   assert_not_contains "$(readlink -f "$addon_home/.local/bin/$addon")" "# stale add-on copy"
 done
 assert_contains "$output_file" "Refreshing the installed gin-ba add-on."
 assert_exists "$addon_home/.claude/skills/gin-ba/skills/mockup/SKILL.md"
-HOME="$addon_home" PATH="$addon_home/.local/bin:$PATH" "$addon_home/.local/bin/gin-orchestrator" version --json >/dev/null
+# A gin-orchestrator that gin 3.2.0 installed is removed by any install run.
+retired_home="$MOCK_HOME/retired-home"
+mkdir -p "$retired_home/.local/lib/gin-orchestrator/3.2.0" "$retired_home/.local/bin" \
+  "$retired_home/.claude/skills/gin-orchestrator/skills/providers"
+printf '%s\n' '# retired add-on copy' > "$retired_home/.local/lib/gin-orchestrator/3.2.0/gin-orchestrator"
+ln -s "$retired_home/.local/lib/gin-orchestrator/3.2.0/gin-orchestrator" "$retired_home/.local/bin/gin-orchestrator"
+HOME="$retired_home" ./install.sh --platform claude >"$output_file" 2>&1
+assert_contains "$output_file" "Removed the gin-orchestrator launcher at"
+if [ -L "$retired_home/.local/bin/gin-orchestrator" ]; then
+  echo "Expected the gin-orchestrator launcher link to be removed" >&2
+  exit 1
+fi
+assert_not_exists "$retired_home/.local/lib/gin-orchestrator"
+assert_not_exists "$retired_home/.claude/skills/gin-orchestrator"
+assert_not_contains "$output_file" "Refreshing the installed gin-orchestrator add-on."
 
 # An unparsable Claude settings.json stops the upgrade before the old Claude
 # install or the settings file is touched.

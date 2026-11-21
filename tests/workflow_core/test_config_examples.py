@@ -7,10 +7,8 @@ ROOT = Path(__file__).resolve().parents[2]
 PLUGIN = ROOT / "plugins/gin-workflow/src"
 SCRIPTS = PLUGIN / "scripts"
 sys.path.insert(0, str(SCRIPTS))
-sys.path.insert(0, str(ROOT / "plugins/gin-orchestrator/src/scripts"))
 
 from workflow_core.configuration import require_yaml, validate_portable_config  # noqa: E402
-from gin_orchestrator.local_config import validate_local_config  # noqa: E402
 
 
 class ConfigExampleTests(unittest.TestCase):
@@ -19,17 +17,14 @@ class ConfigExampleTests(unittest.TestCase):
 
     def test_full_examples_validate_with_production_loaders_and_show_expected_routes(self):
         portable = self.load(PLUGIN / "examples/config.full.yaml")
-        local = self.load(ROOT / "plugins/gin-orchestrator/src/examples/orchestrator.local.example.yaml")
 
         validate_portable_config(portable)
-        validate_local_config(local)
 
         roles = portable["orchestrator"]["roles"]
         self.assertEqual(["claude"], roles["backend"]["preferred"])
         self.assertEqual(["antigravity"], roles["frontend"]["preferred"])
         self.assertEqual(["main_harness"], roles["review"]["preferred"])
         self.assertIn("main_harness", roles["backend"]["fallback"])
-        self.assertEqual("claude", local["providers"]["claude"]["executable"])
         self.assertIn("circuit_breaker", portable["orchestrator"])
         self.assertEqual(2, portable["routing"]["review"]["max_cycles"])
         self.assertEqual(3, portable["orchestrator"]["circuit_breaker"]["failure_threshold"])

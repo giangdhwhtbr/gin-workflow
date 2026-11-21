@@ -87,22 +87,24 @@ try {
     Assert-Exists (Join-Path $Root 'plugins/gin-ba/dist/codex/skills/capture/references/legacy-description.md')
     Assert-True (-not (Test-Path -LiteralPath (Join-Path $TestHome '.local/bin/gin-ba.cmd'))) 'gin-ba install wrote a launcher shim'
 
-    # gin-orchestrator needs gin-workflow: an empty HOME installs gin-workflow first.
-    $orchDryRun = Invoke-Installer @{ Platform = 'codex'; Plugin = 'gin-orchestrator'; DryRun = $true }
-    Assert-Contains $orchDryRun "gin-orchestrator requires gin $ReleaseVersion; installing it first."
-    Assert-Contains $orchDryRun "would install gin launcher version $ReleaseVersion"
-    Assert-Contains $orchDryRun "would install gin-orchestrator launcher version $ReleaseVersion"
-    Assert-True ($orchDryRun.IndexOf('installing it first.', [StringComparison]::Ordinal) -lt $orchDryRun.IndexOf('would install gin launcher', [StringComparison]::Ordinal)) 'gin-workflow was not installed first'
-    Assert-True ($orchDryRun.IndexOf('would install gin launcher', [StringComparison]::Ordinal) -lt $orchDryRun.IndexOf('would install gin-orchestrator launcher', [StringComparison]::Ordinal)) 'gin-orchestrator was installed before gin-workflow'
-    Assert-Exists (Join-Path $Root 'plugins/gin-orchestrator/dist/codex/skills/providers/SKILL.md')
-    Assert-Exists (Join-Path $Root 'plugins/gin-orchestrator/dist/codex/.codex-plugin/plugin.json')
+    # gin-orchestrator was removed in gin 3.3.0: the installer refuses it.
+    $orchFailed = $false
+    try {
+        Invoke-Installer @{ Platform = 'codex'; Plugin = 'gin-orchestrator'; DryRun = $true } | Out-Null
+    }
+    catch {
+        $orchFailed = $true
+        Assert-Contains $_.Exception.Message 'gin-orchestrator was removed in gin 3.3.0'
+    }
+    Assert-True $orchFailed 'Expected -Plugin gin-orchestrator to be refused'
+    Assert-True (-not (Test-Path -LiteralPath (Join-Path $Root 'plugins/gin-orchestrator/src'))) 'gin-orchestrator plugin source still exists'
 
     $allDryRun = Invoke-Installer @{ Platform = 'codex'; Plugin = 'all'; DryRun = $true }
     Assert-Contains $allDryRun 'Processing plugin: gin-workflow'
     Assert-Contains $allDryRun 'Processing plugin: gin-qa'
-    Assert-Contains $allDryRun 'Processing plugin: gin-orchestrator'
     Assert-Contains $allDryRun 'Processing plugin: gin-ba'
     Assert-True (-not $allDryRun.Contains('installing it first', [StringComparison]::Ordinal)) 'Plugin all installed gin-workflow twice'
+    Assert-True (-not $allDryRun.Contains('gin-orchestrator', [StringComparison]::Ordinal)) 'Plugin all mentioned gin-orchestrator'
 
     $opencodeDryRun = Invoke-Installer @{ Platform = 'opencode'; DryRun = $true }
     Assert-Contains $opencodeDryRun 'Configuring OpenCode skill structure for gin-workflow'
@@ -176,10 +178,6 @@ try {
     Assert-Exists (Join-Path $TestHome ".local/lib/gin-qa/$ReleaseVersion/templates/qa-readme.md")
     Assert-Exists (Join-Path $TestHome ".local/lib/gin-qa/$ReleaseVersion/templates/report.html")
     Assert-Exists (Join-Path $TestHome '.local/bin/gin-qa.cmd')
-    Assert-Exists (Join-Path $TestHome ".local/lib/gin-orchestrator/$ReleaseVersion/gin_orchestrator/cli.py")
-    Assert-True (-not (Test-Path -LiteralPath (Join-Path $TestHome ".local/lib/gin-orchestrator/$ReleaseVersion/templates"))) 'gin-orchestrator copied templates'
-    Assert-True (-not (Test-Path -LiteralPath (Join-Path $TestHome ".local/lib/gin-orchestrator/$ReleaseVersion/worktree-create.sh"))) 'gin-orchestrator copied worktree scripts'
-    Assert-Exists (Join-Path $TestHome '.local/bin/gin-orchestrator.cmd')
 
     $linkProject = Join-Path $TestRoot 'link-project'
     New-Item -ItemType Directory -Path $linkProject | Out-Null
@@ -229,8 +227,7 @@ try {
 
     foreach ($launcherCase in @(
         @{ Plugin = 'gin-workflow'; Name = 'gin'; Old = '2.1'; Current = $ReleaseVersion },
-        @{ Plugin = 'gin-qa'; Name = 'gin-qa'; Old = '0.4'; Current = $ReleaseVersion },
-        @{ Plugin = 'gin-orchestrator'; Name = 'gin-orchestrator'; Old = '0.0'; Current = $ReleaseVersion }
+        @{ Plugin = 'gin-qa'; Name = 'gin-qa'; Old = '0.4'; Current = $ReleaseVersion }
     )) {
         $launcherName = $launcherCase.Name
         $managedRoot = Join-Path $TestHome ".local/lib/$launcherName"
@@ -292,6 +289,19 @@ try {
     $refreshOutput = Invoke-Installer @{ Platform = 'codex'; Project = $project }
     Assert-Contains $refreshOutput 'Refreshing the installed gin-qa add-on.'
     Assert-True (-not [IO.File]::ReadAllText($staleAddon).Contains('# stale add-on copy')) 'gin-qa library copy was not refreshed'
+
+    # A gin-orchestrator that gin 3.2.0 installed is removed by any install run.
+    $retiredRoot = Join-Path $TestHome '.local/lib/gin-orchestrator'
+    $retiredLauncher = Join-Path $retiredRoot '3.2.0/gin-orchestrator'
+    $retiredShim = Join-Path $TestHome '.local/bin/gin-orchestrator.cmd'
+    New-Item -ItemType Directory -Path (Split-Path -Parent $retiredLauncher) -Force | Out-Null
+    [IO.File]::WriteAllText($retiredLauncher, '# retired add-on copy')
+    [IO.File]::WriteAllText($retiredShim, "@echo off`r`npython `"$retiredLauncher`" %*`r`n", [Text.UTF8Encoding]::new($false))
+    $retiredOutput = Invoke-Installer @{ Platform = 'codex'; Project = $project }
+    Assert-Contains $retiredOutput 'Removed the gin-orchestrator launcher at'
+    Assert-True (-not (Test-Path -LiteralPath $retiredShim)) 'Expected the gin-orchestrator launcher shim to be removed'
+    Assert-True (-not (Test-Path -LiteralPath $retiredRoot)) 'Expected the gin-orchestrator library copy to be removed'
+    Assert-True (-not $retiredOutput.Contains('Refreshing the installed gin-orchestrator add-on.', [StringComparison]::Ordinal)) 'gin-orchestrator was refreshed'
 
     $shimText =[IO.File]::ReadAllText((Join-Path $TestHome '.local/bin/gin.cmd'))
     Assert-Contains $shimText 'py -3 -X utf8 "'
