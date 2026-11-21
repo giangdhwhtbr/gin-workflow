@@ -1,6 +1,27 @@
 # Changelog
 
-This page lists what changed in each release of gin-workflow and its add-ons (gin-qa, gin-orchestrator, gin-ba), newest first. Releases before 3.1.0 are on the [GitHub releases page](https://github.com/giangdhwhtbr/gin-workflow/releases).
+This page lists what changed in each release of gin-workflow and its add-ons (gin-qa, gin-ba), newest first. Releases before 3.1.0 are on the [GitHub releases page](https://github.com/giangdhwhtbr/gin-workflow/releases).
+
+## [3.3.0] - 2026-11-21
+
+gin now runs every stage in the harness you opened. The gin-orchestrator extension, which started worker processes on other harness CLIs, is removed, and so are the config keys that only it read. Review is always a fresh session or subagent of the same harness.
+
+### Upgrade notes
+
+- The extension is removed from the repository, and every `./install.sh` run deletes an installed copy: its launcher and its plugin or skill folders. `--plugin gin-orchestrator` now fails with `gin-orchestrator was removed in gin 3.3.0`.
+- Run `gin setup update --to-version 2.11 --approve` once per project. Until then a project keeps working, `gin state` warns once, and `gin setup doctor` lists one action.
+- The update removes `orchestrator`, `provider_mode`, and `routing.review.independence`. It moves role names found only under `orchestrator.roles` into `routing.roles`, and it backs up and deletes `.agent-workflow/orchestrator.local.yaml`. `gin setup rollback --backup <dir>` restores it.
+- Review is a fresh session of the same harness. A project that reviewed with `independence: provider` no longer gets a review on another harness.
+- On Codex, OpenCode, and Copilot, `execute` implements the track in the session and notes `in_session` on the bead, and `review` stops for you to open a fresh session. Claude Code and Antigravity keep native subagents.
+- `gin setup models`, `gin setup doctor --probe`, and the `--provider` option are gone.
+- The documentation pages under `/orchestrator/` and `/reference/orchestrator-contract/` are gone, so a link to them returns 404.
+
+### Changed
+
+- The configuration schema is 2.11.
+- `gin state --format json` has no `extensions` key, no `project.provider_mode`, and no `project.independence`.
+- `gin routes resolve` routes every track to the main harness, and `gin reviewer` returns one route, a fresh session of the main harness.
+- `gin version` and `gin setup doctor` list gin-qa as the only companion CLI.
 
 ## [3.2.0] - 2026-11-20
 

@@ -36,7 +36,7 @@ Một tính năng hoặc migration được tách thành các track phụ thuộ
 4. `/gin:execute` cho từng track sẵn sàng, mỗi track chạy trong một subagent `gin:developer` với model và effort của track: A trước; đóng A làm B sẵn sàng, và cứ thế tiếp tục. Mỗi track được review độc lập trước khi đóng.
 5. Khi review ledger bật, `/gin:ship` kiểm tra mọi ledger và mọi thay đổi sau review (các cổng chất lượng đã chạy trong git hook), rồi merge hoặc mở pull request khi bạn phê duyệt.
 
-Route sang các harness khác cần extension [gin-orchestrator](../orchestrator/README.md); không có nó, mọi track chạy trên main harness. Nếu một route không khả dụng, task vẫn mở; một fallback harness chạy route được ánh xạ theo rank vào catalog của chính nó. Nếu việc resolve route báo một role chưa được resolve, hoặc một model hay effort nằm ngoài catalog, nó không ghi manifest cho tới khi plan hoặc cấu hình được sửa; các bead vẫn còn.
+Mọi track chạy trên main harness. Nếu việc resolve route báo một role chưa được resolve, hoặc một model hay effort nằm ngoài catalog, nó không ghi manifest cho tới khi plan hoặc cấu hình được sửa; các bead vẫn còn.
 
 ## Tiếp tục công việc đang dở { #resume-in-progress-work }
 

@@ -1,6 +1,6 @@
 # Tham chiếu skill
 
-Mỗi skill cũng là một slash command: `/gin:<name>` (Claude Code) hoặc tương đương của harness, `/gin-qa:<name>` cho add-on QA, `/gin-ba:<name>` cho add-on BA, và `/gin-orchestrator:<name>` cho add-on worker harness. Trong OpenCode, gọi một skill theo id bằng `@<name>` (ví dụ `@plan`; `learn` là `@gin-learn` và `report` là `@gin-report`, như sáu skill chung khác, xem [Xử lý sự cố](troubleshooting.md#opencode-does-not-show-the-gin-skills)); các stage của lifecycle vẫn chạy qua CLI `gin`. Trong GitHub Copilot CLI, các skill được đăng ký dưới tên thuần (`setup`, `workflow`, `plan`, ...), như `copilot skill list` hiển thị.
+Mỗi skill cũng là một slash command: `/gin:<name>` (Claude Code) hoặc tương đương của harness, `/gin-qa:<name>` cho add-on QA, `/gin-ba:<name>` cho add-on BA. Trong OpenCode, gọi một skill theo id bằng `@<name>` (ví dụ `@plan`; `learn` là `@gin-learn` và `report` là `@gin-report`, như sáu skill chung khác, xem [Xử lý sự cố](troubleshooting.md#opencode-does-not-show-the-gin-skills)); các stage của lifecycle vẫn chạy qua CLI `gin`. Trong GitHub Copilot CLI, các skill được đăng ký dưới tên thuần (`setup`, `workflow`, `plan`, ...), như `copilot skill list` hiển thị.
 
 ## gin: các stage của lifecycle { #gin-lifecycle-stages }
 
@@ -11,7 +11,7 @@ Chạy chúng theo thứ tự cho một tính năng. `workflow` chọn stage k�
 | `discuss` | Làm rõ một yêu cầu thành design spec đã xác nhận trước mọi việc lập plan, task hay code | `requirement_confirmed` |
 | `plan` | Biến spec đã xác nhận thành plan triển khai với các track đã định tuyến | `plan_approved` |
 | `orchestrate` | Phản chiếu plan thành các track Beads, xác định các provider route, và chuẩn bị workspace cô lập (một worktree, trừ khi việc cô lập bị tắt có phê duyệt) | `orchestration_ready` |
-| `execute` | Triển khai và kiểm chứng một track sẵn sàng, trực tiếp hoặc qua một worker được định tuyến | track được đóng |
+| `execute` | Triển khai và kiểm chứng một track sẵn sàng, trong một subagent native hoặc ngay trong session | track được đóng |
 | `review` | Yêu cầu hoặc thực hiện review cho một bead (độc lập hoặc tự kiểm tra), kèm review ledger tùy chọn | review được duyệt |
 | `ship` | Đưa ra các lựa chọn merge, PR, giữ hoặc bỏ; chạy lựa chọn được chọn; đóng bead (và ledger khi ledger bật) | `shipped` |
 
@@ -85,14 +85,6 @@ Các skill cho đầu vào của BA cho một capability, ghi vào các thư m�
 | `mockup` | Dựng một mockup HTML tương tác tự chứa tại `assets/<date>/mockup/index.html`, mỗi màn hình một section, sửa tới khi BA xác nhận |
 
 Mỗi skill chỉ đặt `Confirmed: <date>` trong `description.md` sau khi BA xác nhận; discuss của SDD chỉ trích dẫn thư mục đã xác nhận.
-
-## gin-orchestrator (add-on tùy chọn) { #gin-orchestrator-optional-add-on }
-
-Xem [orchestrator contract](orchestrator-contract.md).
-
-| Skill | Mục đích |
-|---|---|
-| `providers` | Cấu hình các worker harness: harness nào được chạy công việc, danh mục model của từng harness, harness ưu tiên và dự phòng theo vai trò, mức đồng thời và giới hạn |
 
 ## Prompt templates { #prompt-templates }
 

@@ -17,7 +17,7 @@ flowchart LR
     D["~/.claude/CLAUDE.md"]
     E[".git/info/exclude"]
     F["/model and harness-override"]
-    G["executables.local.yaml<br/>orchestrator.local.yaml"]
+    G["executables.local.yaml"]
   end
 ```
 
@@ -26,7 +26,7 @@ Dùng phía cá nhân cho những việc sau:
 - `~/.claude/CLAUDE.md` chứa các chỉ dẫn mà Claude Code nạp trong mọi project, kể cả mọi worktree `.planning/worktrees/<id>`, nên không có gì rơi vào repository.
 - `.git/info/exclude` bỏ qua các file nháp cá nhân trong repository mà không phải sửa `.gitignore` dùng chung.
 - `/model` đổi model của session Claude Code của bạn. `gin setup harness-override --harness <name>` đặt một session override cho main harness, và `--clear` gỡ nó.
-- `.agent-workflow/executables.local.yaml` và `.agent-workflow/orchestrator.local.yaml` ghi vị trí các CLI trên máy bạn khi chúng nằm ngoài `PATH`. Cả hai file đều bị git bỏ qua. Xem [cấu hình](../reference/config.md#executableslocalyaml).
+- `.agent-workflow/executables.local.yaml` ghi vị trí các CLI trên máy bạn khi chúng nằm ngoài `PATH`. File này bị git bỏ qua. Xem [cấu hình](../reference/config.md#executableslocalyaml).
 
 Một `~/.claude/CLAUDE.md` trả lời bằng tiếng Việt và giữ nguyên phần văn bản kỹ thuật:
 

@@ -27,7 +27,7 @@ Or with the launcher, which clones `master` and runs `install.sh`:
 curl -sSL https://raw.githubusercontent.com/giangdhwhtbr/gin-workflow/master/remote-install.sh | bash -s -- --platform all
 ```
 
-The default run updates gin and refreshes the add-ons already installed: gin-qa and gin-orchestrator when the installer installed their launchers, and gin-ba when `~/.claude/skills/gin-ba` exists. `--plugin all` installs gin and every add-on. `--plugin gin-qa`, `--plugin gin-ba`, or `--plugin gin-orchestrator` installs only that add-on and does not update gin, so run it after the default run. On Windows, run `install.ps1` as [the Windows guide](windows.md) describes.
+The default run updates gin and refreshes the add-ons already installed: gin-qa when the installer installed its launcher, and gin-ba when `~/.claude/skills/gin-ba` exists. `--plugin all` installs gin and every add-on. `--plugin gin-qa` or `--plugin gin-ba` installs only that add-on and does not update gin, so run it after the default run. On Windows, run `install.ps1` as [the Windows guide](windows.md) describes.
 
 A plugin from a marketplace is updated through its harness, and the marketplace install does not install the CLIs, so run the installer as well. On Claude Code, run `claude plugin update gin@gin-workflow-marketplace` and restart Claude Code. Codex has no command that updates a plugin in place; `codex plugin marketplace upgrade` refreshes the marketplace, and the installer updates the CLIs.
 
@@ -37,13 +37,13 @@ Check the result:
 gin version
 ```
 
-It prints the installed version, the pin of the project you are in, `compatible: yes` or `no`, and the versions of gin-qa and gin-orchestrator when it finds them. `gin --version` prints `gin 3.1.0`. `gin setup doctor` also reports a gin-qa or gin-orchestrator whose version differs from gin's; reinstall that add-on with `./install.sh --plugin <name>`.
+It prints the installed version, the pin of the project you are in, `compatible: yes` or `no`, and the version of gin-qa when it finds it. `gin --version` prints `gin 3.1.0`. `gin setup doctor` also reports a gin-qa whose version differs from gin's; reinstall that add-on with `./install.sh --plugin <name>`.
 
 ## Update a project
 
 The lead does this once per project, after every member has updated gin:
 
-1. Run `gin setup update` to read the proposal, then `gin setup update --approve`. It migrates the configuration to schema 2.10 and writes `.ginrc` with the installed version. It writes `.ginrc` even when no migration is due.
+1. Run `gin setup update` to read the proposal, then `gin setup update --approve`. It migrates the configuration to schema 2.11 and writes `.ginrc` with the installed version. It writes `.ginrc` even when no migration is due.
 2. Commit `.agent-workflow/config.yaml` and `.ginrc`, and tell the team that the pull request needs the gin version written in `.ginrc`. The pin is the lead's installed version, and a later `gin setup update --approve` raises it to the version installed then.
 
 In a workspace, do this only in the parent. The children and the worktrees find the parent's `.ginrc`. The [configuration reference](../reference/config.md#ginrc) gives the file format and where gin looks for it. A project without `.ginrc` is not checked at all, and `gin setup doctor` reports it.
@@ -69,3 +69,21 @@ The changelog lists everything in its [upgrade notes](../changelog.md#upgrade-no
 - gin older than 3.1 ignores `.ginrc`, so every member must reach 3.1 once before the pin protects anyone.
 - The configuration moves to schema 2.10, which drops the `notifications` key.
 - The other points, such as the `verify.run_at` default, team settings, and add-on reinstalls, are in the [upgrade notes](../changelog.md#upgrade-notes).
+
+## What changes at 3.3
+
+gin 3.3 runs every stage in the harness you opened and removes the gin-orchestrator extension. The installer deletes an installed copy of it. The config keys `orchestrator`, `provider_mode`, and `routing.review.independence` go with it, and so do `gin setup models`, `--probe`, and `--provider`. The lead runs this once per project, after every member has updated gin:
+
+```bash
+gin setup update --to-version 2.11 --approve
+```
+
+A project that skips the update keeps working, and `gin state` warns once. The update backs up and deletes `.agent-workflow/orchestrator.local.yaml`, and `gin setup rollback --backup <dir>` restores it. Review is always a fresh session or subagent of the same harness. What runs where depends on the harness.
+
+| Step | Claude Code, Antigravity | Codex, OpenCode, Copilot |
+|---|---|---|
+| Execute a track | native `gin:developer` subagent | the session implements the track and notes `in_session` on the bead |
+| Review | native `gin:code-reviewer` subagent | stops for you to open a fresh session; self-review only with `allow_self_review_fallback` |
+| Research in `discuss` and `plan`; scouts, writers, and reviewers in `tech-doc` | native subagent | one after another in the session |
+
+The changelog lists the rest in its [upgrade notes](../changelog.md#330-2026-11-21). [Providers](../concepts/providers.md) describes the roles, the models, and the review.

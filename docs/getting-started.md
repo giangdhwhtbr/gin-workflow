@@ -44,7 +44,7 @@ Setup asks one question at a time and generates `.agent-workflow/config.yaml`:
 - Code index: for an existing codebase, an offer to run `codegraph init` when CodeGraph is installed.
 - Task tracking: `markdown` (the default; local files under `.planning/tasks/`) or `beads` (needs `bd`).
 
-Everything runs in the harness you opened (`provider_mode: single`).
+Everything runs in the harness you opened.
 
 Commit `.agent-workflow/config.yaml` to git.
 

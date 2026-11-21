@@ -27,7 +27,7 @@ Hoặc dùng launcher, vốn clone `master` rồi chạy `install.sh`:
 curl -sSL https://raw.githubusercontent.com/giangdhwhtbr/gin-workflow/master/remote-install.sh | bash -s -- --platform all
 ```
 
-Lần chạy mặc định cập nhật gin và làm mới các tiện ích đã cài: gin-qa và gin-orchestrator khi installer đã cài launcher của chúng, và gin-ba khi `~/.claude/skills/gin-ba` tồn tại. `--plugin all` cài gin và mọi tiện ích. `--plugin gin-qa`, `--plugin gin-ba` hoặc `--plugin gin-orchestrator` chỉ cài đúng tiện ích đó và không cập nhật gin, nên chạy sau lần chạy mặc định. Trên Windows, chạy `install.ps1` như [hướng dẫn Windows](windows.md) mô tả.
+Lần chạy mặc định cập nhật gin và làm mới các tiện ích đã cài: gin-qa khi installer đã cài launcher của nó, và gin-ba khi `~/.claude/skills/gin-ba` tồn tại. `--plugin all` cài gin và mọi tiện ích. `--plugin gin-qa` hoặc `--plugin gin-ba` chỉ cài đúng tiện ích đó và không cập nhật gin, nên chạy sau lần chạy mặc định. Trên Windows, chạy `install.ps1` như [hướng dẫn Windows](windows.md) mô tả.
 
 Plugin cài từ marketplace được cập nhật qua harness của nó, và cài từ marketplace không cài các CLI, nên vẫn phải chạy installer. Trên Claude Code, chạy `claude plugin update gin@gin-workflow-marketplace` rồi khởi động lại Claude Code. Codex không có lệnh nào cập nhật plugin tại chỗ; `codex plugin marketplace upgrade` làm mới marketplace, và installer cập nhật các CLI.
 
@@ -37,13 +37,13 @@ Kiểm tra kết quả:
 gin version
 ```
 
-Lệnh in ra phiên bản đã cài, bản ghim của project hiện tại, `compatible: yes` hoặc `no`, và phiên bản của gin-qa và gin-orchestrator khi tìm thấy. `gin --version` in ra `gin 3.1.0`. `gin setup doctor` cũng báo gin-qa hoặc gin-orchestrator có phiên bản khác gin; cài lại tiện ích đó bằng `./install.sh --plugin <name>`.
+Lệnh in ra phiên bản đã cài, bản ghim của project hiện tại, `compatible: yes` hoặc `no`, và phiên bản của gin-qa khi tìm thấy. `gin --version` in ra `gin 3.1.0`. `gin setup doctor` cũng báo gin-qa có phiên bản khác gin; cài lại tiện ích đó bằng `./install.sh --plugin <name>`.
 
 ## Cập nhật một project { #update-a-project }
 
 Lead làm việc này một lần cho mỗi project, sau khi mọi member đã cập nhật gin:
 
-1. Chạy `gin setup update` để xem đề xuất, rồi `gin setup update --approve`. Lệnh migrate cấu hình lên schema 2.10 và ghi `.ginrc` với phiên bản đã cài. Lệnh ghi `.ginrc` cả khi không có migration nào đến hạn.
+1. Chạy `gin setup update` để xem đề xuất, rồi `gin setup update --approve`. Lệnh migrate cấu hình lên schema 2.11 và ghi `.ginrc` với phiên bản đã cài. Lệnh ghi `.ginrc` cả khi không có migration nào đến hạn.
 2. Commit `.agent-workflow/config.yaml` và `.ginrc`, rồi báo cho team rằng pull request cần phiên bản gin ghi trong `.ginrc`. Bản ghim là phiên bản lead đã cài, và một lần `gin setup update --approve` sau đó nâng nó lên phiên bản đang cài lúc ấy.
 
 Trong workspace, chỉ làm ở parent. Các child và worktree tìm thấy `.ginrc` của parent. [Tham chiếu cấu hình](../reference/config.md#ginrc) mô tả định dạng file và nơi gin tìm nó. Project không có `.ginrc` thì không bị kiểm tra gì, và `gin setup doctor` báo tình trạng này.
@@ -69,3 +69,21 @@ Nhật ký thay đổi liệt kê toàn bộ trong [ghi chú nâng cấp](../cha
 - Gin cũ hơn 3.1 bỏ qua `.ginrc`, nên mọi member phải lên 3.1 một lần trước khi bản ghim bảo vệ được ai.
 - Cấu hình chuyển sang schema 2.10, bỏ khóa `notifications`.
 - Các điểm còn lại, như mặc định của `verify.run_at`, thiết lập team và việc cài lại tiện ích, nằm trong [ghi chú nâng cấp](../changelog.md#upgrade-notes).
+
+## Những gì thay đổi ở 3.3 { #what-changes-at-33 }
+
+gin 3.3 chạy mọi stage trong harness bạn đã mở và gỡ extension gin-orchestrator. Installer xóa bản đã cài của nó. Các khóa cấu hình `orchestrator`, `provider_mode` và `routing.review.independence` đi cùng, cũng như `gin setup models`, `--probe` và `--provider`. Lead làm việc này một lần cho mỗi project, sau khi mọi member đã cập nhật gin:
+
+```bash
+gin setup update --to-version 2.11 --approve
+```
+
+Project bỏ qua bước này vẫn chạy được, và `gin state` cảnh báo một lần. Lệnh cập nhật sao lưu rồi xóa `.agent-workflow/orchestrator.local.yaml`, và `gin setup rollback --backup <dir>` khôi phục nó. Review luôn là một session hoặc subagent mới của cùng harness. Việc gì chạy ở đâu tùy theo harness.
+
+| Bước | Claude Code, Antigravity | Codex, OpenCode, Copilot |
+|---|---|---|
+| Thực thi một track | subagent native `gin:developer` | session tự implement track và ghi `in_session` lên bead |
+| Review | subagent native `gin:code-reviewer` | dừng để bạn mở một session mới; chỉ tự review khi có `allow_self_review_fallback` |
+| Research trong `discuss` và `plan`; scout, writer và reviewer trong `tech-doc` | subagent native | lần lượt từng việc trong session |
+
+Nhật ký thay đổi liệt kê phần còn lại trong [ghi chú nâng cấp](../changelog.md#330-2026-11-21). [Providers](../concepts/providers.md) mô tả các role, model và review.

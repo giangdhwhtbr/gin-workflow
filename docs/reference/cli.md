@@ -33,7 +33,6 @@ Configures a repository outside the lifecycle. The `setup` skill drives it one q
 |---|---|---|
 | `detect` | Detects project stage, shape, monorepo, stack, packages, verify commands, and code-index state | no |
 | `preset` | Turns `--project-stage`, `--project-shape`, `--rigor`, `--task-tracking` (plus `--monorepo`, `--workspace`, `--stack-intent`) into `--set` assignments | no |
-| `models` | Lists models a provider CLI reports (`--provider claude\|codex\|antigravity\|opencode\|copilot`) | no |
 | `init` | First setup: validates and writes `.agent-workflow/config.yaml` and generated files; `--dry-run` previews. It also writes `.agent-workflow/executables.local.yaml` and the `gin` block in `AGENTS.md` and `@AGENTS.md` in `CLAUDE.md` (a symlinked `CLAUDE.md` is left alone). On an initialized repository, `--approve` adds a missing block. A first setup also writes `.ginrc` with the installed version, unless the file exists | yes |
 | `configure` | Changes repository configuration (`--set key=value`) | yes |
 | `refresh` | Regenerates `.agent-workflow/generated/` from the current configuration, rewrites `executables.local.yaml`, adds any missing local-file entry to `.agent-workflow/.gitignore`, and re-renders an existing `AGENTS.md` block (never creates one) | yes |
@@ -49,11 +48,9 @@ Configures a repository outside the lifecycle. The `setup` skill drives it one q
 
 In a workspace child, or a worktree of one, `doctor` without `--repository` checks that entry: `checks_details.entry` (`path`, `shape`), `verify_commands.missing` against the entry's `verify.checks`, its hooks, and its rules with the entry's packs added. From the parent, `checks_details.workspace.repos.<path>.proposed_packs` lists the packs each entry could add, with an action `workspace: <path>: rules.packs could add <a>, <b>`. A child whose manifest cannot be read gets `workspace: <path>: cannot detect rule packs: <error>`.
 
-Other options: `--dry-run`, `--non-interactive`, `--approve`, `--reset`, `--probe`, `--harness`.
+Other options: `--dry-run`, `--non-interactive`, `--approve`, `--reset`, `--harness`.
 
-`doctor` reports versions as findings, never as a failed check. `checks_details.version` holds `installed`, `required`, and `status`. An initialized project without `.ginrc` gets `version: no .ginrc; run gin setup update --approve`; a project without `.agent-workflow/config.yaml` does not. A pin of an older major version gets `version: .ginrc <pin> is an older major version; run gin setup update --approve`. A `gin-qa` or `gin-orchestrator`, found as `gin version` finds it, whose version differs from gin's gets `version: <name> <version> differs from gin <installed>; run ./install.sh --plugin <name>`.
-
-`doctor --probe` and `models` read provider health and model lists through the [orchestrator contract](orchestrator-contract.md).
+`doctor` reports versions as findings, never as a failed check. `checks_details.version` holds `installed`, `required`, and `status`. An initialized project without `.ginrc` gets `version: no .ginrc; run gin setup update --approve`; a project without `.agent-workflow/config.yaml` does not. A pin of an older major version gets `version: .ginrc <pin> is an older major version; run gin setup update --approve`. A `gin-qa`, found as `gin version` finds it, whose version differs from gin's gets `version: <name> <version> differs from gin <installed>; run ./install.sh --plugin <name>`.
 
 Exit codes: 0 success; 2 setup, migration, bundle, or validation error; 3 a required dependency is missing (for example PyYAML).
 
@@ -63,7 +60,7 @@ Exit codes: 0 success; 2 setup, migration, bundle, or validation error; 3 a requ
 gin state [--workflow-id ID] [--scope-hash HASH] [--format text|json]
 ```
 
-Prints the current lifecycle stage, the routing decision, the main harness, every gate (`satisfied`, `unmet`, `waived(<reason>)`, or `unknown`), evidence, and remedies. Text format prints any active warnings (`Warning: ...`). JSON adds the main harness's [model catalog](config.md#models) as `catalog` (`null` while no harness is set), `extensions.orchestrator` (`available`, `version`, `contract`, `capabilities`, `reason`), `warnings`, the resolved `project` settings (including team mode), the last five `recent_quick` runs, `epic` (the epic recorded at `orchestration-ready` for the workflow id, or `null`), and `review_waivers` (`task_id`, `reason`, `actor`) for tracks closed with `task close --waive-review`. The `workspace` key is `null` outside a workspace; inside one, `workspace.current` is the entry the command runs in (`path`, `shape`, `checks`), and `null` in the parent.
+Prints the current lifecycle stage, the routing decision, the main harness, every gate (`satisfied`, `unmet`, `waived(<reason>)`, or `unknown`), evidence, and remedies. Text format prints any active warnings (`Warning: ...`). JSON adds the main harness's [model catalog](config.md#models) as `catalog` (`null` while no harness is set), `warnings`, the resolved `project` settings (including team mode), the last five `recent_quick` runs, `epic` (the epic recorded at `orchestration-ready` for the workflow id, or `null`), and `review_waivers` (`task_id`, `reason`, `actor`) for tracks closed with `task close --waive-review`. The `workspace` key is `null` outside a workspace; inside one, `workspace.current` is the entry the command runs in (`path`, `shape`, `checks`), and `null` in the parent.
 
 A gate reads `unknown` when `state` cannot read the task tracker or the event log. The decision is then `hold`. `warnings` and `remedies` carry the cause: `tracker unavailable: <cause>` or `event log unreadable: <error>; waivers not applied`.
 
@@ -299,9 +296,9 @@ gin reviewer --base SHA --implementer PROVIDER --model MODEL [--effort EFFORT] [
 
 Called by the `review` skill to pick the reviewer; you do not need to run it. `--model` and `--effort` are the implementer's final route, including any escalation, in the implementer's [catalog](config.md#models); a value outside that catalog exits 2. A diff since `--base` that changes anything but documentation (`*.md` or `docs/`, excluding `skills/`) raises the weakest model of a multi-model catalog to the next one. `reason` then reads `non-docs files changed`.
 
-Without gin-orchestrator the reviewer runs on the main harness. It keeps the route when the main harness is the implementer; otherwise it gets the route mapped by rank from the implementer's catalog ([rank mapping](../orchestrator/routing.md#rank-mapping)). `actor_id` is `reviewer:<harness>`, or `reviewer:<harness>:session-<id>` (a fresh session) when the harness is also the implementer. `routing.review.independence: provider` adds a warning, because only gin-orchestrator can route the review to another harness. Always prints the route document `{"model", "effort", "reason", "warnings", "routes": [{"provider", "model", "effort", "actor_id"}]}`; `--json` changes nothing. `--tier` was removed in 2.9 and exits 2 as an unknown option.
+The reviewer runs on the main harness. It keeps the route when the main harness is the implementer; otherwise it gets the route mapped by rank from the implementer's catalog. `actor_id` is `reviewer:<harness>`, or `reviewer:<harness>:session-<id>` (a fresh session) when the harness is also the implementer. Always prints the route document `{"model", "effort", "reason", "warnings", "routes": [{"provider", "model", "effort", "actor_id"}]}`; `--json` changes nothing. `--tier` was removed in 2.9 and exits 2 as an unknown option.
 
-Exit codes: 0 routes printed; 2 bad `--base`, an invalid config, an unknown harness, a model or effort outside the catalog, an unknown option, or an empty route list from gin-orchestrator.
+Exit codes: 0 routes printed; 2 bad `--base`, an invalid config, an unknown harness, a model or effort outside the catalog, or an unknown option.
 
 ## `gin routes`
 
@@ -312,7 +309,7 @@ gin routes dispatch --workflow-id ID --task-id ID [--escalate REASON] [--reposit
 
 Both actions always print JSON; `--json` is accepted and changes nothing.
 
-`resolve` resolves execution routes for plan tracks. `FILE` is a JSON list of tracks, each `{"task_id", "provider_role", "model", "effort"}`, where `model` and `effort` come from the main harness's [catalog](config.md#models) and `effort` is left out or `null` when the catalog lists no efforts. Without gin-orchestrator every track goes to the main harness at its model and effort. It prints `{"workflow_id", "main_harness", "routes", "diagnostics", "warnings", "manifest"}`. `warnings` names the strongest model when two or more tracks all route to the last model of a catalog with two or more models; the exit code does not change. On success, it writes the assignment manifest to `.agent-workflow/runtime/assignments/<workflow-id>.yaml`: per track, `requested` (role, model, effort), `resolved`, `fallback`, and `escalations`.
+`resolve` resolves execution routes for plan tracks. `FILE` is a JSON list of tracks, each `{"task_id", "provider_role", "model", "effort"}`, where `model` and `effort` come from the main harness's [catalog](config.md#models) and `effort` is left out or `null` when the catalog lists no efforts. Every track goes to the main harness at its model and effort. It prints `{"workflow_id", "main_harness", "routes", "diagnostics", "warnings", "manifest"}`. `warnings` names the strongest model when two or more tracks all route to the last model of a catalog with two or more models; the exit code does not change. On success, it writes the assignment manifest to `.agent-workflow/runtime/assignments/<workflow-id>.yaml`: per track, `requested` (role, model, effort), `resolved`, `fallback`, and `escalations`.
 
 `resolve` writes nothing, lists every diagnostic, and exits 2 when the workflow id is unsafe or any track has one of these problems:
 
@@ -341,7 +338,7 @@ Exit codes: 0 ok.
 gin version [--repository PATH] [--format text|json] [--hook]
 ```
 
-Compares the installed `gin` with the project's [`.ginrc`](config.md#ginrc), found as the refusal finds it. Text output prints `gin <installed>`. When there is a `.ginrc`, it adds `project: <pin> (<path>)` and `compatible: yes` or `no`. An invalid `.ginrc` shows `project: invalid (<path>)` and `compatible: no`. Then it prints `gin-qa <version>` and `gin-orchestrator <version>` for each companion CLI it finds. `gin-qa` is looked up on `PATH`. `gin-orchestrator` is the path in `.agent-workflow/executables.local.yaml` of the current checkout when that names one, else the one on `PATH`. A companion that is missing or fails is left out.
+Compares the installed `gin` with the project's [`.ginrc`](config.md#ginrc), found as the refusal finds it. Text output prints `gin <installed>`. When there is a `.ginrc`, it adds `project: <pin> (<path>)` and `compatible: yes` or `no`. An invalid `.ginrc` shows `project: invalid (<path>)` and `compatible: no`. Then it prints `gin-qa <version>` when it finds the companion CLI on `PATH`. A companion that is missing or fails is left out.
 
 `--format json` prints `{"installed", "required", "path", "status", "compatible", "companions"}`. `status` is `none` (no `.ginrc`), `compatible`, `older`, `newer_major`, or `invalid`. `compatible` is `true` for `none` and `compatible`, so it is `true` without a `.ginrc`. `companions` maps each CLI found to its version.
 
@@ -458,20 +455,6 @@ Lives in the plugin's `scripts/` directory. Each bead's ledger is stored in `.pl
 `change-scope` and `reject` invalidate an active approval. `approve` refuses when the working source tree differs from the reviewed checkpoint.
 
 `validate --in-history` accepts an approved source found in a commit of HEAD's history. After a squash merge, the search starts where the histories diverged. An earlier track also passes when an approved track with a later review base started from its approved source and itself passes. A review base missing locally is fetched from the ledger's review ref on `origin`.
-
-## Delegation to gin-orchestrator
-
-When `provider_mode: multi` is set, `gin-orchestrator` is available on `PATH`, and the extension lists the required capability, `gin` delegates commands:
-
-| `gin` command | Delegates to | Capability |
-|---|---|---|
-| `gin routes resolve` | `gin-orchestrator routes resolve` | `routes` |
-| `gin reviewer` | `gin-orchestrator reviewer` | `reviewer` |
-| `gin setup doctor --probe` | `gin-orchestrator doctor` | `doctor` |
-| `gin setup models` | `gin-orchestrator models` | `models` |
-| Worker execution (`execute`, `review`) | `gin-orchestrator dispatch` | `dispatch` |
-
-In single-harness mode (`provider_mode: single`), `gin` resolves for the main harness without a warning. In `provider_mode: multi`, when `gin-orchestrator` is missing or mismatched, or when the orchestrator fails, it resolves for the main harness and emits a warning. Stage worker execution delegates cross-harness tasks to `gin-orchestrator dispatch` when available, falling back to native subagents on the main harness. `setup models` needs no `provider_mode: multi`: it lists models whenever an available orchestrator has the `models` capability, and an empty list otherwise.
 
 ## `gin-qa`
 

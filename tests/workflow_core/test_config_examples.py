@@ -53,14 +53,11 @@ class ConfigExampleTests(unittest.TestCase):
         self.assertIn("discuss", getting_started)
         for phrase in (
             "provider role",
-            "reasoning tier",
-            "orchestrator.local.yaml",
+            "main harness",
             "privacy",
         ):
             self.assertIn(phrase, routing.lower())
-        orchestrator = (ROOT / "docs/orchestrator/README.md").read_text(encoding="utf-8")
-        for phrase in ("health", "circuit breaker"):
-            self.assertIn(phrase, orchestrator.lower())
+        self.assertFalse((ROOT / "docs/orchestrator").exists())
         self.assertIn("rollback", config)
 
 

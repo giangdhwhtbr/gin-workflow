@@ -17,7 +17,7 @@ flowchart LR
     D["~/.claude/CLAUDE.md"]
     E[".git/info/exclude"]
     F["/model and harness-override"]
-    G["executables.local.yaml<br/>orchestrator.local.yaml"]
+    G["executables.local.yaml"]
   end
 ```
 
@@ -26,7 +26,7 @@ Use the personal side for these:
 - `~/.claude/CLAUDE.md` holds instructions that Claude Code loads in every project, including every `.planning/worktrees/<id>` worktree, so nothing lands in the repository.
 - `.git/info/exclude` ignores personal scratch files in the repository without editing the shared `.gitignore`.
 - `/model` changes the model of your Claude Code session. `gin setup harness-override --harness <name>` sets a session override of the main harness, and `--clear` removes it.
-- `.agent-workflow/executables.local.yaml` and `.agent-workflow/orchestrator.local.yaml` record where the CLIs live on your machine when they sit outside your `PATH`. Both files are git-ignored. See [configuration](../reference/config.md#executableslocalyaml).
+- `.agent-workflow/executables.local.yaml` records where the CLIs live on your machine when they sit outside your `PATH`. The file is git-ignored. See [configuration](../reference/config.md#executableslocalyaml).
 
 A `~/.claude/CLAUDE.md` that answers in Vietnamese and keeps technical text as written:
 
