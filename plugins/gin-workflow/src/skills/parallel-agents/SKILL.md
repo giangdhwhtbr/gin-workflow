@@ -24,7 +24,7 @@ Do not use it for related failures (fixing one may fix the others), exploratory 
    - pointers for on-demand lookup;
    - the expected return (root cause, changes, evidence).
    Include the exact error messages and test names. Never pass your transcript, secrets, or concrete model names.
-3. **Dispatch** through the harness's worker or subagent mechanism within the configured concurrency (workers on other harnesses and their capacity limits need gin-orchestrator), giving each agent its own worktree (`worktrees`) and one bead claim.
+3. **Dispatch** through the harness's worker or subagent mechanism within the configured concurrency, giving each agent its own worktree (`worktrees`) and one bead claim.
 4. **Integrate**: read each summary, record the outcome in the bead (`gin task update <id> --notes`), check for edits outside the approved scopes or conflicting changes, run the full suite, and spot-check, since agents make systematic errors.
 
 ## Example brief

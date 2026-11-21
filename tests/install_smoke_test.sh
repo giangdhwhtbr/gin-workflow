@@ -103,7 +103,6 @@ assert_workflow_v22_layout() {
     "skills/plan/plan-schema.md"
     "skills/orchestrate/SKILL.md"
     "skills/execute/SKILL.md"
-    "skills/execute/references/worker-lifecycle.md"
     "skills/execute/references/delegation-policy.md"
     "skills/execute/references/result-contract.md"
     "skills/ship/SKILL.md"
