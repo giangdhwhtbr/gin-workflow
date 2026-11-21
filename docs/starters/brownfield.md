@@ -22,7 +22,7 @@ The team has seven people. Lan and Binh hold the two Claude Team Premium seats, 
 
 | Person | Role | Reads | Does |
 |---|---|---|---|
-| Lan | `pm` | [PM](../roles.md#pm) | Roadmap, milestones, milestone report |
+| Lan | `pm` | [PM](../roles.md#pm) | Roadmap, milestones |
 | An | `ba` | [BA](../roles.md#ba) | Specs and user stories |
 | Binh | `be_lead` | [Tech lead](../roles.md#tech-lead) | Setup, plan, orchestrate, ship, cutover |
 | Em | `be_dev` | [Developer](../roles.md#developer) | API work |
@@ -528,9 +528,9 @@ Question: which epics are still open, and which tracks block them?
 gin milestone kickstart <next-id> --date 2026-12-01
 ```
 
-Put in the prompt: the milestone id, and for the report the question you need answered (cost, quality signals, or both).
+Put in the prompt: the milestone id and the question you need answered.
 
-**You get:** `milestone show` lists the open epics and the warnings; `move` re-parents the unfinished epics and records `{from, to, at, actor}` in each epic's `milestone_moves` metadata, so the history of an epic that slipped stays readable; `close` stores your reason as the bead's close reason. `report` gives the cost and usage of the milestone's epics and their tracks, and `progress` lists the milestone's epics with `gin task list --parent <id>` and the status of each epic's tracks. Then you run `kickstart` for the next milestone, and plan it as in [Milestone planning](#milestone-planning).
+**You get:** `milestone show` lists the open epics and the warnings; `move` re-parents the unfinished epics and records `{from, to, at, actor}` in each epic's `milestone_moves` metadata, so the history of an epic that slipped stays readable; `close` stores your reason as the bead's close reason. `progress` lists the milestone's epics with `gin task list --parent <id>` and the status of each epic's tracks. Then you run `kickstart` for the next milestone, and plan it as in [Milestone planning](#milestone-planning).
 
 **Gate or approval:** `milestone close` is refused while the milestone has open epics, and `--reason` is required.
 

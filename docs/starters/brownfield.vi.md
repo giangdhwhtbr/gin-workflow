@@ -22,7 +22,7 @@ Nhóm có bảy người. Lan và Binh giữ hai seat Claude Team Premium, nên 
 
 | Người | Vai trò | Đọc | Làm |
 |---|---|---|---|
-| Lan | `pm` | [PM](../roles.md#pm) | Roadmap, milestone, báo cáo milestone |
+| Lan | `pm` | [PM](../roles.md#pm) | Roadmap, milestone |
 | An | `ba` | [BA](../roles.md#ba) | Spec và user story |
 | Binh | `be_lead` | [Tech lead](../roles.md#tech-lead) | Setup, plan, orchestrate, ship, cutover |
 | Em | `be_dev` | [Developer](../roles.md#developer) | Công việc API |
@@ -528,9 +528,9 @@ Question: which epics are still open, and which tracks block them?
 gin milestone kickstart <next-id> --date 2026-12-01
 ```
 
-Đưa vào prompt: milestone id, và với báo cáo thì là câu hỏi bạn cần trả lời (chi phí, tín hiệu chất lượng, hoặc cả hai).
+Đưa vào prompt: milestone id và câu hỏi bạn cần trả lời.
 
-**Kết quả:** `milestone show` liệt kê các epic đang mở và các cảnh báo; `move` chuyển parent của các epic chưa xong và ghi `{from, to, at, actor}` vào metadata `milestone_moves` của mỗi epic, để lịch sử của một epic bị trượt vẫn đọc được; `close` lưu lý do của bạn làm close reason của bead. `report` cho biết chi phí và mức sử dụng của các epic trong milestone cùng các track của chúng, còn `progress` liệt kê các epic của milestone bằng `gin task list --parent <id>` và trạng thái các track của từng epic. Sau đó bạn chạy `kickstart` cho milestone kế tiếp, và lập kế hoạch nó như trong [Lập kế hoạch milestone](#milestone-planning).
+**Kết quả:** `milestone show` liệt kê các epic đang mở và các cảnh báo; `move` chuyển parent của các epic chưa xong và ghi `{from, to, at, actor}` vào metadata `milestone_moves` của mỗi epic, để lịch sử của một epic bị trượt vẫn đọc được; `close` lưu lý do của bạn làm close reason của bead. `progress` liệt kê các epic của milestone bằng `gin task list --parent <id>` và trạng thái các track của từng epic. Sau đó bạn chạy `kickstart` cho milestone kế tiếp, và lập kế hoạch nó như trong [Lập kế hoạch milestone](#milestone-planning).
 
 **Cổng hoặc phê duyệt:** `milestone close` bị từ chối khi milestone còn epic đang mở, và `--reason` là bắt buộc.
 
