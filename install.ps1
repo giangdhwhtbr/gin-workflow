@@ -339,7 +339,7 @@ function Install-OpenCodeBundle {
     # id would replace another plugin's skill of that name (gin-qa's setup, report).
     $renamed = [ordered]@{}
     if ($PluginName -eq 'gin') {
-        foreach ($skill in @('learn', 'sdd', 'team', 'worktrees', 'debugging', 'review-response', 'parallel-agents', 'report')) {
+        foreach ($skill in @('learn', 'sdd', 'team', 'worktrees', 'debugging', 'review-response', 'parallel-agents')) {
             if (Test-Path -LiteralPath (Join-Path $Source "skills/$skill") -PathType Container) {
                 $renamed[$skill] = "gin-$skill"
             }
@@ -884,7 +884,7 @@ function Remove-LegacyProjectInstall {
         $root = Join-Path $Project $roots[$harness]
         $skills = @('gin-knowledge', 'gin-sdd', 'gin-team', 'gin-worktrees', 'gin-debugging', 'gin-review-response', 'gin-parallel-agents')
         if ($harness -eq 'opencode') {
-            $skills += 'gin-workflow-report'
+            $skills += 'gin-workflow-report', 'gin-report'
             $projectAgents = Join-Path $root 'agents'
             if (Test-Path -LiteralPath $projectAgents -PathType Container) {
                 Get-ChildItem -LiteralPath $projectAgents -Filter 'gin-workflow-*.md' -File | Remove-Item -Force
@@ -895,6 +895,11 @@ function Remove-LegacyProjectInstall {
             if (Test-Path -LiteralPath $directory) {
                 Remove-Item -LiteralPath $directory -Recurse -Force
             }
+        }
+        # gin's report skill was retired in 3.4.0; gin-qa's report skill shares the folder name and stays.
+        $report = Join-Path $root 'skills/report/SKILL.md'
+        if ((Test-Path -LiteralPath $report -PathType Leaf) -and [IO.File]::ReadAllText($report).Contains('Report AI usage')) {
+            Remove-Item -LiteralPath (Join-Path $root 'skills/report') -Recurse -Force
         }
     }
 }

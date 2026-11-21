@@ -147,7 +147,7 @@ assert_not_exists "plugins/gin-ba/dist"
 assert_exists "plugins/gin-workflow/dist/claude-code/skills/tech-doc/SKILL.md"
 assert_exists "plugins/gin-workflow/dist/claude-code/skills/write-doc/SKILL.md"
 assert_exists "plugins/gin-workflow/dist/claude-code/skills/roadmap/SKILL.md"
-assert_exists "plugins/gin-workflow/dist/claude-code/skills/report/SKILL.md"
+assert_not_exists "plugins/gin-workflow/dist/claude-code/skills/report"
 assert_not_exists "plugins/gin-workflow/dist/claude-code/agents/solution-architect.md"
 assert_exists "plugins/gin-workflow/dist/claude-code/agents/developer.md"
 assert_not_exists "plugins/gin-workflow/dist/claude-code/agents/full-stack-developer.md"
@@ -260,7 +260,7 @@ assert_exists "plugins/gin-workflow/dist/codex/agents/qa-agent.md"
 assert_exists "plugins/gin-workflow/dist/codex/agents/docs-writer.md"
 assert_not_exists "plugins/gin-workflow/dist/codex/agents/bead-worker.md"
 assert_exists "plugins/gin-workflow/dist/codex/skills/review/SKILL.md"
-assert_exists "plugins/gin-workflow/dist/codex/skills/report/SKILL.md"
+assert_not_exists "plugins/gin-workflow/dist/codex/skills/report"
 assert_contains "plugins/gin-workflow/dist/codex/.codex-plugin/plugin.json" "\"name\": \"gin\""
 assert_contains "plugins/gin-workflow/dist/codex/hooks/hooks.json" "\"description\""
 assert_contains "plugins/gin-workflow/dist/codex/hooks/hooks.json" "\"hooks\": {"
@@ -280,7 +280,7 @@ assert_not_contains ".claude-plugin/marketplace.json" "gin-workflow-advanced"
 
 assert_exists "plugins/gin-workflow/dist/antigravity/plugin.json"
 assert_exists "plugins/gin-workflow/dist/antigravity/hooks/hooks.json"
-assert_exists "plugins/gin-workflow/dist/antigravity/skills/report/SKILL.md"
+assert_not_exists "plugins/gin-workflow/dist/antigravity/skills/report"
 assert_workflow_v22_layout "plugins/gin-workflow/dist/antigravity"
 
 ./install.sh --platform opencode --dry-run >"$output_file"
@@ -288,14 +288,14 @@ assert_workflow_v22_layout "plugins/gin-workflow/dist/antigravity"
 assert_contains "$output_file" "Configuring OpenCode skill structure for gin-workflow"
 assert_contains "$output_file" "would install global OpenCode skills to"
 assert_exists "plugins/gin-workflow/dist/opencode/skills/setup/SKILL.md"
-assert_exists "plugins/gin-workflow/dist/opencode/skills/gin-report/SKILL.md"
+assert_not_exists "plugins/gin-workflow/dist/opencode/skills/gin-report"
 assert_not_exists "plugins/gin-workflow/dist/opencode/skills/report"
 assert_exists "plugins/gin-workflow/dist/opencode/references/stage-contract.md"
 assert_exists "plugins/gin-workflow/dist/opencode/agents/gin-developer.md"
 assert_not_exists "plugins/gin-workflow/dist/opencode/commands"
 assert_not_exists "plugins/gin-workflow/dist/opencode/hooks/hooks.json"
 assert_not_exists "plugins/gin-workflow/dist/opencode/plugin.json"
-assert_contains "plugins/gin-workflow/dist/opencode/skills/gin-report/SKILL.md" "name: gin-report"
+assert_contains "plugins/gin-workflow/dist/opencode/skills/gin-learn/SKILL.md" "name: gin-learn"
 assert_workflow_v22_layout "plugins/gin-workflow/dist/opencode"
 
 ./install.sh --platform opencode --plugin gin-qa --dry-run >"$output_file"
@@ -313,7 +313,7 @@ assert_contains "$output_file" "(dry-run) would install Copilot plugin from $ROO
 assert_exists "plugins/gin-workflow/dist/copilot/gin/.claude-plugin/plugin.json"
 assert_contains "plugins/gin-workflow/dist/copilot/gin/.claude-plugin/plugin.json" '"name": "gin"'
 assert_exists "plugins/gin-workflow/dist/copilot/gin/skills/setup/SKILL.md"
-assert_exists "plugins/gin-workflow/dist/copilot/gin/skills/report/SKILL.md"
+assert_not_exists "plugins/gin-workflow/dist/copilot/gin/skills/report"
 assert_exists "plugins/gin-workflow/dist/copilot/gin/references/stage-contract.md"
 assert_exists "plugins/gin-workflow/dist/copilot/gin/scripts/gin"
 assert_exists "plugins/gin-workflow/dist/copilot/gin/hooks/hooks.json"
@@ -387,7 +387,6 @@ assert_exists "$MOCK_HOME/.local/lib/gin/$RELEASE_VERSION/templates/spec-delta.m
 assert_exists "$MOCK_HOME/.local/lib/gin/$RELEASE_VERSION/templates/team/commit-msg"
 assert_exists "$MOCK_HOME/.claude/skills/gin/templates/proposal.md"
 HOME="$MOCK_HOME" "$MOCK_HOME/.local/bin/gin" specs --help >/dev/null
-HOME="$MOCK_HOME" "$MOCK_HOME/.local/bin/gin" setup models --provider claude >/dev/null
 assert_not_exists "$MOCK_HOME/.claude/skills/gin-qa"
 assert_not_exists "$MOCK_HOME/.local/bin/gin-qa"
 
@@ -397,7 +396,7 @@ HOME="$MOCK_HOME" ./install.sh --platform opencode >/dev/null
 assert_exists "$MOCK_HOME/.config/opencode/skills/gin/skills/setup/SKILL.md"
 assert_exists "$MOCK_HOME/.config/opencode/skills/gin/skills/tech-doc/SKILL.md"
 # OpenCode selects a skill by its bare directory id, so gin's generic names get a gin- prefix.
-for skill in learn sdd team worktrees debugging review-response parallel-agents report; do
+for skill in learn sdd team worktrees debugging review-response parallel-agents; do
   assert_contains "$MOCK_HOME/.config/opencode/skills/gin/skills/gin-$skill/SKILL.md" "name: gin-$skill"
   assert_not_exists "$MOCK_HOME/.config/opencode/skills/gin/skills/$skill"
 done
@@ -411,7 +410,7 @@ opencode_link_home="$MOCK_HOME/opencode-link-home"
 mkdir -p "$opencode_link_home"
 HOME="$opencode_link_home" ./install.sh --platform opencode --link >/dev/null
 assert_exists "$opencode_link_home/.config/opencode/skills/gin/skills/setup/SKILL.md"
-assert_exists "$opencode_link_home/.config/opencode/skills/gin/skills/gin-report/SKILL.md"
+assert_exists "$opencode_link_home/.config/opencode/skills/gin/skills/gin-learn/SKILL.md"
 
 # Project-level OpenCode install writes into the repository without touching the
 # repository's own .opencode/agents or .opencode/commands files.
@@ -420,22 +419,22 @@ mkdir -p "$opencode_project/.opencode/agents" "$opencode_project/.opencode/comma
 printf '%s\n' '# user agent' > "$opencode_project/.opencode/agents/user-agent.md"
 printf '%s\n' '# user command' > "$opencode_project/.opencode/commands/user-command.md"
 # A 2.x project install left skills and agents under the old names; only the selected platform's are removed.
-mkdir -p "$opencode_project/.opencode/skills/gin-knowledge" "$opencode_project/.opencode/skills/gin-workflow-report" "$opencode_project/.claude/skills/gin-sdd"
+mkdir -p "$opencode_project/.opencode/skills/gin-knowledge" "$opencode_project/.opencode/skills/gin-workflow-report" "$opencode_project/.opencode/skills/gin-report" "$opencode_project/.claude/skills/gin-sdd"
 touch "$opencode_project/.opencode/agents/gin-workflow-developer.md"
 HOME="$MOCK_HOME" ./install.sh --platform opencode --project "$opencode_project" >/dev/null
 assert_not_exists "$opencode_project/.opencode/skills/gin-knowledge"
 assert_not_exists "$opencode_project/.opencode/skills/gin-workflow-report"
+assert_not_exists "$opencode_project/.opencode/skills/gin-report"
 assert_not_exists "$opencode_project/.opencode/agents/gin-workflow-developer.md"
 assert_exists "$opencode_project/.claude/skills/gin-sdd"
 assert_exists "$opencode_project/.opencode/skills/setup/SKILL.md"
-assert_exists "$opencode_project/.opencode/skills/gin-report/SKILL.md"
 assert_exists "$opencode_project/.opencode/skills/gin-learn/SKILL.md"
 assert_not_exists "$opencode_project/.opencode/skills/report"
 assert_exists "$opencode_project/.opencode/agents/user-agent.md"
 assert_exists "$opencode_project/.opencode/agents/gin-developer.md"
 assert_exists "$opencode_project/.opencode/commands/user-command.md"
 assert_exists "$opencode_project/.opencode/references/stage-contract.md"
-assert_contains "$opencode_project/.opencode/skills/gin-report/SKILL.md" "name: gin-report"
+assert_contains "$opencode_project/.opencode/skills/gin-learn/SKILL.md" "name: gin-learn"
 
 # gin-qa added to the same project keeps gin's setup skill and lands as gin-qa-setup.
 HOME="$MOCK_HOME" ./install.sh --platform opencode --plugin gin-qa --project "$opencode_project" >/dev/null
@@ -444,12 +443,21 @@ assert_contains "$opencode_project/.opencode/skills/setup/SKILL.md" "name: setup
 assert_exists "$opencode_project/.opencode/skills/gin-qa-setup/SKILL.md"
 assert_contains "$opencode_project/.opencode/skills/gin-qa-setup/SKILL.md" "name: gin-qa-setup"
 
-# Reinstalling gin into that project keeps gin-qa's report skill; gin's lands as gin-report.
+# Reinstalling gin into that project keeps gin-qa's report skill; gin's report skill is retired.
 HOME="$MOCK_HOME" ./install.sh --platform opencode --project "$opencode_project" >/dev/null
 assert_contains "$opencode_project/.opencode/skills/report/SKILL.md" "name: report"
 assert_contains "$opencode_project/.opencode/skills/report/SKILL.md" "offline HTML report"
-assert_contains "$opencode_project/.opencode/skills/gin-report/SKILL.md" "name: gin-report"
-assert_contains "$opencode_project/.opencode/skills/gin-report/SKILL.md" "Report AI usage"
+assert_not_exists "$opencode_project/.opencode/skills/gin-report"
+
+# gin's report skill was retired in 3.4.0: a project install removes gin's stale copy and keeps gin-qa's.
+report_project="$MOCK_HOME/report-project"
+mkdir -p "$report_project/.claude/skills/report" "$report_project/.codex/skills/report"
+printf '%s\n' '---' 'name: report' 'description: Report AI usage per bead or epic' '---' > "$report_project/.claude/skills/report/SKILL.md"
+printf '%s\n' '---' 'name: report' 'description: Write an offline HTML report of the test cases' '---' > "$report_project/.codex/skills/report/SKILL.md"
+HOME="$MOCK_HOME" ./install.sh --platform claude --project "$report_project" >/dev/null
+HOME="$MOCK_HOME" ./install.sh --platform codex --project "$report_project" >/dev/null
+assert_not_exists "$report_project/.claude/skills/report"
+assert_contains "$report_project/.codex/skills/report/SKILL.md" "offline HTML report"
 
 HOME="$MOCK_HOME" ./install.sh --platform claude --plugin gin-qa >"$output_file" 2>&1
 assert_not_contains "$output_file" "gin is not installed"

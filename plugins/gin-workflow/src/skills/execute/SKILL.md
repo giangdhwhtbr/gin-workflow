@@ -30,15 +30,14 @@ description: Implement and validate exactly one ready work unit at its manifest 
 Dispatch each track using this loop:
 1. `gin routes dispatch --workflow-id <w> --task-id <id> --json` gives the route.
 2. On `claude` or `antigravity`, always spawn `gin:developer` natively, never in this session: `claude` `Agent` with `model`; `antigravity` `invoke_subagent(TypeName="developer", Model="inherit")`, which runs the session's model (no model ID; it caps the route). Give it a bounded context: track text, file scope, `gin rules` output, worktree path, `Reads:` checkouts, validation commands, and `project.run_at` (never the parent transcript or secrets). On `codex`, `opencode`, or `copilot`, implement the track in this session with that context and note `in_session` on the bead. A track routed to `qa` also follows the `qa-track` skill.
-3. After each worker result, run `gin usage collect --bead <epic> --best-effort`. If `routes dispatch` exits 3 (`over_budget`), leave the bead `in_progress` with a note and ask the user to raise `usage.budget_usd` or stop.
-4. On `done`, check the commits and command output, then request review.
-5. On `needs_clarification`, answer from the spec or plan and re-dispatch at the same route with the excerpt; otherwise (Beads) add `gin task comment <epic> "[gin question] <track>: <question>"`, ask the user, and leave the bead `in_progress` with a note. On resume, a newer `[gin answer] <track>:` comment (`gin task comments <epic> --json`) answers it.
-6. On `failed` with `invalid_result_contract` and new commits in the worktree, check them as on `done`. On another `failed`, `gin routes dispatch --workflow-id <w> --task-id <id> --escalate "<reason>" --json` and re-dispatch in the same worktree; on exit 2, ask the user.
-7. On `blocked`, ask the user.
+3. On `done`, check the commits and command output, then request review.
+4. On `needs_clarification`, answer from the spec or plan and re-dispatch at the same route with the excerpt; otherwise (Beads) add `gin task comment <epic> "[gin question] <track>: <question>"`, ask the user, and leave the bead `in_progress` with a note. On resume, a newer `[gin answer] <track>:` comment (`gin task comments <epic> --json`) answers it.
+5. On `failed` with `invalid_result_contract` and new commits in the worktree, check them as on `done`. On another `failed`, `gin routes dispatch --workflow-id <w> --task-id <id> --escalate "<reason>" --json` and re-dispatch in the same worktree; on exit 2, ask the user.
+6. On `blocked`, ask the user.
 Read [delegation policy](references/delegation-policy.md) and [result contract](references/result-contract.md) before dispatching.
 
 ## 4. Complete
 1. Request review (the `review` skill) as its implementer and wait for its outcome.
-2. Once tests and review pass, run `gin usage collect --bead <id> --best-effort`, then close the track bead with `gin task close <id> --reason "<evidence>"` naming the reviewer (or `self_check`), cycle count, and finding count; this unblocks dependents and needs no PR or merge.
+2. Once tests and review pass, close the track bead with `gin task close <id> --reason "<evidence>"` naming the reviewer (or `self_check`), cycle count, and finding count; this unblocks dependents and needs no PR or merge.
 3. Commit any remaining changes (stage-contract Git). With `project.review_ledger: true`, run `python3 review-ledger.py push-refs --bead-id <id>`. Never report "waiting for PR merge" without a real PR link. In team mode a track pushes its lane branch and returns; ship opens the lane's PR (the `team` skill). Otherwise its branch is merged at ship and not pushed, so the suite runs once.
 4. Return `implementation_complete`. Do not invoke `ship`.

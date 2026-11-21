@@ -250,6 +250,14 @@ class SkillRoutingTests(unittest.TestCase):
             with self.subTest(needle=needle):
                 self.assertIn(needle, text)
 
+    def test_no_skill_collects_or_reports_ai_usage(self):
+        self.assertFalse((SRC / "skills/report").exists())
+        for path in sorted((SRC / "skills").rglob("*.md")):
+            with self.subTest(path=path.relative_to(SRC).as_posix()):
+                text = path.read_text(encoding="utf-8")
+                self.assertNotIn("gin usage", text)
+                self.assertNotIn("over_budget", text)
+
     def test_milestone_close_moves_spillover_and_records_the_result(self):
         text = (SRC / "skills/milestone-close/SKILL.md").read_text(encoding="utf-8")
         for needle in ("[gin close] <milestone-id>", "Delivered:", "Spillover:", "Outcome:", "Demo:", "Retros:",
@@ -258,14 +266,15 @@ class SkillRoutingTests(unittest.TestCase):
                        "reason (retro|asked)", "Reconcile steps of the `learn` skill", "gin task remember",
                        "milestone-close/<milestone-id>", "Never translate the labels",
                        "## Metrics", "Metrics: completion <closed>/<total>; estimate_accuracy", "capacity_used",
-                       "cost_per_epic", "rework", "never per member", "no earlier metrics", "- Metrics:",
-                       "whose `parent` is not the `bead` of another entry", "both ends included",
+                       "never per member", "no earlier metrics", "- Metrics:",
+                       "both ends included",
                        "one `Action:` line per confirmed action", "lists only the epics it moved itself",
                        "--stage close", "say_do", "days_per_point", "velocity <completed>/<committed>"):
             with self.subTest(needle=needle):
                 self.assertIn(needle, text)
+        self.assertNotIn("gin usage", text)
         metrics = text[text.index("Metrics: completion"):].split("\n", 1)[0]
-        keys = [metrics.index(key) for key in ("completion", "estimate_accuracy", "capacity_used", "cost_per_epic", "rework",
+        keys = [metrics.index(key) for key in ("completion", "estimate_accuracy", "capacity_used",
                                                         "velocity", "say_do", "days_per_point", "; accuracy")]
         self.assertEqual(sorted(keys), keys)
         write = text[text.index("## Write"):]

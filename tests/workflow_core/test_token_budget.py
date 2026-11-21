@@ -130,7 +130,7 @@ class TestBudgetLimits(unittest.TestCase):
     def test_ship_cleans_ledgers_on_the_feature_branch_before_merging(self):
         text = (SRC / "skills/ship/SKILL.md").read_text(encoding="utf-8")
         self.assertLess(text.index("review-ledger.py cleanup"), text.index('git merge "$FEATURE_BRANCH"'))
-        self.assertLess(text.index("usage collect"), text.index("review-ledger.py cleanup"))
+        self.assertNotIn("usage collect", text)
         self.assertIn("commit the deletion", text)
         self.assertNotIn("review-ledger.py cleanup", text[text.index("7. Close out"):])
 

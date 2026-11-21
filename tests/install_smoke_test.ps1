@@ -110,7 +110,7 @@ try {
     Assert-Contains $opencodeDryRun 'Configuring OpenCode skill structure for gin-workflow'
     Assert-Contains $opencodeDryRun 'would install global OpenCode skills to'
     Assert-Exists (Join-Path $Root 'plugins/gin-workflow/dist/opencode/skills/setup/SKILL.md')
-    Assert-Exists (Join-Path $Root 'plugins/gin-workflow/dist/opencode/skills/gin-report/SKILL.md')
+    Assert-True (-not (Test-Path -LiteralPath (Join-Path $Root 'plugins/gin-workflow/dist/opencode/skills/gin-report'))) 'OpenCode bundle kept gin-report'
     Assert-Exists (Join-Path $Root 'plugins/gin-workflow/dist/opencode/agents/gin-developer.md')
     Assert-True (-not (Test-Path -LiteralPath (Join-Path $Root 'plugins/gin-workflow/dist/opencode/hooks'))) 'OpenCode dry-run wrote hooks'
 
@@ -128,31 +128,37 @@ try {
         New-Item -ItemType Directory -Path (Join-Path $project $legacySkill) -Force | Out-Null
     }
     [IO.File]::WriteAllText((Join-Path $project '.opencode/agents/gin-workflow-developer.md'), '# old agent')
+    # gin's report skill was retired in 3.4.0: a project install removes gin's stale copy and keeps gin-qa's.
+    foreach ($reportRoot in @('.claude', '.codex', '.opencode')) {
+        New-Item -ItemType Directory -Path (Join-Path $project "$reportRoot/skills/report") -Force | Out-Null
+    }
+    New-Item -ItemType Directory -Path (Join-Path $project '.opencode/skills/gin-report') -Force | Out-Null
+    [IO.File]::WriteAllText((Join-Path $project '.claude/skills/report/SKILL.md'), "---`nname: report`ndescription: Report AI usage per bead or epic`n---`n")
+    [IO.File]::WriteAllText((Join-Path $project '.codex/skills/report/SKILL.md'), "---`nname: report`ndescription: Write an offline HTML report of the test cases`n---`n")
     Invoke-Installer @{ Platform = 'all'; Project = $project } | Out-Null
     Assert-Exists (Join-Path $project '.claude/skills/setup/SKILL.md')
     Assert-Exists (Join-Path $project '.agents/skills/setup/SKILL.md')
     Assert-Exists (Join-Path $project '.codex/skills/setup/SKILL.md')
     Assert-Exists (Join-Path $project '.opencode/skills/setup/SKILL.md')
-    Assert-Exists (Join-Path $project '.opencode/skills/gin-report/SKILL.md')
+    Assert-True (-not (Test-Path -LiteralPath (Join-Path $project '.opencode/skills/gin-report'))) 'Project install kept gin-report'
     Assert-Exists (Join-Path $project '.opencode/agents/user-agent.md')
     Assert-Exists (Join-Path $project '.opencode/agents/gin-developer.md')
-    Assert-Contains ([IO.File]::ReadAllText((Join-Path $project '.opencode/skills/gin-report/SKILL.md'))) 'name: gin-report'
+    Assert-Contains ([IO.File]::ReadAllText((Join-Path $project '.opencode/skills/gin-learn/SKILL.md'))) 'name: gin-learn'
     # gin-qa added to the same project keeps gin's setup skill and lands as gin-qa-setup.
     Invoke-Installer @{ Platform = 'opencode'; Plugin = 'gin-qa'; Project = $project } | Out-Null
     Assert-Exists (Join-Path $project '.opencode/skills/setup/SKILL.md')
     Assert-Contains ([IO.File]::ReadAllText((Join-Path $project '.opencode/skills/setup/SKILL.md'))) 'name: setup'
     Assert-Exists (Join-Path $project '.opencode/skills/gin-qa-setup/SKILL.md')
     Assert-Contains ([IO.File]::ReadAllText((Join-Path $project '.opencode/skills/gin-qa-setup/SKILL.md'))) 'name: gin-qa-setup'
-    # Reinstalling gin into that project keeps gin-qa's report skill; gin's lands as gin-report.
+    # Reinstalling gin into that project keeps gin-qa's report skill; gin's report skill is retired.
     Invoke-Installer @{ Platform = 'opencode'; Project = $project } | Out-Null
     Assert-Contains ([IO.File]::ReadAllText((Join-Path $project '.opencode/skills/report/SKILL.md'))) 'offline HTML report'
-    Assert-Contains ([IO.File]::ReadAllText((Join-Path $project '.opencode/skills/gin-report/SKILL.md'))) 'name: gin-report'
-    Assert-Contains ([IO.File]::ReadAllText((Join-Path $project '.opencode/skills/gin-report/SKILL.md'))) 'Report AI usage'
+    Assert-True (-not (Test-Path -LiteralPath (Join-Path $project '.opencode/skills/gin-report'))) 'Project reinstall wrote gin-report'
     foreach ($legacySkill in @('.claude/skills/gin-sdd', '.codex/skills/gin-knowledge', '.opencode/skills/gin-workflow-report', '.opencode/agents/gin-workflow-developer.md')) {
         Assert-True (-not (Test-Path -LiteralPath (Join-Path $project $legacySkill))) "Project install kept the old $legacySkill"
     }
-    Assert-Exists (Join-Path $project '.claude/skills/report/SKILL.md')
-    Assert-Exists (Join-Path $project '.codex/skills/report/SKILL.md')
+    Assert-True (-not (Test-Path -LiteralPath (Join-Path $project '.claude/skills/report'))) 'Project install kept gins stale report skill'
+    Assert-Contains ([IO.File]::ReadAllText((Join-Path $project '.codex/skills/report/SKILL.md'))) 'offline HTML report'
     Assert-Exists (Join-Path $project '.codex/.codex-plugin/plugin.json')
     Assert-Exists (Join-Path $project '.claude/scripts/safety_check.py')
     $claudeHook = (Get-Content -Raw -LiteralPath (Join-Path $project '.claude/hooks/hooks.json') | ConvertFrom-Json).hooks.PreToolUse[0].hooks[0].command
@@ -378,7 +384,7 @@ try {
     Invoke-Installer @{ Platform = 'opencode' } | Out-Null
     Assert-Exists (Join-Path $TestHome '.config/opencode/skills/gin/skills/setup/SKILL.md')
     # OpenCode selects a skill by its bare directory id, so gin's generic names get a gin- prefix.
-    foreach ($skill in @('learn', 'sdd', 'team', 'worktrees', 'debugging', 'review-response', 'parallel-agents', 'report')) {
+    foreach ($skill in @('learn', 'sdd', 'team', 'worktrees', 'debugging', 'review-response', 'parallel-agents')) {
         $prefixedSkill = Join-Path $TestHome ".config/opencode/skills/gin/skills/gin-$skill/SKILL.md"
         Assert-Exists $prefixedSkill
         Assert-Contains ([IO.File]::ReadAllText($prefixedSkill)) "name: gin-$skill"
@@ -391,17 +397,17 @@ try {
 
     $opencodeLinkProject = Join-Path $TestRoot 'opencode-link-project'
     New-Item -ItemType Directory -Path $opencodeLinkProject | Out-Null
-    $sourceReport = Join-Path $Root 'plugins/gin-workflow/src/skills/report/SKILL.md'
+    $sourceReport = Join-Path $Root 'plugins/gin-workflow/src/skills/learn/SKILL.md'
     $reportBefore = [IO.File]::ReadAllBytes($sourceReport)
     # gin-qa is installed globally by now; a project install refreshes its launcher but must not write it into the project.
     $linkOutput = Invoke-Installer @{ Platform = 'opencode'; Project = $opencodeLinkProject; Link = $true }
     Assert-Contains $linkOutput 'Refreshing the installed gin-qa add-on.'
     Assert-Exists (Join-Path $opencodeLinkProject '.opencode/skills/setup/SKILL.md')
     Assert-True (-not (Test-Path -LiteralPath (Join-Path $opencodeLinkProject '.opencode/skills/gin-qa-setup'))) 'Project install wrote the gin-qa skills'
-    Assert-Exists (Join-Path $opencodeLinkProject '.opencode/skills/gin-report/SKILL.md')
+    Assert-Exists (Join-Path $opencodeLinkProject '.opencode/skills/gin-learn/SKILL.md')
     Assert-True `
         ([Convert]::ToBase64String($reportBefore) -eq [Convert]::ToBase64String([IO.File]::ReadAllBytes($sourceReport))) `
-        'Linked OpenCode install renamed the source report skill'
+        'Linked OpenCode install renamed the source learn skill'
 
     $copilotDryRun = Invoke-Installer @{ Platform = 'copilot'; DryRun = $true }
     $copilotDist = Join-Path $Root 'plugins/gin-workflow/dist/copilot/gin'

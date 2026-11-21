@@ -613,7 +613,7 @@ install_opencode_bundle() {
   local -a renamed=() skipped=()
   local skill pair from to
   if [ "$plugin_name" = gin ]; then
-    for skill in learn sdd team worktrees debugging review-response parallel-agents report; do
+    for skill in learn sdd team worktrees debugging review-response parallel-agents; do
       if [ -d "$src/skills/$skill" ]; then
         renamed+=("$skill:gin-$skill")
       fi
@@ -843,10 +843,14 @@ remove_legacy_project_install() {
       codex) root="$PROJECT_DIR/.codex" ;;
       opencode)
         root="$PROJECT_DIR/.opencode"
-        rm -rf "$root/skills/gin-workflow-report"
+        rm -rf "$root/skills/gin-workflow-report" "$root/skills/gin-report"
         rm -f "$root/agents/gin-workflow-"*.md
         ;;
     esac
+    # gin's report skill was retired in 3.4.0; gin-qa's report skill shares the folder name and stays.
+    if [ -f "$root/skills/report/SKILL.md" ] && grep -q "Report AI usage" "$root/skills/report/SKILL.md"; then
+      rm -rf "$root/skills/report"
+    fi
     for skill in gin-knowledge gin-sdd gin-team gin-worktrees gin-debugging gin-review-response gin-parallel-agents; do
       rm -rf "$root/skills/$skill"
     done

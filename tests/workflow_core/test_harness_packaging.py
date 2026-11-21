@@ -92,7 +92,6 @@ REQUIRED_ARTIFACTS = (
     "scripts/workflow_core/team_cli.py",
     "skills/team/SKILL.md",
     "skills/team-setup/SKILL.md",
-    "skills/report/SKILL.md",
     "scripts/workflow_core/usage.py",
     "scripts/workflow_core/usage_logs.py",
     "scripts/workflow_core/usage_attribution.py",
@@ -137,7 +136,7 @@ class HarnessPackagingTests(unittest.TestCase):
         # OpenCode translates agent files into namespaced subagents, drops
         # commands, and gives gin's generic skill names a gin- prefix, so
         # `report` does not shadow OpenCode's built-in `report` skill.
-        prefixed = {"report", "sdd", "team"}
+        prefixed = {"sdd", "team"}
         opencode_removed = {"agents/developer.md"} | {f"skills/{name}/SKILL.md" for name in prefixed}
         opencode_added = {"agents/gin-developer.md"} | {f"skills/gin-{name}/SKILL.md" for name in prefixed}
         copilot_removed: set[str] = set()
@@ -188,7 +187,7 @@ class HarnessPackagingTests(unittest.TestCase):
         manifest = json.loads((root / ".claude-plugin/plugin.json").read_text(encoding="utf-8"))
         self.assertEqual("gin", manifest["name"])
         self.assertTrue((root / "skills/setup/SKILL.md").is_file())
-        self.assertTrue((root / "skills/report/SKILL.md").is_file())
+        self.assertFalse((root / "skills/report").exists())
         self.assertTrue((root / "references/stage-contract.md").is_file())
         hooks = json.loads((root / "hooks/hooks.json").read_text(encoding="utf-8"))
         self.assertEqual(1, hooks.get("version"))
@@ -240,7 +239,7 @@ class HarnessPackagingTests(unittest.TestCase):
     def test_opencode_layout_is_a_skill_bundle_without_manifest_or_hooks(self):
         root = self.dist / "opencode"
         self.assertTrue((root / "skills/setup/SKILL.md").is_file())
-        self.assertTrue((root / "skills/gin-report/SKILL.md").is_file())
+        self.assertFalse((root / "skills/gin-report").exists())
         self.assertTrue((root / "references/stage-contract.md").is_file())
         self.assertFalse((root / "hooks").exists())
         self.assertFalse((root / "plugin.json").exists())
@@ -254,7 +253,7 @@ class HarnessPackagingTests(unittest.TestCase):
         self.assertNotIn("tools", oc_frontmatter)
         self.assertFalse((root / "commands").exists())
         # The renamed skill keeps its display name aligned with the directory id.
-        self.assertIn("name: gin-report", (root / "skills/gin-report/SKILL.md").read_text(encoding="utf-8"))
+        self.assertIn("name: gin-learn", (root / "skills/gin-learn/SKILL.md").read_text(encoding="utf-8"))
 
     def test_plugin_metadata_and_harness_manifests_publish_current_version(self):
         release_version = json.loads((ROOT / "plugins/gin-workflow/plugin.meta.json").read_text(encoding="utf-8"))["version"]
