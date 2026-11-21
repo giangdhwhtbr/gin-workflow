@@ -123,6 +123,7 @@ LOCAL_GITIGNORE_ENTRIES = (
     "orchestrator.local.yaml",
     "providers.local.yaml",
     "executables.local.yaml",
+    "attachments/",
 )
 
 

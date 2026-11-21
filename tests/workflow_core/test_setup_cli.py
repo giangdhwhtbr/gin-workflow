@@ -130,7 +130,7 @@ class SetupCliTests(unittest.TestCase):
             lines = (repository / ".agent-workflow/.gitignore").read_text(encoding="utf-8").splitlines()
             self.assertEqual(
                 ["generated/", "runtime/", "backups/", "orchestrator.local.yaml", "providers.local.yaml",
-                 "executables.local.yaml"], lines
+                 "executables.local.yaml", "attachments/"], lines
             )
             written = repository / ".agent-workflow/executables.local.yaml"
             self.assertIn("git:", written.read_text(encoding="utf-8"))
@@ -147,7 +147,7 @@ class SetupCliTests(unittest.TestCase):
             self.assertEqual(1, lines.count("runtime/"))
             self.assertEqual(
                 {"generated/", "runtime/", "backups/", "orchestrator.local.yaml", "providers.local.yaml",
-                 "executables.local.yaml"},
+                 "executables.local.yaml", "attachments/"},
                 set(lines) - {"custom.tmp"},
             )
 

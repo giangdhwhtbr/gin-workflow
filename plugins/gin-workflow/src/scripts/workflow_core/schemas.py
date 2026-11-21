@@ -280,6 +280,23 @@ CONFIG_SCHEMA: dict[str, Any] = {
             "properties": {"budget_usd": {"type": "number", "exclusiveMinimum": 0}},
             "additionalProperties": False,
         },
+        "attachments": {
+            "type": "object",
+            "properties": {
+                "store": {"enum": ["git-ref", "local", "s3"]},
+                "max_bytes": {"type": "integer", "minimum": 1},
+                "retention_days": {"type": "integer", "minimum": 1},
+                "s3": {
+                    "type": "object",
+                    "properties": {"bucket": {"type": "string", "minLength": 1},
+                                   "prefix": {"type": "string"},
+                                   "endpoint_url": {"type": "string", "minLength": 1},
+                                   "region": {"type": "string", "minLength": 1}},
+                    "additionalProperties": False,
+                },
+            },
+            "additionalProperties": False,
+        },
         "team": _TEAM,
         "workspace": _WORKSPACE,
         "qa": {
