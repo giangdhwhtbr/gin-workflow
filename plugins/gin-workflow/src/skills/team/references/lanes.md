@@ -25,7 +25,7 @@ Read this in team mode. A lane is the tracks of one plan that one member does in
 
 - Each track bead gets the label `lane:<lane>` and the line `Lane: <lane>` in its description, after the `Plan:` line.
 - A dependency inside a lane is `gin task dep add <blocked> <blocker>`. For a dependency on a track of another lane, create a bead titled `external: <plan path>#<N>` and make it block the dependent track, with and without `team.beads_sync`. `gin team deps` closes it when a merged PR lists that track.
-- For each declared lane without tracks, create one lane bead under the epic, titled `Lane <name>: <scope>`, with the labels `lane:<name>` and `area:<area>` per area, `--assignee <owner>`, and the description lines `Plan: <plan path>, Lane <name>` and `Lane: <name>` (in a workspace also `Repo: <path>`). It is not a track: it gets no `track:` label and no route.
+- For each declared lane without tracks, create one lane bead under the epic with `--no-inherit-labels`, titled `Lane <name>: <scope>`, with the labels `lane:<name>` and `area:<area>` per area, `--assignee <owner>`, and the description lines `Plan: <plan path>, Lane <name>` and `Lane: <name>` (in a workspace also `Repo: <path>`). It is not a track: it gets no `track:` label and no route.
 - For each name in a lane's `Depends on lanes:`, create one bead titled `external: <plan path>#lane-<name>`, once per named lane. The dependent lane's tracks will depend on it. `gin team deps` closes it when lane `<name>` has no open bead and merged PRs list every track of it.
 
 ## Lane plan
@@ -38,7 +38,7 @@ Read this in team mode. A lane is the tracks of one plan that one member does in
 ## Lane orchestrate
 
 - Run `/orchestrate` for the lane plan in the lane worktree. While `gin team check-plan <lane plan>` exits 1, create nothing.
-- Read the epic's children with `gin task list --parent <epic> --all --json`. For each track of the lane plan that has no bead with the line `Plan: <lane plan path>, Track <N>`, create one under the epic with that line and `Lane: <lane>` (in a workspace also `Repo:` and `Reads:`), the labels `track:<N>`, `area:<area>`, and `lane:<lane>`, and `--assignee <owner>`. Add the dependencies between them with `gin task dep add`, and make each track depend on every `external: <lead plan path>#lane-<name>` bead of the lane's `Depends on lanes:`.
+- Read the epic's children with `gin task list --parent <epic> --all --json`. For each track of the lane plan that has no bead with the line `Plan: <lane plan path>, Track <N>`, create one under the epic with `--no-inherit-labels`, holding that line and `Lane: <lane>` (in a workspace also `Repo:` and `Reads:`), the labels `track:<N>`, `area:<area>`, and `lane:<lane>`, and `--assignee <owner>`. Add the dependencies between them with `gin task dep add`, and make each track depend on every `external: <lead plan path>#lane-<name>` bead of the lane's `Depends on lanes:`.
 - Write the routes of these tracks only and run `gin routes resolve --workflow-id <epic id> --tracks <file> --json`; it merges them into the workflow's assignment manifest.
 - When every track has its bead, close the lane bead with `gin task close <lane bead> --reason "planned in <lane plan path>: <track bead ids>"`. Record no gate. After a failure, run it again: it creates only the missing beads.
 
