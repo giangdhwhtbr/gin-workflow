@@ -138,7 +138,7 @@ Exit codes: 0 success; 2 invalid configuration or rule pack.
 gin specs <command> [options]
 ```
 
-Living specs for `artifacts.layout: sdd`. Every command except `template`, `migrate`, `reqs` without `--change`, and `lint --spec` requires that layout; `migrate` and `lint --spec` require the `legacy` layout.
+Living specs for `artifacts.layout: sdd`. Every command except `template`, `migrate`, `reqs` without `--change`, `trace --all`, and `lint --spec` requires that layout; `migrate` and `lint --spec` require the `legacy` layout.
 
 | Command | Purpose |
 |---|---|
@@ -153,13 +153,36 @@ Living specs for `artifacts.layout: sdd`. Every command except `template`, `migr
 | `renumber OLD NEW --change C [--against REF]` | Rename a requirement id in a change and its beads |
 | `archive --change C` | Merge a change's spec delta into the living specs and archive the change; a new capability's `spec.md` links each file in its `diagrams/` under `## Diagrams` and in its `use-cases/` under `## Use Cases`. It then writes `06-signoff.md` into the archived folder from the sign-off of the change's epic (its bead's `gates`, else its newest local `requirement.confirmed` event, else a waiver) and stages it. Without a sign-off, or for a requirement changed after sign-off, it prints a warning on stderr |
 | `trace --change C` | Show which tests and sources cover each requirement; in a workspace it also scans every cloned child that is neither frozen nor the Beads repository, names each source by its workspace path, and lists children it could not scan under `skipped` |
+| `trace --all` | List every requirement with its changes, sign-off, beads, gin-qa cases, and tests ([Requirement trace](#requirement-trace)) |
 | `status --change C` | Show a change's review status, URL, and merge commit |
 | `reqs [--change C]` | List requirements with section, `type`, `category`, hash, and the epic of the change that holds them; the JSON also carries `root` (the project root) and `qa_root` (the `shape: qa` workspace child, or the worktree of it you run from; null without one) |
 | `export (CAP \| --all) [--out FILE]` | Write the living specs of one capability, or of every capability, into one printable SRS HTML file with each chapter's purpose, use cases (opening with a generated use case diagram), diagrams, requirements, and assets, framed by Revision history, Sign-off, Glossary, Actors (a context diagram, then a table with an `Is a` column), Non-functional requirements, and Business rules before them and a Traceability matrix (with a Type column) after them, requirements grouped under type headings when a capability has a non-functional one or a business rule, and a use case ID `<CAP>/<slug>` under each use case heading, followed by its `Actor`, `Secondary actors`, `Trigger`, `Requirements`, `Includes`, `Extends`, and `Specializes` lines as a two-column table (default `srs-CAP.html` or `srs.html` at the repository root, overwritten), from the templates `srs.html` and `srs-capability.html`; images are embedded, and a page that holds a diagram embeds the vendored Mermaid 11.4.1 library, so diagrams draw offline; a local image not found, outside the repository, or not an image is listed and exits 1 |
 | `explain NAME [--narrative FILE] [--out FILE] [--legacy APP]` | Write one interactive HTML page for a capability, or for an active change found as `--change` finds it (default `<artifacts.explain>/NAME/NAME.html`, overwritten; `artifacts.explain` defaults to `.agent-workflow/runtime/explain`), from the template `explain.html`: tabs for the overview (the `--narrative` Markdown file first), the requirements with a search box, the stories, the diagrams, and the dated asset folders with an image viewer and each `mockup/index.html` in a sandboxed frame; a requirement's `Source:` path under `assets/<date>/` opens that file on the page; `--legacy APP` names a frozen workspace entry by its last path component, takes a capability only, writes `<artifacts.explain>/legacy/APP/NAME/NAME.html`, and sets the kind line to `legacy capability (APP)`; with `--legacy`, NAME is a change only when it is the whole name of a change folder, and any other name is a capability; a capability that has no living spec yet is accepted when `--narrative` is given, and the page then holds the narrative and any diagrams and dated asset folders; a narrative, `--out`, or `artifacts.explain` outside the repository, `--legacy` with a change folder name, without a workspace, or with an app that is not frozen exits 2; the page embeds the vendored Mermaid library when it holds a diagram, and a missing vendored file exits 2 naming its path; an image or a mockup not embedded is listed and exits 1 |
 | `migrate [--dry-run] [--force]` | Move `legacy` layout artifacts into the SDD layout |
 
-Exit codes: 0 ok; 1 findings (lint errors, untraced requirements, archive conflicts, refused migration, images an export could not find, images or mockups an explain page could not embed); 2 usage or configuration error.
+Exit codes: 0 ok; 1 findings (lint errors, untraced requirements of `trace --change`, archive conflicts, refused migration, images an export could not find, images or mockups an explain page could not embed); 2 usage or configuration error.
+
+### Requirement trace { #requirement-trace }
+
+`gin specs trace --all [--format text|json]` lists every requirement of the SDD layout with its changes, sign-off, beads, gin-qa cases, and tests. It is the contract the gin-console requirements view reads. It exits 0 whatever the coverage, and 2 on a usage or configuration error. With the `legacy` layout it prints an empty `requirements` list. A source that cannot be read adds a line to `warnings` and leaves its field null.
+
+| Field | Meaning |
+|---|---|
+| `schema` | `1`; fields are only ever added |
+| `layout` | `artifacts.layout` |
+| `requirements[].id`, `title`, `capability` | The requirement id, its heading title, and its capability |
+| `requirements[].state` | `living` in a living spec; `proposed` when only an open change adds it; `removed` when an archived change removed it |
+| `requirements[].hash8` | The first 8 hex characters of the block hash; null for a removed requirement |
+| `requirements[].source` | `<file>:<line>` of the block; null for a removed requirement |
+| `requirements[].changes[]` | Each archived change, oldest first, then each open change whose spec delta names the requirement: `change`, `epic`, `op` (`added`, `modified`, or `removed`), `archived` (the archive date, null when open), and `signoff` |
+| `changes[].signoff` | `at`, `actor`, `evidence`, `hash8` (the hash at sign-off, null when unknown), `source`, and `waived`; null without a sign-off |
+| `requirements[].signoff` | The last change sign-off, plus `change` and `current`: true when its `hash8` equals the requirement's, false when it differs, null when either is null |
+| `requirements[].beads` | `{id, title, status}` of each bead labelled `req:<id>`; null with the markdown task backend or when `bd` fails |
+| `requirements[].cases` | `{id, effective_result}` of each gin-qa case that pins the requirement, from `gin-qa cases export`; null without gin-qa |
+| `requirements[].tests` | Test files that name the id, and the `05-tests.md#<case>` rows of open and archived changes |
+| `warnings`, `skipped` | Sources that could not be read; workspace children that could not be listed |
+
+A change's sign-off comes from its `06-signoff.md` (`source: git`), else its epic bead's `gates` (`beads`), else the newest local `requirement.confirmed` event of the epic (`events`). A `requirement_confirmed` waiver comes last, with `waived: true` and the reason in `evidence`. The text output prints one line per requirement: `<id> <state> signoff:<yes|stale|waived|no> beads:<n|-> cases:<n|-> tests:<n>`.
 
 ## `gin docs`
 

@@ -216,6 +216,10 @@ Every `state` and `record` call for the change passes `--workflow-id <epic>`. Th
 | `ship` | `specs archive --change <epic>` merges the delta into the living specs and moves the folder to `changes/archive/`. A conflict stops ship. The archive lands with the integration, and by team convention the BA reviews the living-spec diff ([pull requests](git-flow.md#pull-requests)). |
 | `quick` | Never creates a change folder; a change to behavior a requirement describes needs the full lifecycle. |
 
+## Sign-off
+
+A change's sign-off is the `requirement-confirmed` gate of its epic. The gate records each requirement of the spec delta with the first 8 hex characters of its hash, so a requirement edited after sign-off shows as stale. Until archive, the sign-off lives in the local event log and, in team mode, in the epic bead's `gates`. `specs archive` writes it into the archived folder as `06-signoff.md`, so it is in git. `gin specs trace --all` reads all three; see [Requirement trace](../reference/cli.md#requirement-trace).
+
 ## Epic kinds { #epic-kinds }
 
 The [epic kinds](../concepts/lifecycle.md#epic-kinds) change the change folder as follows. `01-proposal.md` carries `Epic: <id>` and a `Kind:` line. `specs lint --change` reads the kind from the epic bead's `kind:` label first, then from `Kind:`, and reports a mismatch between them; without Beads, `Kind:` decides. `specs new --kind` writes the line and defaults to the epic's label.

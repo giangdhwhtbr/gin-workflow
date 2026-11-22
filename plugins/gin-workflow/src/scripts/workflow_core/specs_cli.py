@@ -35,7 +35,10 @@ def _parser() -> argparse.ArgumentParser:
     item.add_argument("--change", required=True)
     item.add_argument("--against")
     sub.add_parser("archive", parents=[common]).add_argument("--change", required=True)
-    sub.add_parser("trace", parents=[common]).add_argument("--change", required=True)
+    item = sub.add_parser("trace", parents=[common])
+    scope = item.add_mutually_exclusive_group(required=True)
+    scope.add_argument("--change")
+    scope.add_argument("--all", action="store_true")
     sub.add_parser("status", parents=[common]).add_argument("--change", required=True)
     sub.add_parser("reqs", parents=[common]).add_argument("--change")
     item = sub.add_parser("export", parents=[common])
@@ -112,6 +115,14 @@ def _run(args: argparse.Namespace) -> int:
         result = {**result, "root": str(root), "qa_root": _qa_root(root)}
         _emit(result, args.format, "\n".join(f"{row['id']} {row['section']} {row['hash'][:8]} {row['title']}"
                                              for row in result["requirements"]))
+        return 0
+    if args.command == "trace" and args.all:
+        from .specs_trace_all import text_line, trace_all
+
+        result = trace_all(root, cfg)
+        _emit(result, args.format, "\n".join([*(text_line(row) for row in result["requirements"]),
+                                              *(f"warning: {item}" for item in result["warnings"]),
+                                              *(f"skipped: {item}" for item in result["skipped"])]))
         return 0
     if args.command == "lint" and args.spec:
         specs.require_layout(cfg, "legacy")
