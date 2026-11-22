@@ -15,7 +15,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from specs_fixtures import (ADDED_BLOCK, AUTH_SPEC, LAUNCHER, commit_all, delta, git,  # noqa: E402
                             make_change, make_repo, write, write_activity, STATE, USE_CASE)
 from test_workspace import init_repo, make_workspace  # noqa: E402
-from workflow_core import specs, specs_trace  # noqa: E402
+from workflow_core import signoff, specs, specs_trace  # noqa: E402
+from workflow_core.events import WorkflowEvent, WorkflowEventStore  # noqa: E402
 from workflow_core.specs_archive import ArchiveConflict, archive  # noqa: E402
 
 TODAY = __import__("datetime").date(2026, 10, 3)
@@ -149,6 +150,89 @@ class TestArchive(unittest.TestCase):
         after = living.read_text(encoding="utf-8")
         self.assertIn("30 minutes", after)
         self.assertNotIn("15 minutes", after)
+
+
+class TestArchiveSignoff(unittest.TestCase):
+    """`archive` writes the change's sign-off into the archived folder as 06-signoff.md."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = make_repo(Path(self.tmp.name) / "repo")
+        write(self.root, "docs/specs/auth/spec.md", AUTH_SPEC)
+        write_activity(self.root)
+        write(self.root, "docs/specs/README.md", "# Specs\n\n## Capabilities\n- [auth](auth/spec.md)\n")
+        self.cfg = specs.sdd_config(specs.load_config(self.root))
+        self.change = make_change(self.root)
+        commit_all(self.root)
+        self.folder = self.root / "docs/changes/archive/2026-10-03-ep-1-lockout"
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def log(self, event_type: str, payload: dict) -> None:
+        path = self.root / ".agent-workflow/runtime/events.jsonl"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        WorkflowEventStore(path).append(WorkflowEvent.create(event_type=event_type, workflow_id="ep-1", actor="ba",
+                                                             payload=payload))
+
+    def text(self) -> str:
+        return (self.folder / signoff.SIGNOFF_FILE).read_text(encoding="utf-8")
+
+    def test_signoff_from_the_event_log_is_written_and_staged(self):
+        requirements = signoff.requirements_of(self.root, "ep-1")
+        self.log("requirement.confirmed", {"evidence": "docs/changes/ep-1-lockout", "requirements": requirements})
+        result = archive(self.root, self.cfg, self.change, today=TODAY)
+        for line in ("Epic: ep-1", "By: ba", "Evidence: docs/changes/ep-1-lockout", "Source: events",
+                     f"| REQ-AUTH-003 | {requirements[0]['hash8']} | added |"):
+            self.assertIn(line, self.text())
+        self.assertNotIn("Hashes: at archive", self.text())
+        self.assertEqual(([], "docs/changes/archive/2026-10-03-ep-1-lockout/06-signoff.md"),
+                         (result["warnings"], result["signoff"]))
+        self.assertIn("A  docs/changes/archive/2026-10-03-ep-1-lockout/06-signoff.md",
+                      git(self.root, "status", "--porcelain"))
+
+    def test_a_requirement_changed_after_signoff_keeps_the_signed_hash(self):
+        self.log("requirement.confirmed", {"evidence": "e", "requirements": [
+            {"id": "REQ-AUTH-003", "hash8": "00000000", "op": "added"}]})
+        result = archive(self.root, self.cfg, self.change, today=TODAY)
+        self.assertEqual(["REQ-AUTH-003 changed after sign-off"], result["warnings"])
+        self.assertIn("| REQ-AUTH-003 | 00000000 | added |", self.text())
+
+    def test_a_waiver_is_written(self):
+        self.log("gate.waived", {"gate": "requirement_confirmed", "gate_class": "process", "reason": "spike",
+                                 "scope_hash": "s", "waived_by": "lead", "follow_up_task_id": None})
+        archive(self.root, self.cfg, self.change, today=TODAY)
+        for line in ("Waived: spike", "By: lead", "Hashes: at archive", "| REQ-AUTH-003 |"):
+            self.assertIn(line, self.text())
+
+    def test_an_event_without_requirements_takes_the_delta_hashes(self):
+        self.log("requirement.confirmed", {"evidence": "e"})
+        archive(self.root, self.cfg, self.change, today=TODAY)
+        pinned = signoff.hash8(specs.parse_blocks(ADDED_BLOCK)[0][0])
+        self.assertIn("Hashes: at archive", self.text())
+        self.assertIn(f"| REQ-AUTH-003 | {pinned} | added |", self.text())
+
+    def test_bead_gates_win_over_the_event_log(self):
+        self.log("requirement.confirmed", {"evidence": "local"})
+        gates = {"requirement_confirmed": {"pr_url": "https://h/pull/1", "actor": "an@corp.com",
+                                           "at": "2026-10-02T00:00:00Z"}}
+        with mock.patch.object(signoff, "load_gates", return_value=(gates, None)):
+            archive(self.root, self.cfg, self.change, today=TODAY)
+        for line in ("Source: beads", "By: an@corp.com", "Evidence: https://h/pull/1"):
+            self.assertIn(line, self.text())
+
+    def test_without_a_signoff_archive_warns_and_writes_no_file(self):
+        result = archive(self.root, self.cfg, self.change, today=TODAY)
+        self.assertEqual((["ep-1-lockout: no sign-off found; 06-signoff.md not written"], None),
+                         (result["warnings"], result["signoff"]))
+        self.assertFalse((self.folder / signoff.SIGNOFF_FILE).exists())
+        self.assertTrue((self.folder / "02-spec-delta.md").is_file())
+
+    def test_cli_prints_the_warning(self):
+        done = subprocess.run([sys.executable, str(LAUNCHER), "specs", "archive", "--change", "ep-1",
+                               "--repository", str(self.root)], capture_output=True, text=True)
+        self.assertEqual(0, done.returncode, done.stderr)
+        self.assertIn("warning: ep-1-lockout: no sign-off found; 06-signoff.md not written", done.stderr)
 
 
 class TestTraceAndStatus(unittest.TestCase):

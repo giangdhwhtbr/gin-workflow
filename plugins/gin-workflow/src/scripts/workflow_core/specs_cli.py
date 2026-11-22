@@ -197,6 +197,8 @@ def _run(args: argparse.Namespace) -> int:
             result = archive(root, cfg, change)
         except ArchiveConflict as conflict:
             return _findings(conflict.errors, args.format, "ok")
+        for warning in result["warnings"]:
+            print(f"warning: {warning}", file=sys.stderr)
         _emit(result, args.format, f"archived to {result['archived_to']}; updated {', '.join(result['specs'])}")
         return 0
     from .specs_trace import status, trace

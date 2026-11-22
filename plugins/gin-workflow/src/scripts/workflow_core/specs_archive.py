@@ -8,9 +8,10 @@ import shutil
 import subprocess
 from typing import Any, Mapping
 
+from . import signoff
 from .atomic import atomic_write_many
-from .specs import (Block, SpecsError, block_hash, delta_blocks, in_flight_blocks, lint_change, living_blocks, parse_blocks,
-                    render, specs_dir, template_text, _BASE)
+from .specs import (Block, SpecsError, block_hash, change_epic, delta_blocks, in_flight_blocks, lint_change,
+                    living_blocks, parse_blocks, render, shown, specs_dir, template_text, _BASE)
 
 
 class ArchiveConflict(ValueError):
@@ -49,6 +50,31 @@ def move(root: Path, source: Path, target: Path) -> None:
     moved = subprocess.run(["git", "mv", str(source), str(target)], cwd=root, capture_output=True, check=False)
     if moved.returncode != 0:
         shutil.move(str(source), str(target))
+
+
+def _write_signoff(root: Path, folder: Path, name: str, epic: str | None,
+                   delta_rows: list[dict[str, str]]) -> tuple[str | None, list[str]]:
+    """Write `06-signoff.md` into the archived folder from the epic's sign-off and stage it: (its path or None,
+    warnings). A missing or unreadable source is a warning; archive never fails because of sign-off."""
+    missing = f"{name}: no sign-off found; {signoff.SIGNOFF_FILE} not written"
+    if epic is None:
+        return None, [missing]
+    gates, gate_warning = signoff.load_gates(root, epic)
+    events, event_warning = signoff.load_events(root)
+    warnings = [warning for warning in (gate_warning, event_warning) if warning]
+    found = signoff.epic_signoff(gates, events, epic)
+    if found is None:
+        return None, [*warnings, missing]
+    rows = ([{"id": item, "hash8": pinned, "op": op} for item, pinned, op in found.requirements]
+            if found.requirements is not None else delta_rows)
+    current = {row["id"]: row["hash8"] for row in delta_rows}
+    warnings += [f"{row['id']} changed after sign-off" for row in rows
+                 if row["id"] in current and current[row["id"]] != row["hash8"]]
+    path = folder / signoff.SIGNOFF_FILE
+    path.write_text(signoff.render(found, epic, rows, hashes_at_archive=found.requirements is None),
+                    encoding="utf-8")
+    subprocess.run(["git", "add", "--", str(path)], cwd=root, capture_output=True, check=False)
+    return shown(root, path), warnings
 
 
 def archive(root: Path, cfg: Mapping[str, Any], change: Path, *, today: date | None = None) -> dict[str, Any]:
@@ -100,9 +126,15 @@ def archive(root: Path, cfg: Mapping[str, Any], change: Path, *, today: date | N
         text = readme.read_text(encoding="utf-8") if readme.is_file() else template_text(root, "specs-README.md")
         lines = text.rstrip().splitlines() + [f"- [{cap}]({cap}/spec.md)" for cap in new_caps]
         writes[readme] = ("\n".join(lines) + "\n").encode("utf-8")
+    try:
+        epic: str | None = change_epic(change)
+    except SpecsError:  # a proposal without an `Epic:` line names no sign-off
+        epic = None
+    delta_rows = signoff.change_requirements(root, change)
     atomic_write_many(writes, mode=0o644)
     move(root, change, Path(root) / target)
-    return {"change": change.name, "archived_to": target.as_posix(),
+    written, warnings = _write_signoff(root, Path(root) / target, change.name, epic, delta_rows)
+    return {"change": change.name, "archived_to": target.as_posix(), "signoff": written, "warnings": warnings,
             "specs": sorted(str(path.relative_to(root)) for path in writes),
             "added": [b.id for b in blocks if b.section == "ADDED"],
             "modified": [b.id for b in blocks if b.section == "MODIFIED"],
