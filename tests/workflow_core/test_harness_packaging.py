@@ -378,7 +378,8 @@ class HarnessPackagingTests(unittest.TestCase):
             paths = [root] if root.is_file() else sorted(root.rglob("*.md"))
             for path in paths:
                 for target in link_pattern.findall(path.read_text(encoding="utf-8")):
-                    if target.startswith(("http://", "https://", "mailto:", "#")):
+                    # attachment:<sha256> is gin attach's reference scheme, not a file link
+                    if target.startswith(("http://", "https://", "mailto:", "#", "attachment:")):
                         continue
                     target_path = target.split("#", 1)[0]
                     if not target_path:
