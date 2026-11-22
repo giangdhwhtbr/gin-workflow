@@ -201,6 +201,7 @@ def _proof(payload: Mapping[str, Any], actor: str, at: str) -> dict[str, Any]:
     return {"pr_url": payload.get("pr_url", ""), "merge_commit": payload.get("merge_commit", ""),
             "approvers": [a.get("email", "") for a in payload.get("approvers", []) if isinstance(a, Mapping)],
             **({"pull_requests": payload["pull_requests"]} if "pull_requests" in payload else {}),
+            **({"requirements": payload["requirements"]} if "requirements" in payload else {}),
             "actor": actor, "at": at}
 
 
@@ -387,6 +388,14 @@ def _record_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
     elif not actor:
         return {"status": "error", "message": "--actor is required"}, 2
     payload = {**base_payload, "evidence": evidence, **team_payload}
+    if args.gate == "requirement-confirmed":
+        from .signoff import requirements_of
+
+        requirements = requirements_of(Path(args.repository).resolve(), args.workflow_id)
+        if requirements is not None:
+            payload["requirements"] = requirements
+            if team_payload:
+                team_payload = {**team_payload, "requirements": requirements}
     if args.epic:
         payload["epic"] = args.epic
     event = WorkflowEvent.create(

@@ -14,6 +14,7 @@ from unittest import mock
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from team_fixtures import LAUNCHER, PLAN, TEAM, calls, fake_cli, gh_pr, git, make_team_repo, path_with, write  # noqa: E402
+from specs_fixtures import ADDED_BLOCK, AUTH_SPEC, delta  # noqa: E402
 # One test per subcommand keeps the subprocess; the rest run gin in this process.
 from team_fixtures import run_cli as run_cli_subprocess, run_cli_in_process as run_cli  # noqa: E402
 from workflow_core.configuration import ConfigValidationError, resolve_effective_config, validate_portable_config  # noqa: E402
@@ -405,6 +406,24 @@ class TestSharedGates(GateCase):
         self.assertEqual((PR, "m" * 40, ["binh@corp.com", "chi@corp.com"], "binh@corp.com"),
                          (proof["pr_url"], proof["merge_commit"], proof["approvers"], proof["actor"]))
         self.assertRegex(proof["at"], r"^\d{4}-\d{2}-\d{2}T")
+
+    def test_requirement_confirmed_mirrors_the_requirements(self):
+        config = self.root / ".agent-workflow/config.yaml"
+        config.write_text(config.read_text() + "artifacts:\n  layout: sdd\n")
+        resolve_effective_config(self.root)
+        write(self.root, "docs/specs/auth/spec.md", AUTH_SPEC)
+        delta_path = "docs/changes/e-1-lockout/02-spec-delta.md"
+        write(self.root, "docs/changes/e-1-lockout/01-proposal.md", "# Lockout\n\nEpic: e-1\n")
+        write(self.root, delta_path, delta(added=ADDED_BLOCK))
+        self.gh(gh_pr(author="binh-dev", files=[delta_path], reviews=[("an-ba", "APPROVED", "c1")]))
+        self.bd({"e-1": {"id": "e-1", "issue_type": "epic", "status": "open", "metadata": {}}})
+        result = run_cli(self.root, "record", "requirement-confirmed", "--evidence", PR, "--workflow-id", "e-1",
+                         env=self.env)
+        self.assertEqual(0, result.returncode, result.stderr)
+        gates = json.loads(self.bd_updates()[-1][4].removeprefix("gates="))
+        mirrored = gates["requirement_confirmed"]["requirements"]
+        self.assertEqual(["REQ-AUTH-003"], [row["id"] for row in mirrored])
+        self.assertEqual(self.events()[-1]["payload"]["requirements"], mirrored)
 
     def test_state_reads_a_gate_from_the_epic_bead(self):
         proof = {"pr_url": PR, "merge_commit": "m" * 40, "approvers": ["binh@corp.com"], "actor": "binh@corp.com",

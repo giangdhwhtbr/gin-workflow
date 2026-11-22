@@ -20,6 +20,8 @@ from workflow_core.configuration import RETIRED_KEYS_NOTICE
 from workflow_core.events import EventPersistenceError, WorkflowEvent, WorkflowEventStore
 from workflow_core.lifecycle_cli import main as lifecycle_main
 from tests.workflow_core.team_fixtures import calls, fake_cli, path_with
+from tests.workflow_core.specs_fixtures import ADDED_BLOCK, AUTH_SPEC, make_change, make_repo, write
+from workflow_core import specs
 from tests.workflow_core.test_workspace import make_workspace
 
 
@@ -1084,6 +1086,36 @@ class TestLifecycleCLI(unittest.TestCase):
             with patch("workflow_core.lifecycle_cli._beads_json", self._fake_beads(["closed"])):
                 self._state_gates()
                 mock_tracks_of.assert_called()
+
+
+class TestRequirementsInTheSignOff(unittest.TestCase):
+    """`record requirement-confirmed` lists the change's requirements with their hashes (SDD layout)."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = make_repo(Path(self.tmp.name) / "repo")
+        write(self.root, "docs/specs/auth/spec.md", AUTH_SPEC)
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def record(self, root: Path, workflow_id: str) -> dict:
+        code = cli_main(["record", "requirement-confirmed", "--repository", str(root), "--evidence",
+                         "docs/changes/ep-1-lockout", "--actor", "ba", "--workflow-id", workflow_id])
+        self.assertEqual(0, code)
+        return WorkflowEventStore(root / ".agent-workflow/runtime/events.jsonl").read_all()[-1].to_dict()["payload"]
+
+    def test_the_event_lists_the_change_requirements(self):
+        make_change(self.root)
+        added = specs.parse_blocks(ADDED_BLOCK)[0][0]
+        self.assertEqual([{"id": "REQ-AUTH-003", "hash8": specs.block_hash(added.text)[:8], "op": "added"}],
+                         self.record(self.root, "ep-1")["requirements"])
+
+    def test_no_list_without_a_change_or_with_the_legacy_layout(self):
+        make_change(self.root)
+        self.assertNotIn("requirements", self.record(self.root, "ep-2"))
+        legacy = make_repo(Path(self.tmp.name) / "legacy", layout="legacy")
+        self.assertNotIn("requirements", self.record(legacy, "ep-1"))
 
 
 if __name__ == "__main__":
