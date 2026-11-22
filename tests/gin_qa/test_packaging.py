@@ -82,7 +82,9 @@ class TestPackaging(unittest.TestCase):
         # The `qa-track` skill is the core file that exists to drive gin-qa (gin-workflow-qa-lifecycle R2).
         allowed = {CORE / "skills/qa-track/SKILL.md",
                    # The companion version probe of gin version and gin setup doctor (gin-workflow-b7ip R8, R11).
-                   CORE / "scripts/workflow_core/version_pin.py"}
+                   CORE / "scripts/workflow_core/version_pin.py",
+                   # `gin specs trace --all` joins the cases of gin-qa when it is installed (gin-workflow-ch2v R3).
+                   CORE / "scripts/workflow_core/specs_trace_all.py"}
         for path in sorted(p for p in CORE.rglob("*") if p.is_file() and p.suffix in (".md", ".py", ".yaml", ".json")
                            and p not in allowed):
             with self.subTest(path=str(path.relative_to(CORE))):
