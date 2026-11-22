@@ -164,6 +164,12 @@ Dự án của bạn cung cấp `@playwright/test` 1.49 trở lên. `init` ghi m
 - Mỗi case hiển thị lần chạy mà dòng `Run` của nó nêu. Khi thư mục đó đã mất, case hiển thị `evidence not found: <run>` và lệnh liệt kê lần chạy dưới `missing_evidence`. Một `Run` nằm ngoài `evidence/`, như tham chiếu lần chạy thủ công, và một thư mục `gin-qa tests run` được hiển thị dưới dạng văn bản.
 - Một case chuyển từ e2e sang manual giữ nguyên hàng của nó và có thêm dấu "moved from e2e". Mục "Moved from e2e to manual" liệt kê từng case với ngày, lý do, và kết quả, và chỉ xuất hiện khi có case như vậy.
 
+## Lịch sử chạy { #run-history }
+
+Mọi kết quả đã ghi đều được giữ lại, còn case file chỉ hiện kết quả mới nhất. `gin-qa cases result`, `cases bug`, `e2e run` và `tests run` mỗi lần ghi thêm một dòng cho mỗi case vào `runs/<yyyy-mm>/<actor>.jsonl` trong QA home. Actor là `--actor`, nếu không có thì là `git config user.email` của bạn. Commit thư mục `runs` cùng các case file; `/gin-qa:run`, `/gin-qa:e2e` và `/gin-qa:tests` làm việc này khi lưu công việc.
+
+Mỗi tester ghi vào file riêng, nên nhánh của hai tester merge không bị conflict. `gin-qa runs export --format json` liệt kê các record, lọc được theo capability, case và ngày bắt đầu. [CLI reference](../reference/cli.md#gin-qa-runs-export) liệt kê mọi key.
+
 ## Chuyển một case e2e không ổn định sang manual { #moving-a-flaky-e2e-case-to-manual }
 
 QA quyết định khi nào một case rời automation; `gin-qa` không đếm số lần thất bại. Với một case liên tục thất bại hoặc chập chờn trên pipeline, chạy:

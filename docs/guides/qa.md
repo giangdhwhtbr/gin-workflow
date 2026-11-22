@@ -202,6 +202,12 @@ e2e:
 
 The paths assume the QA home is `qa`; use your QA home's `evidence/` folder.
 
+## Run history
+
+Every recorded result is kept, while the case file shows only the latest one. `gin-qa cases result`, `cases bug`, `e2e run`, and `tests run` each append one line per case to `runs/<yyyy-mm>/<actor>.jsonl` in the QA home. The actor is `--actor`, else your `git config user.email`. Commit the `runs` folder with the case files; `/gin-qa:run`, `/gin-qa:e2e`, and `/gin-qa:tests` do so when they save the work.
+
+Each tester writes their own file, so branches from two testers merge without conflicts. `gin-qa runs export --format json` lists the records, with filters by capability, case, and start date. The [CLI reference](../reference/cli.md#gin-qa-runs-export) lists every key.
+
 ## Moving a flaky e2e case to manual
 
 QA decides when a case leaves automation; `gin-qa` does not count failures. For a case that keeps failing or flaking on the pipeline, run:

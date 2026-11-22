@@ -1,15 +1,16 @@
-"""`gin-qa cases`, `gin-qa e2e`, `gin-qa tests`, and `gin-qa report`: exit 0 ok, 1 findings, 2 usage or environment error."""
+"""`gin-qa cases`, `gin-qa e2e`, `gin-qa tests`, `gin-qa runs`, and `gin-qa report`: exit 0 ok, 1 findings, 2 usage or environment error."""
 
 from __future__ import annotations
 
 import argparse
+from datetime import date
 import json
 from pathlib import Path
 import sys
 from typing import Any, Sequence
 
 from . import cases as tc
-from . import bugs, e2e, numbering, report, tests
+from . import bugs, e2e, numbering, report, runs, tests
 from .reqs import Effective, QaError, current_hashes, locate, specs_reqs
 
 VERSION = "3.4.0"
@@ -362,17 +363,51 @@ def _run_report(args: argparse.Namespace) -> int:
     return 0
 
 
+def _since(value: str) -> str:
+    """`--since`: a date as YYYY-MM-DD."""
+    try:
+        parsed = date.fromisoformat(value)
+    except ValueError:
+        parsed = None
+    if parsed is None or parsed.isoformat() != value:
+        raise argparse.ArgumentTypeError(f"{value!r} is not a date as YYYY-MM-DD")
+    return value
+
+
+def _runs_parser() -> argparse.ArgumentParser:
+    common = argparse.ArgumentParser(add_help=False)
+    common.add_argument("--repository", type=Path, default=None)
+    common.add_argument("--format", choices=("text", "json"), default="text")
+    parser = argparse.ArgumentParser(prog="gin-qa runs")
+    sub = parser.add_subparsers(dest="command", required=True)
+    item = sub.add_parser("export", parents=[common])
+    item.add_argument("--capability")
+    item.add_argument("--case")
+    item.add_argument("--since", type=_since)
+    return parser
+
+
+def _run_runs(args: argparse.Namespace) -> int:
+    root, eff = locate(args.repository)
+    payload = runs.export(root, eff.cases_dir, capability=args.capability, case=args.case, since=args.since)
+    lines = [f"{row['at']} {row['case']} {row['result']} {row['actor']} {row['run']}".rstrip()
+             for row in payload["runs"]]
+    _emit(payload, args.format, "\n".join([*lines, *payload["problems"]]) or "no runs")
+    return 0
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
     if argv[:1] == ["--version"]:
         print(f"gin-qa {VERSION}")
         return 0
     groups = {"cases": (_parser, _run), "e2e": (_e2e_parser, _run_e2e), "tests": (_tests_parser, _run_tests),
-              "report": (_report_parser, _run_report)}
+              "runs": (_runs_parser, _run_runs), "report": (_report_parser, _run_report)}
     if not argv or argv[0] not in groups:
         print("usage: gin-qa cases {plan,next-id,pin,result,bug,to-manual,new,split,renumber,check,export} ...\n"
               "       gin-qa e2e {init,plan,pin,run,check,export} ...\n"
               "       gin-qa tests {plan,pin,check,run} ...\n"
+              "       gin-qa runs export [--capability CAP] [--case TC-ID] [--since YYYY-MM-DD]\n"
               "       gin-qa report [capability] [--out DIR] [--zip]", file=sys.stderr)
         return 2
     make, run = groups[argv[0]]

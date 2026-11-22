@@ -145,5 +145,76 @@ class TestMerge(RunsCase):
                          sorted(row["at"] for row in self.records("qa/runs/2026-11/a-x.com.jsonl")))
 
 
+def record(case: str = "TC-AUTH-001", at: str = "2026-11-22T10:00:00Z", capability: str = "auth",
+           result: str = "passed", actor: str = "a@x.com") -> dict:
+    return {"actor": actor, "at": at, "bug": "", "capability": capability, "case": case, "evidence": [],
+            "hash8": "1a2b3c4d", "result": result, "run": "manual"}
+
+
+def jsonl(*rows) -> str:
+    return "".join((row if isinstance(row, str) else json.dumps(row)) + "\n" for row in rows)
+
+
+class TestExport(RunsCase):
+    def export(self, *args: str):
+        return qa(self.root, self.bin, "export", *args, "--format", "json", group="runs")
+
+    def test_two_runs_of_one_case_give_two_records_by_time(self):
+        with mock.patch.object(runs, "now", side_effect=["2026-11-22T11:00:00Z", "2026-11-22T10:00:00Z"]):
+            self.assertEqual(0, self.result("passed", "--actor", "b@x.com").returncode)
+            self.assertEqual(0, self.result("failed", "--actor", "a@x.com").returncode)
+        result = qa_subprocess(self.root, self.bin, "export", "--format", "json", group="runs")
+        self.assertEqual(0, result.returncode, result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertEqual([], payload["problems"])
+        self.assertEqual([("2026-11-22T10:00:00Z", "failed"), ("2026-11-22T11:00:00Z", "passed")],
+                         [(row["at"], row["result"]) for row in payload["runs"]])
+
+    def test_filters_combine(self):
+        write(self.root, "qa/runs/2026-11/a-x.com.jsonl", jsonl(
+            record(), record(case="TC-AUTH-002", at="2026-11-23T09:00:00Z"),
+            record(case="TC-PAY-001", capability="pay", at="2026-11-24T09:00:00Z")))
+        write(self.root, "qa/runs/2026-10/a-x.com.jsonl", jsonl(record(at="2026-10-30T09:00:00Z")))
+        for args, cases in ((("--capability", "auth"), ["TC-AUTH-001", "TC-AUTH-001", "TC-AUTH-002"]),
+                            (("--case", "TC-AUTH-001"), ["TC-AUTH-001", "TC-AUTH-001"]),
+                            (("--since", "2026-11-23"), ["TC-AUTH-002", "TC-PAY-001"]),
+                            (("--capability", "auth", "--since", "2026-11-01"), ["TC-AUTH-001", "TC-AUTH-002"])):
+            with self.subTest(args=args):
+                result = self.export(*args)
+                self.assertEqual(0, result.returncode, result.stderr)
+                self.assertEqual(cases, [row["case"] for row in json.loads(result.stdout)["runs"]])
+
+    def test_a_broken_line_is_a_problem_and_the_rest_is_returned(self):
+        write(self.root, "qa/runs/2026-11/a-x.com.jsonl", jsonl(
+            record(), "{not json", "[1]", {"case": "TC-AUTH-001"}, {**record(), "at": "yesterday"},
+            record(at="2026-11-22T12:00:00Z")))
+        result = self.export()
+        self.assertEqual(0, result.returncode, result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertEqual(["2026-11-22T10:00:00Z", "2026-11-22T12:00:00Z"], [row["at"] for row in payload["runs"]])
+        self.assertEqual(["qa/runs/2026-11/a-x.com.jsonl:2: not JSON",
+                          "qa/runs/2026-11/a-x.com.jsonl:3: not a JSON object",
+                          "qa/runs/2026-11/a-x.com.jsonl:4: missing actor, at, bug, capability, evidence, hash8, "
+                          "result, run",
+                          "qa/runs/2026-11/a-x.com.jsonl:5: at is not YYYY-MM-DDTHH:MM:SSZ"], payload["problems"])
+
+    def test_no_run_history_is_an_empty_export(self):
+        result = self.export()
+        self.assertEqual((0, {"problems": [], "runs": []}), (result.returncode, json.loads(result.stdout)))
+        text = qa(self.root, self.bin, "export", group="runs")
+        self.assertEqual((0, "no runs\n"), (text.returncode, text.stdout))
+
+    def test_text_lists_records_then_problems(self):
+        write(self.root, "qa/runs/2026-11/a-x.com.jsonl", jsonl(record(), "{"))
+        text = qa(self.root, self.bin, "export", group="runs")
+        self.assertEqual("2026-11-22T10:00:00Z TC-AUTH-001 passed a@x.com manual\n"
+                         "qa/runs/2026-11/a-x.com.jsonl:2: not JSON\n", text.stdout)
+
+    def test_a_bad_since_exits_2(self):
+        for value in ("2026-13-01", "20261122", "yesterday"):
+            with self.subTest(value=value):
+                self.assertEqual(2, self.export("--since", value).returncode)
+
+
 if __name__ == "__main__":
     unittest.main()

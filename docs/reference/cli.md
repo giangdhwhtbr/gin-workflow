@@ -517,7 +517,7 @@ Lives in the plugin's `scripts/` directory. Each bead's ledger is stored in `.pl
 
 ## `gin-qa`
 
-The optional `gin-qa` plugin adds its own CLI with `gin-qa cases {plan,next-id,pin,result,bug,to-manual,new,split,renumber,check,export,due}`, `gin-qa e2e {init,plan,pin,run,check,export}`, `gin-qa tests {plan,pin,check,run}`, and `gin-qa report [capability] [--out DIR] [--zip]`. Exit codes: 0 ok; 1 findings; 2 usage or environment error. `gin-qa e2e init [--base-url URL] [--install]` also writes `playwright.config.ts` when the Playwright folder has none. That folder is `e2e` in the [QA home](../guides/qa.md#the-qa-home), or the repository root for an existing root setup; an invalid URL exits 2 and writes nothing. It adds the evidence folder to `.gitignore`. On an existing `evidence.ts` without `ariaSnapshot`, it merges the step snapshots when the file matches the template, and otherwise prints a line to merge by hand and leaves the file. `gin-qa cases next-id CAP` prints the lowest number free in the capability (a number an e2e spec or a test marker still names stays taken); `gin-qa cases renumber CAP [--dry-run]` closes the gaps to 001..N and rewrites the case files, e2e specs, test markers, and the e2e evidence of the renamed cases, or exits 1 and writes nothing on a flat file, a duplicate, an orphan spec or marker, an uncommitted file, or an existing target.
+The optional `gin-qa` plugin adds its own CLI with `gin-qa cases {plan,next-id,pin,result,bug,to-manual,new,split,renumber,check,export,due}`, `gin-qa e2e {init,plan,pin,run,check,export}`, `gin-qa tests {plan,pin,check,run}`, `gin-qa runs export [--capability CAP] [--case TC-ID] [--since YYYY-MM-DD]`, and `gin-qa report [capability] [--out DIR] [--zip]`. Exit codes: 0 ok; 1 findings; 2 usage or environment error. `gin-qa e2e init [--base-url URL] [--install]` also writes `playwright.config.ts` when the Playwright folder has none. That folder is `e2e` in the [QA home](../guides/qa.md#the-qa-home), or the repository root for an existing root setup; an invalid URL exits 2 and writes nothing. It adds the evidence folder to `.gitignore`. On an existing `evidence.ts` without `ariaSnapshot`, it merges the step snapshots when the file matches the template, and otherwise prints a line to merge by hand and leaves the file. `gin-qa cases next-id CAP` prints the lowest number free in the capability (a number an e2e spec or a test marker still names stays taken); `gin-qa cases renumber CAP [--dry-run]` closes the gaps to 001..N and rewrites the case files, e2e specs, test markers, and the e2e evidence of the renamed cases, or exits 1 and writes nothing on a flat file, a duplicate, an orphan spec or marker, an uncommitted file, or an existing target.
 
 `--install` first reads `package.json` in the Playwright folder; a missing or invalid file, or a `scripts` that is not an object, exits 2 before anything changes. It then runs the install commands for the package manager picked by the nearest lockfile (`pnpm-lock.yaml`, `yarn.lock`, `package-lock.json`; npm when none), looked up from the Playwright folder up to the repository root and never above it. The commands run in the Playwright folder: they add `@playwright/test`, unless it is already installed, and run `playwright install chromium`. It adds `"e2e": "playwright test"` to `scripts` when missing. A manager not found or a failed command exits 2 and names the commands to run by hand. Without the flag, `init` only prints those steps. `gin-qa e2e plan` and `gin-qa tests plan` exit 2 when the capability is a TC-ID, and name its capability.
 
@@ -529,7 +529,7 @@ Reports problems in the case files: structure, IDs, the `REQ:` or `Source:` fiel
 
 `gin-qa cases result <TC-ID> <status> [--run REF] [--bug ID|none] [--actor ID] [--evidence REF]...` is the only command that writes the `Result`, `Run`, `Bug`, and `Checked` lines. `Checked` is a stamp of the case as recorded: its content and its pinned requirements (or its `Source`). Each call rewrites it. `status` is `passed`, `failed`, `blocked`, or `not run`. `--run` sets the `Run` line; without it the line is removed. `--bug` sets the `Bug` line, `--bug none` removes it, and without it the line stays.
 
-Each call first appends a run record to the run history, then writes the case file. `--actor` names who recorded the result (default `git config user.email`, else `unknown`); the repeatable `--evidence` lists its evidence. Both go into the run record only. A run record that cannot be written exits 2 and leaves the case file unchanged.
+Each call first appends a run record to the [run history](#gin-qa-runs-export), then writes the case file. `--actor` names who recorded the result (default `git config user.email`, else `unknown`); the repeatable `--evidence` lists its evidence. Both go into the run record only. A run record that cannot be written exits 2 and leaves the case file unchanged.
 
 Exit 2, writing nothing, when the ID does not exist, the status is not one of the four, `--run`, `--bug`, `--actor`, or `--evidence` is empty or holds a non-printable character, or the case files have a finding that names the case.
 
@@ -596,6 +596,26 @@ Output: text lists the files written; JSON `{"written": [...]}`.
 ### `gin-qa cases export` and `gin-qa e2e run`
 
 Each case in `gin-qa cases export --format json` adds `result` (`not run` without a `Result:` line), `run` and `bug` (empty strings when absent), `moved_from_e2e` (`{"date", "reason"}`, or `null`), `test_data` (a list), `legacy` (the references of the `Legacy:` line, a list), `checked` (the `Checked:` stamp, an empty string when absent), and `effective_result`. `effective_result` equals `result` unless a recorded `passed`, `failed`, or `blocked` is `outdated`: the stamp no longer matches the case, or, in the SDD layout, a pinned requirement changed or no longer exists. A result without a stamp is outdated only by the requirement check; the legacy layout skips that check. `gin-qa report` shows `effective_result`, and `Last recorded` (`result`) when they differ.
+
+### `gin-qa runs export`
+
+`gin-qa runs export [--capability CAP] [--case TC-ID] [--since YYYY-MM-DD] [--format text|json]` lists the run history: one record per result that `cases result`, `cases bug`, `e2e run`, and `tests run` recorded. It exits 0 whatever it finds, and 2 on a usage error such as a `--since` that is not a date.
+
+Each result is appended as one JSON line to `runs/<yyyy-mm>/<actor>.jsonl` next to the cases folder (`qa/runs` by default). The actor is lowercased and each run of other characters than `a-z`, `0-9`, `.`, `_`, `-` becomes `-`. One file per tester and month means two testers never write the same file. The first record adds `/<runs folder>/** merge=union` to `.gitattributes`, so one tester's appends on two branches merge in a local `git merge`. A hosted merge button may not apply that driver. `gin-qa cases renumber` leaves the records unchanged, so a record keeps the case ID it ran under.
+
+JSON output is `{"runs": [...], "problems": [...]}`. `runs` is sorted by `at`, then file, then line; the filters combine, and `--since` keeps records on or after that UTC date. A line that is not a record adds `<file>:<line>: <reason>` to `problems` and is skipped. Text output prints one line per record, `<at> <case> <result> <actor> <run>`, then the problems, or `no runs`. Keys are added in later versions, never renamed or removed.
+
+| Key | Meaning |
+|---|---|
+| `actor` | `--actor`, else `git config user.email`, else `unknown` |
+| `at` | UTC time of the record, `YYYY-MM-DDTHH:MM:SSZ` |
+| `bug` | the case's `Bug:` after the result, `""` when none |
+| `capability` | the case's capability, as in `gin-qa cases export` |
+| `case` | the TC-ID |
+| `evidence` | `--evidence` values of `cases result` and `cases bug`; `<run folder>/<tc-id>` for `e2e run`, with the TC-ID in lowercase; the run folder for `tests run`; `[]` when none |
+| `hash8` | the case's `hash8` when the result was recorded, as in `gin-qa cases export` |
+| `result` | `passed`, `failed`, `blocked`, or `not run` |
+| `run` | the case's `Run:` after the result, `""` when none |
 
 ### `gin-qa cases due`
 

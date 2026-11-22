@@ -15,6 +15,7 @@ from typing import Any
 
 KEYS = ("actor", "at", "bug", "capability", "case", "evidence", "hash8", "result", "run")
 _UNSAFE = re.compile(r"[^a-z0-9._-]+")
+_AT = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
 
 
 def runs_dir(cases_dir: str) -> str:
@@ -59,3 +60,36 @@ def _union(root: Path, cases_dir: str) -> None:
     lines = path.read_text(encoding="utf-8").splitlines() if path.is_file() else []
     if entry not in lines:
         path.write_text("\n".join([*lines, entry]) + "\n", encoding="utf-8")
+
+
+def export(root: Path, cases_dir: str, *, capability: str | None = None, case: str | None = None,
+           since: str | None = None) -> dict[str, list[Any]]:
+    """Every record that passes the filters, by time, then file, then line; unreadable lines go to `problems`."""
+    found: list[tuple[str, str, int, dict[str, Any]]] = []
+    problems: list[str] = []
+    for path in sorted((root / runs_dir(cases_dir)).glob("*/*.jsonl")):
+        relative = path.relative_to(root).as_posix()
+        for number, line in enumerate(path.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
+            row, reason = _parse(line)
+            if reason:
+                problems.append(f"{relative}:{number}: {reason}")
+            elif ((capability is None or row["capability"] == capability) and (case is None or row["case"] == case)
+                  and (since is None or row["at"][:10] >= since)):
+                found.append((row["at"], relative, number, row))
+    return {"runs": [row for *_, row in sorted(found, key=lambda item: item[:3])], "problems": problems}
+
+
+def _parse(line: str) -> tuple[dict[str, Any], str | None]:
+    """A record and None, or the reason the line is not one."""
+    try:
+        row = json.loads(line)
+    except ValueError:
+        return {}, "not JSON"
+    if not isinstance(row, dict):
+        return {}, "not a JSON object"
+    missing = [key for key in KEYS if key not in row]
+    if missing:
+        return row, f"missing {', '.join(missing)}"
+    if not isinstance(row["at"], str) or not _AT.match(row["at"]):
+        return row, "at is not YYYY-MM-DDTHH:MM:SSZ"
+    return row, None
