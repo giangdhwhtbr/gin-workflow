@@ -91,7 +91,7 @@ gin team takeover <bead>
 If quota ran out after the plan was approved and before `/gin:orchestrate` ran, create what that skill would have created.
 
 ```bash
-gin task create --parent <epic> --labels track:<N>,area:<area> --assignee <owner> "<title>"
+gin task create --parent <epic> --no-inherit-labels --labels track:<N>,area:<area> --assignee <owner> "<title>"
 gin task dep add <blocked> <blocker>
 gin record orchestration-ready --workflow-id <epic> --epic <epic> --evidence "<bead-ids>"
 ```
