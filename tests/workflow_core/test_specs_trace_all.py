@@ -148,6 +148,57 @@ class TestTraceAll(unittest.TestCase):
         self.assertEqual("events", row["signoff"]["source"])
         self.assertTrue(any("06-signoff.md" in warning for warning in result["warnings"]))
 
+    def test_a_block_outside_the_delta_sections_is_not_a_change(self):
+        notes = ("# Spec Delta\n\n## Notes\n\n### REQ-AUTH-001: Sign in with password\n"
+                 "The system SHALL sign a user in with a valid password.\n")
+        make_change(self.root, "ep-5-notes", epic="ep-5", spec_delta=notes)
+        result = specs_trace_all.trace_all(self.root, self.cfg)
+        row = next(row for row in result["requirements"] if row["id"] == "REQ-AUTH-001")
+        self.assertEqual([], row["changes"])
+        self.assertTrue(any("outside ## ADDED/MODIFIED/REMOVED" in warning for warning in result["warnings"]))
+
+    def test_an_open_modification_is_a_pending_change(self):
+        base = specs.requirement_hash(self.root, self.cfg, "REQ-AUTH-002")[1]
+        self.signed_change("ep-6-count", "ep-6", delta(modified=(
+            f"### REQ-AUTH-002: Reject wrong password\n<!-- base: {base} -->\n"
+            "The system SHALL reject a wrong password and count the failure.\n")))
+        row = self.rows()["REQ-AUTH-002"]
+        self.assertEqual("living", row["state"])
+        self.assertEqual([("ep-6-count", "modified", None)],
+                         [(c["change"], c["op"], c["archived"]) for c in row["changes"]])
+        self.assertIs(False, row["signoff"]["current"])
+
+    def test_a_proposal_without_an_epic_has_no_signoff(self):
+        change = make_change(self.root, "ep-7-x", epic="ep-7")
+        (change / "01-proposal.md").write_text("# X\n", encoding="utf-8")
+        row = self.rows()["REQ-AUTH-003"]
+        self.assertEqual("proposed", row["state"])
+        self.assertIsNone(row["changes"][0]["epic"])
+        self.assertIsNone(row["signoff"])
+
+    def test_an_undated_archive_folder_is_skipped_with_a_warning(self):
+        write(self.root, "docs/changes/archive/old-change/02-spec-delta.md", delta(added=ADDED_BLOCK))
+        result = specs_trace_all.trace_all(self.root, self.cfg)
+        self.assertIn("docs/changes/archive/old-change: archive folder has no YYYY-MM-DD- prefix; skipped",
+                      result["warnings"])
+        self.assertNotIn("REQ-AUTH-003", {row["id"] for row in result["requirements"]})
+
+    def test_gin_qa_failures_are_warnings(self):
+        bin_dir = Path(self.tmp.name) / "bin"
+        for rule, expected in (({"argv": ["cases", "export"], "exit": 3, "stderr": "boom\n"},
+                                "cases: gin-qa exited 3: boom"),
+                               ({"argv": ["cases", "export"], "stdout": "not json"},
+                                "cases: unreadable gin-qa output"),
+                               ({"argv": ["cases", "export"], "stdout": {"cases": None}},
+                                "cases: unreadable gin-qa output: cases is not a list")):
+            with self.subTest(expected=expected):
+                stub = fake_cli(bin_dir, "gin-qa", [rule])
+                with mock.patch.object(specs_trace_all, "_gin_qa", return_value=str(stub)):
+                    result = specs_trace_all.trace_all(self.root, self.cfg)
+                self.assertTrue(all(row["cases"] is None for row in result["requirements"]))
+                self.assertTrue(any(warning.startswith(expected) for warning in result["warnings"]),
+                                result["warnings"])
+
     def test_legacy_layout_has_no_requirements(self):
         legacy = make_repo(Path(self.tmp.name) / "legacy", layout="legacy")
         cfg = specs.sdd_config(specs.load_config(legacy))

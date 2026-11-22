@@ -11,8 +11,8 @@ from typing import Any, Mapping, Sequence
 
 from . import signoff
 from .events import WorkflowEvent
-from .specs import (SpecsError, block_hash, cap_of, change_epic, change_file, changes_dir, delta_blocks,
-                    living_blocks, open_changes, shown)
+from .specs import (DELTA_SECTIONS, SpecsError, block_hash, cap_of, change_epic, change_file, changes_dir,
+                    delta_blocks, living_blocks, open_changes, shown)
 from .specs_trace import _tests_md_rows, req_sources
 from .tasks import backend, query_result
 
@@ -24,15 +24,20 @@ def _gin_qa() -> str | None:
     return shutil.which("gin-qa")
 
 
-def _changes(root: Path, cfg: Mapping[str, Any]) -> list[tuple[Path, str, str | None]]:
-    """(folder, change name, archive date or None): every archived change, oldest first, then every open one."""
+def _changes(root: Path, cfg: Mapping[str, Any]) -> tuple[list[tuple[Path, str, str | None]], list[str]]:
+    """(folder, change name, archive date or None): every archived change, oldest first, then every open one;
+    plus a warning for each archive folder with a spec delta and no date prefix."""
     base = changes_dir(root, cfg) / "archive"
-    archived = []
+    archived, warnings = [], []
     for folder in (sorted(base.iterdir()) if base.is_dir() else []):
+        if not folder.is_dir() or not change_file(folder, "spec-delta").is_file():
+            continue
         named = _DATED.match(folder.name)
-        if folder.is_dir() and named and change_file(folder, "spec-delta").is_file():
+        if named:
             archived.append((folder, named.group(2), named.group(1)))
-    return [*archived, *((folder, folder.name, None) for folder in open_changes(root, cfg))]
+        else:
+            warnings.append(f"{shown(root, folder)}: archive folder has no YYYY-MM-DD- prefix; skipped")
+    return [*archived, *((folder, folder.name, None) for folder in open_changes(root, cfg))], warnings
 
 
 def _beads(root: Path) -> tuple[list[Mapping[str, Any]] | None, str | None]:
@@ -65,9 +70,15 @@ def _cases(root: Path) -> tuple[dict[str, list[dict[str, Any]]] | None, str | No
         rows = json.loads(done.stdout)["cases"]
     except (ValueError, KeyError, TypeError) as error:
         return None, f"cases: unreadable gin-qa output: {error}"
+    if not isinstance(rows, list):
+        return None, "cases: unreadable gin-qa output: cases is not a list"
     found: dict[str, list[dict[str, Any]]] = {}
     for row in rows:
+        if not isinstance(row, Mapping):
+            continue
         for ref in row.get("reqs") or ():
+            if not isinstance(ref, Mapping):
+                continue
             found.setdefault(str(ref.get("id")), []).append(
                 {"id": row.get("id"), "effective_result": row.get("effective_result")})
     return found, None
@@ -107,9 +118,12 @@ def trace_all(root: Path, cfg: Mapping[str, Any]) -> dict[str, Any]:
     warnings = [warning for warning in (event_warning, bead_warning, case_warning) if warning]
     beads_by_id = {str(row.get("id")): row for row in beads or ()}
     changes = []
-    for folder, name, archived in _changes(root, cfg):
+    listed, folder_warnings = _changes(root, cfg)
+    warnings += folder_warnings
+    for folder, name, archived in listed:
         blocks, errors = delta_blocks(root, folder)
         warnings += errors
+        blocks = [block for block in blocks if block.section in DELTA_SECTIONS]
         try:
             epic: str | None = change_epic(folder)
         except SpecsError:  # a proposal without an `Epic:` line names no sign-off

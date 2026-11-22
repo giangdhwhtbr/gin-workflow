@@ -175,11 +175,11 @@ Exit codes: 0 ok; 1 findings (lint errors, untraced requirements of `trace --cha
 | `requirements[].hash8` | The first 8 hex characters of the block hash; null for a removed requirement |
 | `requirements[].source` | `<file>:<line>` of the block; null for a removed requirement |
 | `requirements[].changes[]` | Each archived change, oldest first, then each open change whose spec delta names the requirement: `change`, `epic`, `op` (`added`, `modified`, or `removed`), `archived` (the archive date, null when open), and `signoff` |
-| `changes[].signoff` | `at`, `actor`, `evidence`, `hash8` (the hash at sign-off, null when unknown), `source`, and `waived`; null without a sign-off |
-| `requirements[].signoff` | The last change sign-off, plus `change` and `current`: true when its `hash8` equals the requirement's, false when it differs, null when either is null |
+| `requirements[].changes[].signoff` | `at`, `actor`, `evidence`, `hash8` (the hash at sign-off, null when unknown), `source`, and `waived`; null without a sign-off |
+| `requirements[].signoff` | The last change sign-off, plus `change` and `current`: true when its `hash8` equals the requirement's, false when it differs, null when either is null. For a living requirement whose last signed change is still open, `current` compares the signed pending text with the living text, so it stays false until archive. |
 | `requirements[].beads` | `{id, title, status}` of each bead labelled `req:<id>`; null with the markdown task backend or when `bd` fails |
-| `requirements[].cases` | `{id, effective_result}` of each gin-qa case that pins the requirement, from `gin-qa cases export`; null without gin-qa |
-| `requirements[].tests` | Test files that name the id, and the `05-tests.md#<case>` rows of open and archived changes |
+| `requirements[].cases` | `{id, effective_result}` of each gin-qa case that pins the requirement, from `gin-qa cases export`; null without gin-qa or when it fails |
+| `requirements[].tests` | Test files that name the id, and the `05-tests.md#<case>` rows of open and archived changes whose evidence cell is filled (not empty or `-`) |
 | `warnings`, `skipped` | Sources that could not be read; workspace children that could not be listed |
 
 A change's sign-off comes from its `06-signoff.md` (`source: git`), else its epic bead's `gates` (`beads`), else the newest local `requirement.confirmed` event of the epic (`events`). A `requirement_confirmed` waiver comes last, with `waived: true` and the reason in `evidence`. The text output prints one line per requirement: `<id> <state> signoff:<yes|stale|waived|no> beads:<n|-> cases:<n|-> tests:<n>`.
