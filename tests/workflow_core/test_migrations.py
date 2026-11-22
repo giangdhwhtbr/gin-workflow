@@ -417,6 +417,56 @@ setup_cli_version: '2.2'
                     validate_portable_config({**migrated, **extra})
                 self.assertIn(f"{key} was removed in schema 2.11", str(raised.exception))
                 self.assertIn("gin setup update --to-version 2.11 --approve", str(raised.exception))
+                self.assertIn(f"or delete {key} from the file that sets it", str(raised.exception))
+
+    def test_update_fails_naming_a_delete_when_a_retired_key_lives_in_local_yaml(self):
+        yaml = setup_service.require_yaml()
+        with tempfile.TemporaryDirectory() as directory:
+            repository, workflow = _write_repository(directory, migrate_config(V210, "2.11"))
+            (workflow / "local.yaml").write_text(yaml.safe_dump({"provider_mode": "single"}), encoding="utf-8")
+
+            with self.assertRaises(ConfigValidationError) as raised:
+                setup_service.update(repository, target_version="2.11", approve=True)
+
+            self.assertIn("or delete provider_mode from the file that sets it", str(raised.exception))
+
+    def test_update_to_2_11_removes_providers_local_yaml_next_to_orchestrator_local_yaml(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repository, workflow = _write_repository(directory, {**V210, **RETIRED}, {"providers": {}})
+            (workflow / "providers.local.yaml").write_text("providers: {}\n", encoding="utf-8")
+
+            preview = setup_service.update(repository, target_version="2.11", dry_run=True)
+            result = setup_service.update(repository, target_version="2.11", approve=True)
+
+            self.assertIn("remove .agent-workflow/providers.local.yaml", preview["actions"])
+            self.assertFalse((workflow / "providers.local.yaml").exists())
+            self.assertFalse((workflow / "orchestrator.local.yaml").exists())
+            self.assertTrue((Path(result["backup"]) / "providers.local.yaml").is_file())
+            setup_service.rollback(repository, backup=Path(result["backup"]))
+            self.assertTrue((workflow / "providers.local.yaml").is_file())
+
+    def test_doctor_names_a_working_remedy_for_tier_models_once_past_schema_2_9(self):
+        for version in ("2.10", "2.11"):
+            with self.subTest(version=version), tempfile.TemporaryDirectory() as directory:
+                config = {**V28, "schema_version": version, "workflow_version": version, "setup_cli_version": version}
+                repository, _ = _write_repository(directory, config, LOCAL_WITH_MODELS)
+                actions = setup_service.doctor(repository)["actions"]
+                self.assertTrue(any("orchestrator.local.yaml lists models" in a for a in actions), actions)
+                self.assertFalse(any("--to-version 2.9" in a for a in actions), actions)
+                self.assertTrue(any("--to-version 2.11 --approve" in a and "delete orchestrator.local.yaml" in a
+                                    for a in actions), actions)
+
+    def test_doctor_says_to_delete_a_leftover_orchestrator_local_yaml(self):
+        current = migrate_config(V210, "2.11")
+        with tempfile.TemporaryDirectory() as directory:
+            repository, _ = _write_repository(directory, current, {"providers": {"codex": {"executable": "codex"}}})
+            actions = setup_service.doctor(repository)["actions"]
+            self.assertTrue(any("orchestrator.local.yaml is not read" in a and "delete it" in a for a in actions),
+                            actions)
+        with tempfile.TemporaryDirectory() as directory:
+            repository, _ = _write_repository(directory, current)
+            actions = setup_service.doctor(repository)["actions"]
+            self.assertFalse(any("orchestrator.local.yaml" in a for a in actions), actions)
 
     def test_2_10_config_with_the_retired_keys_still_validates(self):
         validate_portable_config({**V210, **RETIRED})

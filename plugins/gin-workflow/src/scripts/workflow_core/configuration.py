@@ -218,7 +218,8 @@ def validate_portable_config(config: Mapping[str, Any]) -> None:
     if schema_version in SUPPORTED_CONFIG_VERSIONS and version_key(schema_version) >= version_key("2.11"):
         for key in retired_keys(config):
             raise ConfigValidationError(
-                f"{key} was removed in schema 2.11; run gin setup update --to-version 2.11 --approve"
+                f"{key} was removed in schema 2.11; run gin setup update --to-version 2.11 --approve, "
+                f"or delete {key} from the file that sets it"
             )
     try:
         validate_config_schema(config)

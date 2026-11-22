@@ -497,11 +497,19 @@ def doctor(repository: Path, *, current: Path | None = None, **_: Any) -> dict[s
         if "usage" in effective_cfg:
             backend_actions.append(USAGE_IGNORED_NOTICE)
         local_path = main_checkout(root) / ".agent-workflow/orchestrator.local.yaml"
-        if local_path.is_file() and _local_tier_models(_read_local_file(local_path)):
-            backend_actions.append(
-                "orchestrator.local.yaml lists models per provider; move them into the models: catalog with "
-                "gin setup update --to-version 2.9 --approve"
-            )
+        if local_path.is_file():
+            if not _local_tier_models(_read_local_file(local_path)):
+                backend_actions.append("orchestrator.local.yaml is not read since gin 3.3.0; delete it")
+            elif user_schema in SUPPORTED_CONFIG_VERSIONS and version_key(user_schema) > version_key("2.9"):
+                backend_actions.append(
+                    "orchestrator.local.yaml lists models per provider; run gin setup update --to-version 2.11 "
+                    "--approve, or move them into the models: catalog and delete orchestrator.local.yaml"
+                )
+            else:
+                backend_actions.append(
+                    "orchestrator.local.yaml lists models per provider; move them into the models: catalog with "
+                    "gin setup update --to-version 2.9 --approve"
+                )
 
     h = effective_cfg.get("harness") or detect(root).get("harness")
     h_exe = None
@@ -728,6 +736,11 @@ def update(
         local_writes.pop(new_local, None)
         local_backup[local_source.name] = local_source.read_bytes()
         local_actions.append(f"remove {local_source.relative_to(main).as_posix()}")
+    removed_local = [local_source] if retire_local else []
+    if retire_local and local_source is not old_local and old_local.is_file():
+        removed_local.append(old_local)
+        local_backup[old_local.name] = old_local.read_bytes()
+        local_actions.append(f"remove {old_local.relative_to(main).as_posix()}")
     validate_portable_config(migrated)
     resolved = resolve_effective_config(root, repository_config=migrated, write=False)
 
@@ -760,8 +773,9 @@ def update(
             res["status"] = "updated"
         res.setdefault("actions", []).extend(pin_actions)
     if retire_local:
-        local_source.unlink()
-        res.setdefault("actions", []).append(f"remove {local_source.relative_to(main).as_posix()}")
+        for path in removed_local:
+            path.unlink()
+            res.setdefault("actions", []).append(f"remove {path.relative_to(main).as_posix()}")
     elif rename_local:
         if local_writes:
             old_local.unlink()
