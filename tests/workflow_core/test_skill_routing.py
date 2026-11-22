@@ -134,7 +134,8 @@ class SkillRoutingTests(unittest.TestCase):
         points = (roadmap / "references/story-points.md").read_text(encoding="utf-8")
         for needle in ("1, 2, 3, 5, 8, 13, 21", "`Legacy:`", "`Complexity:`", "`Risks:`", "propose a split",
                        "PM: ", "gin points", "--stage discuss", "/milestone-close", "Points: <n> (<reason>)",
-                       "gin task list --type epic --status closed --json", "Epic:"):
+                       "gin task list --type epic --status closed --json", "Epic:",
+                       "markdown task backend"):
             with self.subTest(needle=needle):
                 self.assertIn(needle, points)
         self.assertNotIn("--label roadmap", points)
@@ -260,14 +261,15 @@ class SkillRoutingTests(unittest.TestCase):
     def test_discuss_scores_every_workflow(self):
         text = (SRC / "skills/discuss/SKILL.md").read_text(encoding="utf-8")
         for needle in ("../roadmap/references/story-points.md", "`Points:`", "--stage discuss", "gin points",
-                       "every layout"):
+                       "every layout", "the `Points:` line per **Points** below"):
             with self.subTest(needle=needle):
                 self.assertIn(needle, text)
         self.assertNotIn("For a roadmap epic, re-score", text)
 
     def test_orchestrate_copies_the_points_line(self):
         text = (SRC / "skills/orchestrate/SKILL.md").read_text(encoding="utf-8")
-        for needle in ("`Points:`", "../roadmap/references/story-points.md"):
+        for needle in ("`Points:`", "../roadmap/references/story-points.md", "--stage discuss",
+                       "markdown task backend"):
             with self.subTest(needle=needle):
                 self.assertIn(needle, text)
 
