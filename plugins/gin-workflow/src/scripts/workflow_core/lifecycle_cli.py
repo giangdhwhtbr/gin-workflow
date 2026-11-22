@@ -21,6 +21,7 @@ from .configuration import (
     retired_keys,
 )
 from .events import EventPersistenceError, WorkflowEvent, WorkflowEventStore
+from .models import thaw
 from .prep import is_prep, tracks_of
 from .project import project_settings
 from .tasks import backend as tasks_backend
@@ -201,7 +202,7 @@ def _proof(payload: Mapping[str, Any], actor: str, at: str) -> dict[str, Any]:
     return {"pr_url": payload.get("pr_url", ""), "merge_commit": payload.get("merge_commit", ""),
             "approvers": [a.get("email", "") for a in payload.get("approvers", []) if isinstance(a, Mapping)],
             **({"pull_requests": payload["pull_requests"]} if "pull_requests" in payload else {}),
-            **({"requirements": payload["requirements"]} if "requirements" in payload else {}),
+            **({"requirements": thaw(payload["requirements"])} if "requirements" in payload else {}),
             "actor": actor, "at": at}
 
 

@@ -44,7 +44,7 @@ def hash8(block: Block) -> str:
 
 def change_requirements(root: Path, change: Path) -> list[dict[str, str]]:
     """`{id, hash8, op}` for each block of the change's spec delta, in file order."""
-    blocks, _ = delta_blocks(root, change)
+    blocks, _ = delta_blocks(root, change)  # malformed blocks are findings of `specs lint`; they are left out here
     return [{"id": block.id, "hash8": hash8(block), "op": block.section.lower()}
             for block in blocks if block.section in DELTA_SECTIONS]
 
@@ -61,11 +61,11 @@ def requirements_of(root: Path, workflow_id: str) -> list[dict[str, str]] | None
     found: list[dict[str, str]] | None = None
     for change in open_changes(root, cfg):
         try:
-            epic = change_epic(change)
-        except SpecsError:  # a proposal without an `Epic:` line belongs to no workflow
+            rows = change_requirements(root, change) if change_epic(change) == workflow_id else None
+        except (SpecsError, OSError, UnicodeDecodeError):  # no `Epic:` line, or an unreadable proposal or delta
             continue
-        if epic == workflow_id:
-            found = [*(found or []), *change_requirements(root, change)]
+        if rows is not None:
+            found = [*(found or []), *rows]
     return found
 
 

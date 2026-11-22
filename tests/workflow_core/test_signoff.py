@@ -32,6 +32,11 @@ class TestRequirements(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
+    def test_an_unreadable_proposal_is_left_out(self):
+        change = make_change(self.root)
+        (change / "01-proposal.md").write_bytes(b"\xff\xfe Epic: ep-1\n")
+        self.assertIsNone(signoff.requirements_of(self.root, "ep-1"))
+
     def test_each_delta_block_is_listed_with_its_hash(self):
         base = specs.requirement_hash(self.root, self.cfg, "REQ-AUTH-002")[1]
         make_change(self.root, spec_delta=delta(added=ADDED_BLOCK, removed=REMOVED.format(base=base)))

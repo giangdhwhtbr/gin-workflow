@@ -464,6 +464,27 @@ class TestSharedGates(GateCase):
         gates = next(json.loads(u[4].removeprefix("gates=")) for u in updates if u[2] == "e-2" and u[3] == "--set-metadata")
         self.assertEqual(PR, gates["requirement_confirmed"]["pr_url"])
 
+    def test_orchestration_ready_mirrors_the_requirements_of_an_earlier_signoff(self):
+        config = self.root / ".agent-workflow/config.yaml"
+        config.write_text(config.read_text() + "artifacts:\n  layout: sdd\n")
+        resolve_effective_config(self.root)
+        write(self.root, "docs/specs/auth/spec.md", AUTH_SPEC)
+        delta_path = "docs/changes/w-lockout/02-spec-delta.md"
+        write(self.root, "docs/changes/w-lockout/01-proposal.md", "# Lockout\n\nEpic: w\n")
+        write(self.root, delta_path, delta(added=ADDED_BLOCK))
+        self.gh(gh_pr(author="binh-dev", files=[delta_path], reviews=[("an-ba", "APPROVED", "c1")]))
+        self.bd({"e-2": {"id": "e-2", "issue_type": "epic", "status": "open", "metadata": {}}})
+        confirmed = self.record("requirement-confirmed")
+        self.assertEqual(0, confirmed.returncode, confirmed.stderr)
+        ready = run_cli(self.root, "record", "orchestration-ready", "--evidence", "w", "--workflow-id", "w",
+                        "--epic", "e-2", env=self.env)
+        self.assertEqual(0, ready.returncode, ready.stderr)
+        self.assertNotIn("could not write", ready.stderr)
+        updates = self.bd_updates()
+        self.assertIn(["bd", "update", "e-2", "--add-label", "workflow:w"], updates)
+        gates = next(json.loads(u[4].removeprefix("gates=")) for u in updates if u[2] == "e-2" and u[3] == "--set-metadata")
+        self.assertEqual(["REQ-AUTH-003"], [row["id"] for row in gates["requirement_confirmed"]["requirements"]])
+
     def test_orchestration_ready_writes_its_own_gate(self):
         self.bd({"e-2": {"id": "e-2", "issue_type": "epic", "status": "open", "metadata": {}}})
         ready = run_cli(self.root, "record", "orchestration-ready", "--evidence", "w", "--workflow-id", "w",
