@@ -186,9 +186,9 @@ def _attach(project: Path, bug: str, case_id: str,
 
 def file_bug(root: Path, eff: Effective, case_id: str, actual: str, evidence: list[str], *,
              external_ref: str | None = None, discovered_from: str | None = None,
-             run: str | None = None) -> dict[str, Any]:
+             run: str | None = None, actor: str | None = None) -> dict[str, Any]:
     """Record `failed` on a case with its open bug, or with a new bug bead filed against the case's epic."""
-    for value in (actual, *evidence, *(item for item in (external_ref, discovered_from, run) if item is not None)):
+    for value in (actual, *evidence, *(item for item in (external_ref, discovered_from, run, actor) if item is not None)):
         tc.one_line(value)
     case = tc.find(root, eff.cases_dir, case_id)
     project = eff.project_root  # Beads runs against the project root; the case files live under `root`
@@ -205,7 +205,8 @@ def file_bug(root: Path, eff: Effective, case_id: str, actual: str, evidence: li
                                   rerun_note(run, actual, evidence, shas))
             if added.returncode != 0:  # before the case changes, so the tester can run this again
                 raise QaError(added.stderr.strip() or f"gin task update exited {added.returncode}")
-            row = tc.record_result(root, eff.cases_dir, case_id, "failed", run, previous)
+            row = tc.record_result(root, eff.cases_dir, case_id, "failed", run, previous, actor=actor,
+                                   evidence=evidence)
             return {"tc": case_id, "bug": previous, "epic": None, "created": False, "appended": True,
                     "file": row["file"], "attachments": shas, "warnings": warnings}
     if discovered_from:
@@ -237,7 +238,7 @@ def file_bug(root: Path, eff: Effective, case_id: str, actual: str, evidence: li
     if not isinstance(bug, str) or not bug:
         raise QaError(f"gin task create printed no bead id: {created.stdout.strip()[:200]!r}")
     try:
-        row = tc.record_result(root, eff.cases_dir, case_id, "failed", run, bug)
+        row = tc.record_result(root, eff.cases_dir, case_id, "failed", run, bug, actor=actor, evidence=evidence)
     except (ValueError, OSError) as error:
         raise QaError(f"filed {bug} but could not record it: {error}; "
                       f"run gin-qa cases result {case_id} failed --bug {bug}") from error

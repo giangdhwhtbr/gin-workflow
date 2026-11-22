@@ -527,16 +527,19 @@ Reports problems in the case files: structure, IDs, the `REQ:` or `Source:` fiel
 
 ### `gin-qa cases result`
 
-`gin-qa cases result <TC-ID> <status> [--run REF] [--bug ID|none]` is the only command that writes the `Result`, `Run`, `Bug`, and `Checked` lines. `Checked` is a stamp of the case as recorded: its content and its pinned requirements (or its `Source`). Each call rewrites it. `status` is `passed`, `failed`, `blocked`, or `not run`. `--run` sets the `Run` line; without it the line is removed. `--bug` sets the `Bug` line, `--bug none` removes it, and without it the line stays.
+`gin-qa cases result <TC-ID> <status> [--run REF] [--bug ID|none] [--actor ID] [--evidence REF]...` is the only command that writes the `Result`, `Run`, `Bug`, and `Checked` lines. `Checked` is a stamp of the case as recorded: its content and its pinned requirements (or its `Source`). Each call rewrites it. `status` is `passed`, `failed`, `blocked`, or `not run`. `--run` sets the `Run` line; without it the line is removed. `--bug` sets the `Bug` line, `--bug none` removes it, and without it the line stays.
 
-Exit 2, writing nothing, when the ID does not exist, the status is not one of the four, `--run` or `--bug` is empty or holds a non-printable character, or the case files have a finding that names the case.
+Each call first appends a run record to the run history, then writes the case file. `--actor` names who recorded the result (default `git config user.email`, else `unknown`); the repeatable `--evidence` lists its evidence. Both go into the run record only. A run record that cannot be written exits 2 and leaves the case file unchanged.
+
+Exit 2, writing nothing, when the ID does not exist, the status is not one of the four, `--run`, `--bug`, `--actor`, or `--evidence` is empty or holds a non-printable character, or the case files have a finding that names the case.
 
 Output: text `TC-AUTH-001 passed`; JSON `{"tc", "result", "run", "bug", "file"}`.
 
 ### `gin-qa cases bug`
 
-`gin-qa cases bug <TC-ID> --actual TEXT [--evidence REF]... [--external-ref REF] [--discovered-from BEAD] [--run REF]` records `failed` on a case of any type and files a bug bead for it.
+`gin-qa cases bug <TC-ID> --actual TEXT [--evidence REF]... [--external-ref REF] [--discovered-from BEAD] [--run REF] [--actor ID]` records `failed` on a case of any type and files a bug bead for it.
 
+- The `failed` result appends a run record whose `evidence` holds the `--evidence` values; `--actor` works as in `gin-qa cases result`.
 - When the case's `Bug:` is a bead that `gin task show` reports with a `status` other than `closed`, no bead is created, the case keeps that bug, and `epic` is `null`. No epic is needed.
 - When the bug is open, the new actual result is added to its notes with `gin task update --append-notes`, as one line, `Re-run <date>; Run: <ref>; Actual: <text>; Evidence: <refs>`; the `Run` and `Evidence` parts are left out when empty, and double quotes become single quotes. A failed update exits 2 and leaves the case unchanged.
 - A `Bug:` value that is not a bead, or that `task show` cannot read, counts as no open bug; the new bug names it as `Previous bug`.

@@ -130,6 +130,17 @@ class TestLegacy(BugCase):
         self.assertRegex(text, r"- \*\*Checked:\*\* [0-9a-f]{8}\n")
         self.assertTrue(all(Path(call["cwd"]).resolve() == self.root.resolve() for call in self.calls()))
 
+    def test_a_filed_bug_appends_a_failed_record_with_its_evidence(self):
+        self.answer({"task show gw-epic": shown("gw-epic", "in_progress"), "task create": CREATED})
+        result = self.bug("TC-AUTH-001", "--actual", "An error page is shown", "--evidence", "shots/1.png",
+                          "--run", "manual 2026-11-04", "--actor", "a@x.com", "--format", "json")
+        self.assertEqual(0, result.returncode, result.stderr)
+        files = list((self.root / "qa/runs").glob("*/a-x.com.jsonl"))
+        self.assertEqual(1, len(files))
+        record = json.loads(files[0].read_text(encoding="utf-8"))
+        self.assertEqual(("failed", "gw-bug1", ["shots/1.png"], "manual 2026-11-04", "TC-AUTH-001"),
+                         (record["result"], record["bug"], record["evidence"], record["run"], record["case"]))
+
     def test_an_e2e_case_files_a_bug_and_records_it(self):
         path = write(self.root, "qa/cases/auth/TC-AUTH-002-sign-in.e2e.md", CASE.replace("TC-AUTH-001", "TC-AUTH-002"))
         self.answer({"task show gw-epic": shown("gw-epic", "open"), "task create": CREATED})

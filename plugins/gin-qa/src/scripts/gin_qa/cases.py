@@ -11,7 +11,9 @@ import os
 from pathlib import Path, PurePosixPath
 import re
 import time
-from typing import Iterable, Mapping
+from typing import Iterable, Mapping, Sequence
+
+from . import runs
 
 TC_ID = re.compile(r"\bTC-([A-Z][A-Z0-9-]*?)-(\d{3,})\b")  # lazy: TC-AUTH-005-2024-tax is TC-AUTH-005
 _FIELD = re.compile(r"^(?:- )?(\*\*)?([A-Za-z][A-Za-z0-9 _-]*):(?(1)\*\*|(?!\*\*))\s*(\S.*)$")
@@ -429,13 +431,17 @@ def due(cases: list[Case], capability: str, current: Mapping[str, str] | None, l
 
 
 def record_result(root: Path, cases_dir: str, case_id: str, status: str, run: str | None = None,
-                  bug: str | None = None) -> dict[str, str]:
-    """The only writer of Result/Run/Bug/Checked: Run is replaced (dropped when None); Bug changes only when given."""
+                  bug: str | None = None, *, actor: str | None = None,
+                  evidence: Sequence[str] = ()) -> dict[str, str]:
+    """The only writer of Result/Run/Bug/Checked: Run is replaced (dropped when None); Bug changes only when given.
+
+    Each call first appends a run record (`runs.append`); when that fails, the case file is not written."""
     if status not in RESULTS:
         raise ValueError(f"status is one of {', '.join(RESULTS)}; got {status!r}")
-    for value in (run, bug):
+    for value in (run, bug, actor, *evidence):
         if value is not None:
             one_line(value)
+    actor = actor if actor is not None else runs.default_actor(root)
     located = find(root, cases_dir, case_id)
     path = root / located.path
     flat = path.parent == root / cases_dir
@@ -448,7 +454,11 @@ def record_result(root: Path, cases_dir: str, case_id: str, status: str, run: st
             raise ValueError("; ".join(problems) or f"{case_id}: no longer in {located.path}")
         kept_bug = case.fields.get("Bug") if bug is None else (None if bug == "none" else bug)
         values = [("Result", status), ("Run", run), ("Bug", kept_bug), ("Checked", stamp8(case))]
-        write_atomic(path, _with_result(path.read_text(encoding="utf-8"), case, values))
+        text = _with_result(path.read_text(encoding="utf-8"), case, values)
+        runs.append(root, cases_dir, {"actor": actor, "at": runs.now(), "bug": kept_bug or "",
+                                      "capability": case.cap, "case": case_id, "evidence": list(evidence),
+                                      "hash8": hash8(case), "result": status, "run": run or ""})
+        write_atomic(path, text)
     return {"tc": case_id, "result": status, "run": run or "", "bug": kept_bug or "", "file": str(located.path)}
 
 

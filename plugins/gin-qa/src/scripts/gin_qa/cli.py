@@ -32,6 +32,8 @@ def _parser() -> argparse.ArgumentParser:
     item.add_argument("status")
     item.add_argument("--run")
     item.add_argument("--bug")
+    item.add_argument("--actor")
+    item.add_argument("--evidence", action="append", default=[])
     item = sub.add_parser("bug", parents=[common])
     item.add_argument("id")
     item.add_argument("--actual", required=True)
@@ -39,6 +41,7 @@ def _parser() -> argparse.ArgumentParser:
     item.add_argument("--external-ref")
     item.add_argument("--discovered-from")
     item.add_argument("--run")
+    item.add_argument("--actor")
     item = sub.add_parser("to-manual", parents=[common])
     item.add_argument("id")
     item.add_argument("--reason", required=True)
@@ -235,12 +238,13 @@ def _run(args: argparse.Namespace) -> int:
     if args.command == "pin":
         return _findings(_pin(root, eff, args.ids), args.format, f"pinned {' '.join(args.ids)}")
     if args.command == "result":
-        row = tc.record_result(root, eff.cases_dir, args.id, args.status, args.run, args.bug)
+        row = tc.record_result(root, eff.cases_dir, args.id, args.status, args.run, args.bug, actor=args.actor,
+                               evidence=args.evidence)
         _emit(row, args.format, f"{row['tc']} {row['result']}")
         return 0
     if args.command == "bug":
         row = bugs.file_bug(root, eff, args.id, args.actual, args.evidence, external_ref=args.external_ref,
-                            discovered_from=args.discovered_from, run=args.run)
+                            discovered_from=args.discovered_from, run=args.run, actor=args.actor)
         _emit(row, args.format, f"{row['tc']} failed {row['bug']}")
         for warning in row["warnings"]:
             print(f"warning: {warning}", file=sys.stderr)
