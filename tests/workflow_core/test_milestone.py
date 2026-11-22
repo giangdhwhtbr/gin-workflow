@@ -318,7 +318,10 @@ class ForecastTests(unittest.TestCase):
         beads = world(bead("r1", labels=["roadmap"], minutes=days(2)), bead("r2", labels=["roadmap"], minutes=days(1)))
         found = self.forecast(beads, milestone.Roadmap(deadline=D("2026-11-06")))
         self.assertEqual({"deadline": "2026-11-06", "lanes": 1, "start": "2026-10-29", "finish": "2026-11-02",
-                          "overflow_days": 0, "open_epics": 2, "unestimated": 0, "error": None}, found)
+                          "overflow_days": 0, "open_epics": 2, "unestimated": 0, "error": None},
+                         {key: value for key, value in found.items() if key not in ("milestones", "epics")})
+        self.assertEqual({"deadline", "lanes", "start", "finish", "overflow_days", "open_epics", "unestimated",
+                          "error", "milestones", "epics"}, set(found))
 
     def test_overflow_counts_working_days_after_the_deadline(self):
         beads = world(bead("r1", labels=["roadmap"], minutes=days(2)), bead("r2", labels=["roadmap"], minutes=days(1)))
@@ -416,6 +419,110 @@ class ForecastTests(unittest.TestCase):
         self.assertEqual(2, payload["milestones"][0]["lanes"])
         self.assertEqual("2026-11-02", payload["forecast"]["finish"])
         self.assertIsNone(milestone.list_payload(world(milestone_bead()), TODAY, False)["forecast"])
+
+
+def chained(beads, roadmap=None, lanes=1, confirmed=None):
+    return milestone.forecast(beads, TODAY, roadmap or milestone.Roadmap(), lanes, confirmed=confirmed)
+
+
+class ChainedForecastTests(unittest.TestCase):
+    def test_us2_late_milestone_pushes_the_next(self):
+        beads = world(milestone_bead("m1", start="2026-11-02", end="2026-11-04", lanes=1),
+                      milestone_bead("m2", start="2026-11-05", end="2026-11-20", lanes=1),
+                      bead("A", parent="m1", labels=["roadmap"], minutes=days(5)),
+                      bead("C", parent="m2", labels=["roadmap"], minutes=days(1)))
+        found = chained(beads)
+        self.assertEqual([{"id": "m1", "start": "2026-11-02", "finish": "2026-11-06", "overflow_days": 2},
+                          {"id": "m2", "start": "2026-11-09", "finish": "2026-11-09", "overflow_days": 0}],
+                         found["milestones"])
+        epics = rows(found)
+        self.assertIn({"code": "overflow", "days": 2}, epics["A"]["warnings"])
+        self.assertEqual(("2026-11-09", "2026-11-09"), span(epics["C"]))
+
+    def test_us1_epics_outside_milestones_follow_the_last_milestone(self):
+        beads = world(milestone_bead("m0", status="closed", start="2026-09-01", end="2026-09-30"),
+                      milestone_bead("m1", start="2026-11-02", end="2026-11-20", lanes=1),
+                      bead("A", parent="m1", labels=["roadmap"], minutes=days(1)),
+                      bead("P", labels=["roadmap"], minutes=days(2)),
+                      bead("Q", parent="m0", labels=["roadmap"], minutes=days(1)))
+        result = chained(beads)
+        found = rows(result)
+        self.assertEqual(["m1"], [entry["id"] for entry in result["milestones"]])
+        self.assertEqual(("m1", 1, "2026-11-02", "2026-11-02"),
+                         (found["A"]["milestone"], found["A"]["lane"], *span(found["A"])))
+        self.assertEqual((None, 1, "2026-11-03", "2026-11-04"),
+                         (found["P"]["milestone"], found["P"]["lane"], *span(found["P"])))
+        self.assertEqual((None, 1, "2026-11-05", "2026-11-05"),
+                         (found["Q"]["milestone"], found["Q"]["lane"], *span(found["Q"])))
+
+    def test_us1_independent_epics_take_separate_lanes(self):
+        beads = world(milestone_bead("m1", lanes=2),
+                      bead("A", parent="m1", labels=["roadmap"], minutes=days(1)),
+                      bead("B", parent="m1", labels=["roadmap"], minutes=days(1)))
+        found = rows(chained(beads))
+        self.assertEqual({"A": (1, "2026-11-02"), "B": (2, "2026-11-02")},
+                         {key: (row["lane"], row["planned_start"]) for key, row in found.items()})
+
+    def test_us3_rows_match_the_totals_and_carry_every_key(self):
+        beads = world(milestone_bead("m1", lanes=1),
+                      bead("A", parent="m1", labels=["roadmap"], minutes=days(2)),
+                      bead("U", parent="m1", labels=["roadmap"]),
+                      bead("P", labels=["roadmap"], meta={"points": 3}))
+        found = chained(beads)
+        self.assertEqual("2026-11-10", found["finish"])
+        self.assertEqual(found["finish"], max(row["planned_end"] for row in found["epics"]))
+        self.assertEqual(found["open_epics"], len(found["epics"]))
+        self.assertEqual(["A", "U", "P"], [row["id"] for row in found["epics"]])
+        self.assertEqual({"id", "title", "status", "milestone", "lane", "planned_start", "planned_end",
+                          "remaining_days", "estimate_source", "warnings"}, set(found["epics"][0]))
+        self.assertEqual({"A": "days", "U": "assumed", "P": "points"},
+                         {row["id"]: row["estimate_source"] for row in found["epics"]})
+
+    def test_us3_list_payload_keeps_its_keys(self):
+        beads = world(milestone_bead(lanes=1), bead("A", parent="m1", labels=["roadmap"], minutes=days(1)))
+        payload = milestone.list_payload(beads, TODAY, False, milestone.Roadmap(), 1)
+        self.assertEqual({"schema", "milestones", "unassigned_epics", "today", "days_per_point", "forecast"},
+                         set(payload))
+        self.assertEqual({"id", "title", "status", "start", "end", "kickoff", "lanes", "finish", "epics",
+                          "warnings", "error", "velocity"}, set(payload["milestones"][0]))
+        self.assertEqual(["A"], [row["id"] for row in payload["forecast"]["epics"]])
+
+    def test_error_mid_chain_keeps_the_groups_placed_before_it(self):
+        beads = world(milestone_bead("m1", start="2026-11-02", end="2026-11-06", lanes=1),
+                      milestone_bead("m2", start="2026-11-09", end="2026-11-13"),
+                      bead("A", parent="m1", labels=["roadmap"], minutes=days(2)),
+                      bead("C", parent="m2", labels=["roadmap"], blocks=["D"]),
+                      bead("D", parent="m2", labels=["roadmap"], blocks=["C"]))
+        found = chained(beads)
+        self.assertIn("dependency cycle", found["error"])
+        self.assertEqual([{"id": "m1", "start": "2026-11-02", "finish": "2026-11-03", "overflow_days": 0},
+                          {"id": "m2", "start": None, "finish": None, "overflow_days": 0}], found["milestones"])
+        self.assertEqual(["A"], [row["id"] for row in found["epics"]])
+
+    def test_milestone_without_open_roadmap_epics_has_no_dates(self):
+        beads = world(milestone_bead("m1"), bead("m2", type="milestone"),
+                      bead("r1", labels=["roadmap"], minutes=days(1)))
+        found = chained(beads)
+        self.assertEqual([{"id": "m2", "start": None, "finish": None, "overflow_days": 0},
+                          {"id": "m1", "start": None, "finish": None, "overflow_days": 0}], found["milestones"])
+        self.assertEqual(("2026-10-29", "2026-10-29"), span(rows(found)["r1"]))
+
+    def test_warnings_follow_show_rules_on_chained_dates(self):
+        beads = world(milestone_bead("m1", start="2026-11-02", end="2026-11-20", lanes=1),
+                      bead("A", parent="m1", labels=["roadmap"], minutes=days(1), blocks=["P"]),
+                      bead("P", labels=["roadmap"], minutes=days(30)))
+        found = rows(chained(beads, confirmed=frozenset()))
+        self.assertIn({"code": "external_blocker"}, found["A"]["warnings"])
+        self.assertEqual([], found["P"]["warnings"])
+
+    def test_spec_not_ready_in_an_active_milestone(self):
+        beads = world(milestone_bead("m1", start="2026-10-01", end="2026-11-30", kickoff="2026-10-01"),
+                      bead("A", parent="m1", labels=["roadmap"], minutes=days(1)))
+        self.assertIn({"code": "spec_not_ready"}, rows(chained(beads, confirmed=frozenset()))["A"]["warnings"])
+        self.assertNotIn({"code": "spec_not_ready"},
+                         rows(chained(beads, confirmed=frozenset({"A"})))["A"]["warnings"])
+        payload = milestone.list_payload(beads, TODAY, False, None, 1, frozenset())
+        self.assertIn({"code": "spec_not_ready"}, payload["forecast"]["epics"][0]["warnings"])
 
 
 class SpecReadinessTests(unittest.TestCase):

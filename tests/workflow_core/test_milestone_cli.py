@@ -340,6 +340,15 @@ class MilestoneCliTests(unittest.TestCase):
         payload = json.loads(self.run_cli("list", "--json")[1])
         self.assertEqual(2, payload["milestones"][0]["lanes"])
         self.assertEqual("2026-11-09", payload["forecast"]["finish"])
+        self.assertEqual([{"id": "t-m1", "start": "2026-11-02", "finish": "2026-11-06", "overflow_days": 2}],
+                         payload["forecast"]["milestones"])
+        chained = {row["id"]: row for row in payload["forecast"]["epics"]}
+        self.assertEqual({"t-a": ("t-m1", 1, "2026-11-02", "2026-11-04"),
+                          "t-b": ("t-m1", 2, "2026-11-05", "2026-11-06"),
+                          "t-r1": (None, 1, "2026-11-09", "2026-11-09")},
+                         {key: (row["milestone"], row["lane"], row["planned_start"], row["planned_end"])
+                          for key, row in chained.items()})
+        self.assertIn({"code": "overflow", "days": 2}, chained["t-b"]["warnings"])
 
     def test_list_forecast_without_deadline_and_with_a_bad_one(self):
         self.bd("create", "R1", "--id", "t-r1", "--type", "epic", "--labels", "roadmap")
