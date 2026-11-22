@@ -16,7 +16,7 @@ Epic `gin-workflow-qa-evidence` (2026-11-12, spec `.planning/specs/2026-11-12-qa
 **References**
 - `plugins/gin-qa/src/scripts/gin_qa/bugs.py` (`epic_of`, `file_bug`), `plugins/gin-qa/src/skills/{report,e2e,tests,run}/SKILL.md`, `docs/guides/qa.md` (Publish the evidence), `docs/reference/cli.md` (`gin-qa cases bug`)
 - Beads: `gin-workflow-qa-evidence.1`, `.2`
-- Related: [gin-qa-utilities](gin-qa-utilities.md), [gin-qa-setup-and-types](gin-qa-setup-and-types.md)
+- Related: [gin-qa-utilities](gin-qa-utilities.md), [gin-qa-setup-and-types](gin-qa-setup-and-types.md), [bead-attachments](bead-attachments.md) (since gin 3.5.0, `cases bug` attaches its screenshots)
 
 **Scope**
 gin-qa bug filing, its skills, and the QA guide.
