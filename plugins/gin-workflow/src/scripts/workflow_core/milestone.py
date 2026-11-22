@@ -380,20 +380,73 @@ def _place(epics: Mapping[str, Mapping[str, Any]], first: date, lanes: int,
     return planned
 
 
+@dataclass(frozen=True)
+class _Window:
+    """What the warnings of an epic need from its milestone."""
+    end: date
+    active: bool
+    kicked_off: bool
+    spec_due: bool
+    integration: date | None
+    working_days: int
+
+
+def _window(milestone: Mapping[str, Any], today: date) -> _Window:
+    begin, end = period(milestone)
+    state = status(milestone, today)
+    return _Window(end=end, active=state == "active", kicked_off=state in ("scheduled", "active"),
+                   spec_due=state == "planned" and begin <= _last_of(_workday(today), SPEC_DUE_DAYS),
+                   integration=_integration(milestone),
+                   working_days=_workdays_before(begin, end + timedelta(days=1)))
+
+
+def _estimate_source(epic: Mapping[str, Any], planned_days: int | None, pace: Pace) -> str | None:
+    if points_of(epic) is not None:
+        return "points"
+    if epic_days(epic, pace) is not None:
+        return "days"
+    return "assumed" if planned_days is not None else None
+
+
+def _epic_warnings(epic: Mapping[str, Any], finish: date, group: Mapping[str, Any], beads: Beads,
+                   window: _Window | None, today: date, planned_days: int | None, bugs: Mapping[str, int],
+                   confirmed: frozenset[str] | None, pace: Pace) -> list[dict[str, Any]]:
+    """Warnings of one placed epic, in `show` order. Without a milestone `window` only `unestimated`,
+    `external_blocker`, and `open_bugs` apply."""
+    still_open = epic.get("status") != "closed"
+    warnings: list[dict[str, Any]] = []
+    if window is not None and (overflow := workdays_after(window.end, finish)):
+        warnings.append({"code": "overflow", "days": overflow})
+    if window is not None and window.active and still_open and finish < today:
+        warnings.append({"code": "late"})
+    if epic_days(epic, pace) is None:
+        warnings.append({"code": "unestimated"})
+    if any(beads[dep].get("status") != "closed" for dep in _blocks(epic) if dep not in group and dep in beads):
+        warnings.append({"code": "external_blocker"})
+    if window is not None and confirmed is not None and still_open and epic["id"] not in confirmed:
+        if window.kicked_off:
+            warnings.append({"code": "spec_not_ready"})
+        elif window.spec_due:
+            warnings.append({"code": "spec_due"})
+    if window is not None and window.integration and still_open and finish > window.integration:
+        warnings.append({"code": "after_integration"})
+    if bugs.get(epic["id"]):
+        warnings.append({"code": "open_bugs", "count": bugs[epic["id"]]})
+    if window is not None and still_open and planned_days is not None and planned_days > window.working_days:
+        warnings.append({"code": "oversized", "days": planned_days - window.working_days})
+    return warnings
+
+
 def schedule(milestone: Mapping[str, Any], beads: Beads, start: date, today: date,
              default_lanes: int = 1, confirmed: frozenset[str] | None = None,
              builders: Sequence[str] = (), pace: Pace = DEFAULT_PACE) -> dict[str, Any]:
-    start_day, end = period(milestone)
+    _, end = period(milestone)
     epics = {epic["id"]: epic for epic in epics_of(milestone["id"], beads)}
     days_of = _planned_days(epics, beads, today, pace)
     planned = _place(epics, _workday(start), lanes_of(milestone, default_lanes), days_of,
                      _lane_off(milestone, builders))
-    active = status(milestone, today) == "active"
-    kicked_off = status(milestone, today) in ("scheduled", "active")
-    due = status(milestone, today) == "planned" and start_day <= _last_of(_workday(today), SPEC_DUE_DAYS)
-    integration = _integration(milestone)
+    window = _window(milestone, today)
     bugs = _open_bugs(beads)
-    span_days = _workdays_before(start_day, end + timedelta(days=1))
     rows = []
     for epic_id in sorted(epics, key=lambda item: (planned[item][0], item)):
         epic = epics[epic_id]
@@ -402,32 +455,10 @@ def schedule(milestone: Mapping[str, Any], beads: Beads, start: date, today: dat
         points = points_of(epic)
         actual = actual_days(epic, today)
         outside = [beads[dep] for dep in _blocks(epic) if dep not in epics and dep in beads]
-        warnings: list[dict[str, Any]] = []
-        if overflow := workdays_after(end, finish):
-            warnings.append({"code": "overflow", "days": overflow})
-        if active and epic.get("status") != "closed" and finish < today:
-            warnings.append({"code": "late"})
-        if days is None:
-            warnings.append({"code": "unestimated"})
-        if any(bead.get("status") != "closed" for bead in outside):
-            warnings.append({"code": "external_blocker"})
-        if confirmed is not None and epic.get("status") != "closed" and epic_id not in confirmed:
-            if kicked_off:
-                warnings.append({"code": "spec_not_ready"})
-            elif due:
-                warnings.append({"code": "spec_due"})
-        still_open = epic.get("status") != "closed"
-        if integration and still_open and finish > integration:
-            warnings.append({"code": "after_integration"})
-        if bugs.get(epic_id):
-            warnings.append({"code": "open_bugs", "count": bugs[epic_id]})
-        if still_open and days_of[epic_id] is not None and days_of[epic_id] > span_days:
-            warnings.append({"code": "oversized", "days": days_of[epic_id] - span_days})
         rows.append({
             "id": epic_id, "title": epic.get("title", ""), "status": epic.get("status"), "estimate_days": days,
             "points": points, "points_reason": _meta(epic).get("points_reason") if points is not None else None,
-            "estimate_source": "points" if points is not None else "days" if days is not None
-                               else "assumed" if days_of[epic_id] is not None else None,
+            "estimate_source": _estimate_source(epic, days_of[epic_id], pace),
             "actual_days": actual,
             "actual_days_per_point": round(actual / points, 2) if actual is not None and points else None,
             "remaining_days": remaining_days(epic, beads, today, pace),
@@ -437,7 +468,8 @@ def schedule(milestone: Mapping[str, Any], beads: Beads, start: date, today: dat
             "depends_on": sorted(dep for dep in _blocks(epic) if dep in epics),
             "external_depends_on": [{"id": bead["id"], "milestone": _milestone_of(bead, beads)}
                                     for bead in sorted(outside, key=lambda bead: bead["id"])],
-            "warnings": warnings,
+            "warnings": _epic_warnings(epic, finish, epics, beads, window, today, days_of[epic_id], bugs,
+                                       confirmed, pace),
         })
     last = max((dates[1] for dates in planned.values()), default=None)
     return {"finish": last.isoformat() if last else None,
