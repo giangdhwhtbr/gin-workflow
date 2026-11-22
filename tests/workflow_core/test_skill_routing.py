@@ -115,13 +115,13 @@ class SkillRoutingTests(unittest.TestCase):
             with self.subTest(needle=needle):
                 self.assertIn(needle, view)
         plan = (roadmap / "references/milestone-plan.md").read_text(encoding="utf-8")
-        for needle in ("gin milestone create", "gin milestone move", "gin milestone points", "Beads wins",
+        for needle in ("gin milestone create", "gin milestone move", "gin points", "Beads wins",
                        "## Unassigned", "Deadline:"):
             with self.subTest(needle=needle):
                 self.assertIn(needle, plan)
         write = plan[plan.index("## Write"):plan.index("## Re-run")]
         self.assertLess(write.index("gin milestone create"), write.index("gin milestone move"))
-        self.assertLess(write.index("gin milestone move"), write.index("gin milestone points"))
+        self.assertLess(write.index("gin milestone move"), write.index("gin points"))
         self.assertIn("existed before this run", write)
         self.assertIn("`Depends on:` dependencies", write)
         milestone = text[text.index("## With --milestone <id>"):text.index("## Steps")]
@@ -133,9 +133,11 @@ class SkillRoutingTests(unittest.TestCase):
                 self.assertIn(needle, estimates)
         points = (roadmap / "references/story-points.md").read_text(encoding="utf-8")
         for needle in ("1, 2, 3, 5, 8, 13, 21", "`Legacy:`", "`Complexity:`", "`Risks:`", "propose a split",
-                       "PM: ", "gin milestone points", "--stage discuss", "/milestone-close"):
+                       "PM: ", "gin points", "--stage discuss", "/milestone-close", "Points: <n> (<reason>)",
+                       "gin task list --type epic --status closed --json", "Epic:"):
             with self.subTest(needle=needle):
                 self.assertIn(needle, points)
+        self.assertNotIn("--label roadmap", points)
         present = text[text.index("4. **Present the roadmap**"):text.index("5. **Write**")]
         self.assertIn("[story points](references/story-points.md)", present)
         allocation = plan[plan.index("## Allocation"):plan.index("## Write")]
@@ -255,9 +257,17 @@ class SkillRoutingTests(unittest.TestCase):
         for banned in ("sonnet", "opus", "haiku"):
             self.assertNotIn(banned, text.lower())
 
-    def test_discuss_rescores_a_roadmap_epic(self):
+    def test_discuss_scores_every_workflow(self):
         text = (SRC / "skills/discuss/SKILL.md").read_text(encoding="utf-8")
-        for needle in ("../roadmap/references/story-points.md", "re-score", "--stage discuss"):
+        for needle in ("../roadmap/references/story-points.md", "`Points:`", "--stage discuss", "gin points",
+                       "every layout"):
+            with self.subTest(needle=needle):
+                self.assertIn(needle, text)
+        self.assertNotIn("For a roadmap epic, re-score", text)
+
+    def test_orchestrate_copies_the_points_line(self):
+        text = (SRC / "skills/orchestrate/SKILL.md").read_text(encoding="utf-8")
+        for needle in ("`Points:`", "../roadmap/references/story-points.md"):
             with self.subTest(needle=needle):
                 self.assertIn(needle, text)
 

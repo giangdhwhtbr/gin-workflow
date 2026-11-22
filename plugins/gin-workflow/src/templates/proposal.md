@@ -2,6 +2,7 @@
 
 Epic: {{epic}}
 Kind: capability
+Points: {{points}} ({{points_reason}})
 Date: {{date}}
 
 <!-- Kind is capability, technical, or parity; for technical epics see technical-design.md. -->

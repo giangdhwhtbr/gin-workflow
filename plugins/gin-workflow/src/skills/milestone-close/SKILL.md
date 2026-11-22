@@ -57,7 +57,7 @@ Present one table: delivered epics; each spillover epic with its target mileston
 In this order, after confirmation. A failing step stops the run; report what was written. A re-run continues: moved epics are no longer in the milestone, and a closed milestone is refused, so after a stop past step 5 finish the rest by hand from the report. A resumed run lists only the epics it moved itself in `Spillover:`; its report says that moves of the earlier run are not in the comment.
 1. When proposed, `gin milestone create "<title>" --start <date> --end <date>`; it prints the new id.
 2. `gin milestone move <epic>... --to <next-id>` for the spillover epics.
-3. `gin milestone points <epic> <n> --stage close --reason "<text>"` for each `estimate` action on an epic with points, else `gin milestone estimate <epic> <days>`.
+3. `gin points <epic> <n> --stage close --reason "<text>"` for each `estimate` action on an epic with points, else `gin milestone estimate <epic> <days>`.
 4. `gin task comment <milestone-id> "<text>"` with this text:
    ```
    [gin close] <milestone-id>

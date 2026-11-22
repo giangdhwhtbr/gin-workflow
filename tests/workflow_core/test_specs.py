@@ -683,6 +683,11 @@ class TestSpecsCli(unittest.TestCase):
                     self.assertEqual(0, run_specs(root, "template", name).returncode)
             self.assertIn("## User Stories", run_specs(root, "template", "design-spec.md").stdout)
             self.assertIn("## User Stories", run_specs(root, "template", "proposal.md").stdout)
+            for name, kind in (("design-spec.md", "capability"), ("technical-design.md", "technical"),
+                               ("proposal.md", "capability")):
+                with self.subTest(template=name):
+                    self.assertIn(f"\nKind: {kind}\nPoints: {{{{points}}}} ({{{{points_reason}}}})\n",
+                                  run_specs(root, "template", name).stdout)
             self.assertIn("Depends on:", run_specs(root, "template", "roadmap.md").stdout)
             self.assertIn("- Deadline:", run_specs(root, "template", "roadmap.md").stdout)
             self.assertIn("## Way of working", run_specs(root, "template", "roadmap.md").stdout)

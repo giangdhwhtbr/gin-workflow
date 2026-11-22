@@ -2,11 +2,12 @@
 
 Epic: {{epic}}
 Kind: capability
+Points: {{points}} ({{points_reason}})
 Status: draft for user review.
 
 <!-- Written by /discuss with the legacy layout. Drop the Epic line when there is none.
      Kind is capability, technical, or parity; for technical epics see technical-design.md.
-     User Stories come from `gin specs template user-story.md`. -->
+     User Stories come from `gin specs template user-story.md`. Points is the confirmed score (roadmap skill, references/story-points.md). -->
 
 ## Goal and scope
 

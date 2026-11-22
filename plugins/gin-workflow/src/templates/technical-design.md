@@ -2,6 +2,7 @@
 
 Epic: {{epic}}
 Kind: technical
+Points: {{points}} ({{points_reason}})
 Status: draft for user review.
 
 <!-- Written by /discuss with the legacy layout for technical epics. Drop the Epic line when there is none. -->
