@@ -2,6 +2,40 @@
 
 This page lists what changed in each release of gin-workflow and its add-ons (gin-qa, gin-ba), newest first. Releases before 3.1.0 are on the [GitHub releases page](https://github.com/giangdhwhtbr/gin-workflow/releases).
 
+## [3.5.0] - 2026-11-22
+
+Beads can carry images: `gin attach` stores screenshots outside the tracker, and `gin-qa cases bug` attaches the evidence of a failed case. gin-qa keeps every recorded result in a run history that merges without conflicts. With the SDD layout, each requirement records who signed it off, and `gin specs trace --all` joins it to its beads, cases, and tests. Any epic takes story points, and the milestone forecast gives every roadmap epic chained dates.
+
+### Upgrade notes
+
+- Update gin on each machine. No project step is needed, and `.ginrc` stays as it is: raise it only when a project needs gin 3.5.0.
+- The first gin-qa result recorded with 3.5.0 creates `runs/` next to the cases folder (`qa/runs` by default) and adds a `merge=union` line to `.gitattributes`. Commit both with the case files; `/gin-qa:run`, `/gin-qa:e2e`, and `/gin-qa:tests` do so when they save the work.
+- `gin attach` uses the `git-ref` store unless [`attachments`](reference/config.md#attachments) says otherwise. The `s3` store needs `python3 -m pip install boto3`. An older gin ignores the `attachments` section.
+- Track beads that orchestrate created before 3.5.0 may still hold the epic's `export:` label, so `bd ship <capability>` refuses. Remove the label from those tracks with `gin task update <track> --remove-label export:<capability>`.
+
+### Added
+
+- `gin attach {add,list,fetch,push,prune}` stores images for a bead in a `git-ref`, `local`, or `s3` store, strips EXIF and XMP, and lists them in the bead's `metadata.attachments`. `prune` keeps every image an open bead references. See [`gin attach`](reference/cli.md#gin-attach).
+- `gin-qa cases bug` attaches the image `--evidence` files inside the repository and the failed-step screenshots of the case's e2e run, and shows them in the bug description. An attach problem is a warning.
+- gin-qa appends one JSON line per recorded result to `runs/<yyyy-mm>/<actor>.jsonl`, from `cases result`, `cases bug`, `e2e run`, and `tests run`. The case file keeps the latest result as before.
+- `gin-qa runs export [--capability CAP] [--case TC-ID] [--since YYYY-MM-DD]` lists that history. See [`gin-qa runs export`](reference/cli.md#gin-qa-runs-export).
+- `--actor` on `gin-qa cases result`, `cases bug`, `e2e run`, and `tests run`, and a repeatable `--evidence` on `cases result`, fill the run record. The actor defaults to `git config user.email`.
+- With the SDD layout, `gin record requirement-confirmed` stores each requirement of the change with its hash, and `gin specs archive` writes `06-signoff.md` into the archived change folder.
+- `gin specs trace --all` lists every requirement with its changes, sign-off, beads, gin-qa cases, and tests. See [Requirement trace](reference/cli.md#requirement-trace).
+- `gin points EPIC N --reason TEXT [--stage roadmap|discuss|close]` sets the story points of any open epic, with or without the `roadmap` label. `gin milestone points` is an alias.
+- `/discuss` scores every workflow into a `Points:` line of the spec, and writes it to the epic once the spec is confirmed. `/orchestrate` copies the line to an epic it creates.
+- `gin milestone list --json` adds `forecast.milestones` and `forecast.epics`: each open milestone and each open roadmap epic with its chained dates, lane, and warnings.
+
+### Changed
+
+- `days_per_point` is measured over the 10 most recently closed epics with points, whatever their labels.
+
+### Fixed
+
+- Orchestrate creates track and lane beads with `--no-inherit-labels`, so a track no longer copies the epic's `export:` label and `bd ship` works.
+- A schema 2.11 configuration that holds a retired key in any layer is refused with a message that names the file to edit. The 2.11 update also backs up and removes a leftover `providers.local.yaml`.
+- `gin setup doctor` names a working remedy for tier models left in `orchestrator.local.yaml` and reports any other leftover `orchestrator.local.yaml` as unused.
+
 ## [3.4.0] - 2026-11-21
 
 gin no longer tracks AI usage. Collecting it took about a minute per epic at every track and at ship, and the figures missed most of the work, so the `gin usage` command, the price catalog, the per-epic budget, and the `report` skill are removed.
