@@ -75,7 +75,9 @@ def _e2e_parser() -> argparse.ArgumentParser:
     item.add_argument("--install", action="store_true")
     sub.add_parser("plan", parents=[common]).add_argument("capability", nargs="?")
     sub.add_parser("pin", parents=[common]).add_argument("ids", nargs="+")
-    sub.add_parser("run", parents=[common]).add_argument("targets", nargs="*", metavar="TC-ID|capability")
+    item = sub.add_parser("run", parents=[common])
+    item.add_argument("targets", nargs="*", metavar="TC-ID|capability")
+    item.add_argument("--actor")
     sub.add_parser("check", parents=[common]).add_argument("--run", dest="folder")
     sub.add_parser("export", parents=[common]).add_argument("--run", dest="folder", required=True)
     return parser
@@ -95,6 +97,7 @@ def _tests_parser() -> argparse.ArgumentParser:
     item = sub.add_parser("run", parents=[common])
     item.add_argument("--type", dest="kind", required=True)
     item.add_argument("targets", nargs="*", metavar="TC-ID|capability")
+    item.add_argument("--actor")
     return parser
 
 
@@ -312,7 +315,9 @@ def _run_e2e(args: argparse.Namespace) -> int:
             f"{row['id']} {' '.join(result['status'] for result in row['results']) or 'not run'}"
             for row in payload["cases"]))
         return 0
-    folder, code, errors, recorded = e2e.run(root, eff, args.targets)
+    if args.actor is not None:
+        tc.one_line(args.actor)
+    folder, code, errors, recorded = e2e.run(root, eff, args.targets, args.actor)
     _emit({"run": folder, "playwright_exit": code, "findings": errors, "recorded": recorded}, args.format,
           "\n".join([*errors, *(f"{row['tc']} {row['result']}" for row in recorded), f"run: {folder}"]))
     return code or (1 if errors else 0)
@@ -330,7 +335,9 @@ def _run_tests(args: argparse.Namespace) -> int:
         return _findings(tests.pin(root, eff, args.ids), args.format, f"pinned {' '.join(args.ids)}")
     if args.command == "check":
         return _findings(tests.check(root, eff, args.kind), args.format, "ok")
-    folder, code, errors, recorded = tests.run(root, eff, args.kind, args.targets)
+    if args.actor is not None:
+        tc.one_line(args.actor)
+    folder, code, errors, recorded = tests.run(root, eff, args.kind, args.targets, args.actor)
     _emit({"run": folder, "exit": code, "findings": errors, "recorded": recorded}, args.format,
           "\n".join([*errors, *(f"{row['tc']} {row['result']}" for row in recorded), f"run: {folder}"]))
     return code or (1 if errors else 0)

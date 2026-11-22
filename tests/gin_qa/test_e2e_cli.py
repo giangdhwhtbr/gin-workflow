@@ -274,6 +274,14 @@ class TestCheckSpecs(E2eCase):
 
 
 class TestRunAndEvidence(E2eCase):
+    def test_run_appends_a_run_record_per_case(self):
+        payload = json.loads(self.run_e2e("--actor", "ci@x.com").stdout)
+        files = list((self.root / "qa/runs").glob("*/ci-x.com.jsonl"))
+        self.assertEqual(1, len(files))
+        record = json.loads(files[0].read_text(encoding="utf-8"))
+        self.assertEqual(("TC-AUTH-001", "passed", payload["run"], [f"{payload['run']}/tc-auth-001"], "ci@x.com"),
+                         (record["case"], record["result"], record["run"], record["evidence"], record["actor"]))
+
     def setUp(self):
         super().setUp()
         self.npx = self.base / "npx-bin"

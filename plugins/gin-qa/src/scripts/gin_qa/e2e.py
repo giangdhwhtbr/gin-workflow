@@ -351,7 +351,8 @@ def _outcome(run_dir: Path, case_id: str) -> str:
     return next((worst for worst in ("failed", "blocked") if worst in statuses), "passed" if statuses else "blocked")
 
 
-def _record(root: Path, eff: Effective, folder: str, specs: list[str]) -> tuple[list[dict[str, str]], list[str]]:
+def _record(root: Path, eff: Effective, folder: str, specs: list[str],
+            actor: str | None) -> tuple[list[dict[str, str]], list[str]]:
     recorded: list[dict[str, str]] = []
     errors: list[str] = []
     for spec in specs:
@@ -361,7 +362,8 @@ def _record(root: Path, eff: Effective, folder: str, specs: list[str]) -> tuple[
             continue  # check_run reports the missing header
         case_id, status = match.group(1), _outcome(root / folder, match.group(1))
         try:
-            tc.record_result(root, eff.cases_dir, case_id, status, run=folder)
+            tc.record_result(root, eff.cases_dir, case_id, status, run=folder, actor=actor,
+                             evidence=[f"{folder}/{case_id.lower()}"])
         except ValueError as error:
             errors.append(f"{case_id}: result not recorded: {error}")
             continue
@@ -369,7 +371,8 @@ def _record(root: Path, eff: Effective, folder: str, specs: list[str]) -> tuple[
     return recorded, errors
 
 
-def run(root: Path, eff: Effective, targets: list[str]) -> tuple[str, int, list[str], list[dict[str, str]]]:
+def run(root: Path, eff: Effective, targets: list[str],
+        actor: str | None = None) -> tuple[str, int, list[str], list[dict[str, str]]]:
     """Runs the selected specs into a new evidence folder.
 
     Returns (folder, Playwright exit, findings, recorded results).
@@ -402,7 +405,7 @@ def run(root: Path, eff: Effective, targets: list[str]) -> tuple[str, int, list[
     record["playwright_exit"] = result.returncode
     (root / folder / "run.json").write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
     findings = check_run(root, eff, folder)
-    recorded, problems = _record(root, eff, folder, specs)
+    recorded, problems = _record(root, eff, folder, specs, actor)
     return folder, result.returncode, findings + problems, recorded
 
 

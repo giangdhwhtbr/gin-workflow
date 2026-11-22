@@ -248,6 +248,22 @@ class TestPlanPinCheck(TestsCase):
 
 
 class TestRun(TestsCase):
+    def test_run_appends_a_record_per_case_with_the_run_folder(self):
+        write(self.root, ".fake-junit", junit(("test_tc_auth_004", "passed")))
+        payload = self.run_json("run", "--type", "api", "TC-AUTH-004", "--actor", "ci@x.com")
+        record = json.loads(next((self.root / "qa/runs").glob("*/ci-x.com.jsonl")).read_text(encoding="utf-8"))
+        self.assertEqual(("TC-AUTH-004", "passed", payload["run"], [payload["run"]]),
+                         (record["case"], record["result"], record["run"], record["evidence"]))
+
+    def test_a_failed_append_is_a_finding_and_the_case_keeps_its_result(self):
+        write(self.root, ".fake-junit", junit(("test_tc_auth_004", "passed")))
+        write(self.root, "qa/runs", "a file where the folder should be\n")
+        payload = self.run_json("run", "--type", "api", "TC-AUTH-004")
+        self.assertEqual([], payload["recorded"])
+        self.assertEqual(1, len(payload["findings"]))
+        self.assertRegex(payload["findings"][0], r"^TC-AUTH-004: result not recorded: qa/runs/.*run record not written")
+        self.assertEqual("not run", self.case_fields("TC-AUTH-004")["result"])
+
     def setUp(self):
         super().setUp()
         self.add_case("TC-AUTH-004", "api")

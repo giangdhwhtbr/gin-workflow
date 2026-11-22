@@ -271,7 +271,8 @@ def _outcome(case_id: str, rows: list[tuple[str, str]]) -> str | None:
     return next((worst for worst in ("failed", "blocked", "passed") if worst in statuses), None)
 
 
-def run(root: Path, eff: Effective, kind: str, targets: list[str]) -> tuple[str, int, list[str], list[dict[str, str]]]:
+def run(root: Path, eff: Effective, kind: str, targets: list[str],
+        actor: str | None = None) -> tuple[str, int, list[str], list[dict[str, str]]]:
     """Runs the declared command of `kind` into a new evidence folder and records each selected case's result.
 
     Returns (folder, the command's exit, findings, recorded results).
@@ -312,7 +313,7 @@ def run(root: Path, eff: Effective, kind: str, targets: list[str]) -> tuple[str,
             findings.append(f"{case_id}: no test named after it ran")
             status = "blocked"
         try:
-            tc.record_result(root, eff.cases_dir, case_id, status, run=folder)
+            tc.record_result(root, eff.cases_dir, case_id, status, run=folder, actor=actor, evidence=[folder])
         except (ValueError, OSError) as error:
             findings.append(f"{case_id}: result not recorded: {error}")
             continue
