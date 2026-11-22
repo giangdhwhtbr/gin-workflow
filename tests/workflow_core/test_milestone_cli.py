@@ -16,7 +16,7 @@ sys.path.insert(0, str(SCRIPTS))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from team_fixtures import TEAM, init_beads, make_team_repo  # noqa: E402
-from workflow_core import milestone, milestone_cli, team_beads  # noqa: E402
+from workflow_core import milestone, milestone_cli, points_cli, team_beads  # noqa: E402
 from workflow_core.events import WorkflowEvent, WorkflowEventStore  # noqa: E402
 
 CLI = SCRIPTS / "gin"
@@ -102,6 +102,17 @@ class MilestoneCliTests(unittest.TestCase):
                 contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
             code = milestone_cli.main([*argv, "--repository", str(root or self.root)])
         return code, out.getvalue(), err.getvalue()
+
+    def run_points(self, *argv):
+        out, err = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            code = points_cli.main([*argv, "--repository", str(self.root)])
+        return code, out.getvalue(), err.getvalue()
+
+    def history(self, bead_id):
+        stored = self.metadata(bead_id)["points_history"]
+        stored = json.loads(stored) if isinstance(stored, str) else stored
+        return [[entry["from"], entry["to"], entry["stage"]] for entry in stored]
 
     def epic(self, bead_id, title, parent, *extra):
         # bd 1.0.5 rejects `create --id` together with `--parent`, so attach the parent afterwards.
@@ -427,7 +438,6 @@ class MilestoneCliTests(unittest.TestCase):
         self.assertIn("--reason must not be empty", self.refused("points", "t-a", "5", "--reason", " "))
         self.refused("points", "t-m1", "5", "--reason", "x")
         self.refused("points", "t-missing", "5", "--reason", "x")
-        self.refused("points", "t-ac", "5", "--reason", "x")
         self.bd("close", "t-a")
         self.refused("points", "t-a", "5", "--reason", "x")
         self.assertNotIn("points", self.metadata("t-a"))
@@ -453,7 +463,7 @@ class MilestoneCliTests(unittest.TestCase):
     def test_us2_estimate_refused_once_points_exist(self):
         self.seed_roadmap()
         self.assertEqual(0, self.run_cli("points", "t-a", "3", "--reason", "x")[0])
-        self.assertIn("gin milestone points", self.refused("estimate", "t-a", "5"))
+        self.assertIn("gin points", self.refused("estimate", "t-a", "5"))
 
     def test_show_and_list_report_points_and_pace(self):
         self.seed_roadmap()
@@ -465,6 +475,43 @@ class MilestoneCliTests(unittest.TestCase):
         self.assertIn("velocity", shown)
         self.assertIn("3pt/3d", self.run_cli("show", "t-m1")[1])
         self.assertIn("days per point: 1.0 (assumed)", self.run_cli("list")[1])
+
+    def test_points_accept_any_open_epic(self):
+        self.seed_writes()
+        code, out, err = self.run_points("t-e0", "5", "--reason", "3 stories")
+        self.assertEqual(0, code, err)
+        self.assertIn("points of t-e0 set to 5", out)
+        meta = self.metadata("t-e0")
+        self.assertEqual(("5", "3 stories"), (str(meta["points"]), meta["points_reason"]))
+        self.assertEqual(0, self.run_points("t-e0", "8", "--reason", "x", "--stage", "discuss")[0])
+        self.assertEqual([[None, 5, "roadmap"], [5, 8, "discuss"]], self.history("t-e0"))
+        self.assertEqual(0, self.run_points("t-ac", "3", "--reason", "x")[0])
+
+    def test_points_refuse_a_bead_that_is_not_an_epic(self):
+        self.seed_writes()
+        before = beads_store(self.root)
+        code, _, err = self.run_points("t-task", "5", "--reason", "x")
+        self.assertEqual(1, code)
+        self.assertIn("points error: t-task is not an epic", err)
+        self.assertEqual(before, beads_store(self.root))
+
+    def test_milestone_points_is_an_alias_of_gin_points(self):
+        self.seed_writes()
+        self.assertEqual((0, "points of t-e0 set to 5\n"),
+                         self.run_points("t-e0", "5", "--reason", "x", "--stage", "discuss")[:2])
+        self.assertEqual((0, "points of t-x set to 5\n"),
+                         self.run_cli("points", "t-x", "5", "--reason", "x", "--stage", "discuss")[:2])
+        for epic in ("t-e0", "t-x"):
+            meta = self.metadata(epic)
+            self.assertEqual(("5", "x", [[None, 5, "discuss"]]),
+                             (str(meta["points"]), meta["points_reason"], self.history(epic)))
+        self.assertIn("points error: t-task is not an epic", self.refused("points", "t-task", "5", "--reason", "x"))
+
+    def test_gin_points_is_a_top_command(self):
+        self.seed_writes()
+        done = gw(self.root, "points", "t-e0", "3", "--reason", "x")
+        self.assertEqual(0, done.returncode, done.stderr)
+        self.assertIn("points of t-e0 set to 3", done.stdout)
 
     def test_req_003_kickstart(self):
         self.seed_writes()
@@ -593,6 +640,16 @@ class MilestoneCliTests(unittest.TestCase):
         self.assertIn("providers.task_tracking: beads", err)
 
 
+class MalformedPointsWarningTests(unittest.TestCase):
+    def test_open_epic_without_the_roadmap_label_is_warned(self):
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            milestone_cli._warn_malformed_metadata([
+                {"id": "e1", "issue_type": "epic", "status": "open", "labels": [], "metadata": {"points": "4"}},
+                {"id": "e2", "issue_type": "epic", "status": "closed", "labels": [], "metadata": {"points": "4"}}])
+        self.assertEqual("warning: e1: malformed points metadata ignored\n", err.getvalue())
+
+
 class ShowTextTests(unittest.TestCase):
     def text(self, *beads, deadline=None):
         items = {item["id"]: item for item in beads}
@@ -683,6 +740,16 @@ class MilestoneTeamTests(unittest.TestCase):
         self.assertEqual(0, self.run_cli(self.repo("ba", "an@corp.com"), "kickstart", "t-m1")[0])
         open_team = self.repo("open", "em@corp.com", TEAM.format(host="github"))
         self.assertEqual(0, self.run_cli(open_team, "kickstart", "t-m1")[0])
+
+    def test_points_need_a_permitted_role(self):
+        root = self.repo("dev", "em@corp.com")
+        self.bd(root, "create", "E", "--id", "t-e", "--type", "epic")
+        err = io.StringIO()
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(err):
+            code = points_cli.main(["t-e", "5", "--reason", "x", "--repository", str(root)])
+        self.assertEqual(2, code)
+        self.assertIn("ba", err.getvalue())
+        self.assertNotIn("points", self.metadata(root, "t-e") or {})
 
     def test_req_016_rejected_or_timed_out_push_keeps_the_local_write(self):
         root = self.repo("ba", "an@corp.com", TEAM_TEXT + "  beads_sync: {remote: x}\n")

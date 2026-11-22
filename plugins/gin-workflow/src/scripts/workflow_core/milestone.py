@@ -115,10 +115,10 @@ def actual_days(bead: Mapping[str, Any], today: date) -> int | None:
 
 
 def measure_pace(beads: Beads, assumed: float | None, today: date) -> Pace:
-    """Days per point over the MEASURED_EPICS most recently closed roadmap epics with points and actual days;
+    """Days per point over the MEASURED_EPICS most recently closed epics with points and actual days;
     else `assumed` (the roadmap's `Days per point:`), else 1."""
     closed = [bead for bead in beads.values()
-              if bead.get("issue_type") == "epic" and "roadmap" in (bead.get("labels") or [])
+              if bead.get("issue_type") == "epic"
               and bead.get("status") == "closed" and points_of(bead) is not None
               and actual_days(bead, today) is not None]
     closed.sort(key=lambda bead: (str(bead.get("closed_at")), bead["id"]), reverse=True)

@@ -845,6 +845,17 @@ class PointsTests(unittest.TestCase):
         self.assertEqual({"value": 2.0, "measured_epics": 0, "assumed": True},
                          milestone.Pace(2.0, 0, True).as_json())
 
+    def test_pace_counts_epics_without_the_roadmap_label(self):
+        plain = bead("A", status="closed", meta={"points": 5}, started_at="2026-11-02T09:00:00Z",
+                     closed_at="2026-11-13T17:00:00Z")
+        beads = world(plain, done("B", 5, "2026-11-16", "2026-11-20"))
+        self.assertEqual(milestone.Pace(1.5, 2, False), milestone.measure_pace(beads, None, TODAY))
+
+    def test_forecast_leaves_out_open_epics_without_the_roadmap_label(self):
+        beads = world(bead("X", meta={"points": 3}))
+        self.assertIsNone(milestone.forecast(beads, TODAY, milestone.Roadmap(), 1))
+        self.assertEqual(0, milestone.list_payload(beads, TODAY, False, milestone.Roadmap(), 1)["unassigned_epics"])
+
     def test_epic_days_rounds_up_and_falls_back_to_minutes(self):
         self.assertEqual(4, milestone.epic_days(bead("E", meta={"points": 3}), milestone.Pace(1.33, 3, False)))
         self.assertEqual(1, milestone.epic_days(bead("E", meta={"points": 1}), milestone.Pace(0.2, 3, False)))

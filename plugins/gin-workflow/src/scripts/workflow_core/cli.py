@@ -12,7 +12,7 @@ from typing import Any, Sequence
 CLI_VERSION = "3.4.0"
 TOP_COMMANDS = ("setup", "state", "unblock", "record", "quick-check", "rules", "specs", "docs", "team",
                 "reviewer", "hooks", "evidence", "task", "routes", "paths", "goal", "commit", "worktree", "workspace", "milestone",
-                "attach", "version")
+                "points", "attach", "version")
 UNPINNED = ("paths", "version")  # commands that run whatever .ginrc says
 
 
@@ -191,6 +191,9 @@ def main(arguments: Sequence[str] | None = None) -> int:
         if argv[0] == "milestone":
             from .milestone_cli import main as milestone_main
             return milestone_main(argv[1:])
+        if argv[0] == "points":
+            from .points_cli import main as points_main
+            return points_main(argv[1:])
         if argv[0] == "evidence":
             from .verification import main as evidence_main
             return evidence_main(argv[1:])

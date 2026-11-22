@@ -10,7 +10,7 @@ from pathlib import Path
 import re
 import subprocess
 import sys
-from typing import Any, Mapping, Sequence
+from typing import Any, Callable, Mapping, Sequence
 
 from . import milestone as core, workspace
 from .checkout import main_checkout
@@ -56,11 +56,6 @@ def _parser() -> argparse.ArgumentParser:
     item = sub.add_parser("estimate", parents=[common])
     item.add_argument("epic")
     item.add_argument("days")
-    item = sub.add_parser("points", parents=[common])
-    item.add_argument("epic")
-    item.add_argument("n")
-    item.add_argument("--reason", required=True)
-    item.add_argument("--stage", choices=("roadmap", "discuss", "close"), default="roadmap")
     item = sub.add_parser("close", parents=[common])
     item.add_argument("id")
     item.add_argument("--reason", required=True)
@@ -168,14 +163,13 @@ def _default_lanes(config: Mapping[str, Any], roadmap: core.Roadmap) -> int:
 
 
 def _warn_malformed_metadata(milestones: Sequence[Mapping[str, Any]]) -> None:
-    """One stderr warning per open milestone key (`away`, `integration`) and per open roadmap epic's `points`
+    """One stderr warning per open milestone key (`away`, `integration`) and per open epic's `points`
     that is unreadable; it is ignored."""
     for bead in milestones:
         if bead.get("issue_type") == "milestone" and bead.get("status") != "closed":
             for key in core.metadata_problems(bead):
                 print(f"warning: {bead['id']}: malformed {key} metadata ignored", file=sys.stderr)
-        if (bead.get("issue_type") == "epic" and bead.get("status") != "closed"
-                and "roadmap" in (bead.get("labels") or []) and core.points_problem(bead)):
+        if bead.get("issue_type") == "epic" and bead.get("status") != "closed" and core.points_problem(bead):
             print(f"warning: {bead['id']}: malformed points metadata ignored", file=sys.stderr)
 
 
@@ -368,45 +362,9 @@ def _estimate(root: Path, args: argparse.Namespace, beads: dict[str, dict[str, A
     if bead.get("issue_type") != "epic":
         raise MilestoneError(f"{args.epic} is not an epic")
     if core.points_of(bead) is not None:
-        raise MilestoneError(f"{args.epic} has story points; change them with gin milestone points")
+        raise MilestoneError(f"{args.epic} has story points; change them with gin points")
     _bd(root, ["update", args.epic, "--estimate", str(int(args.days) * core.WORKDAY_MINUTES)], actor)
     return f"estimate of {args.epic} set to {args.days} working days", "estimate"
-
-
-def _trace_points(root: Path, bead: Mapping[str, Any], epic: str, to: int, stage: str, actor: str) -> None:
-    """Append {from, to, at, actor, stage} to the epic's `points_history`; a failure warns, never rolls back."""
-    try:
-        metadata = bead.get("metadata")
-        stored = metadata.get("points_history") if isinstance(metadata, Mapping) else None
-        history = json.loads(stored) if isinstance(stored, str) else list(stored or [])
-        history.append({"from": core.points_of(bead), "to": to, "stage": stage,
-                        "at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "actor": actor or "unknown"})
-        _bd(root, ["update", epic, "--set-metadata", f"points_history={json.dumps(history)}"], actor)
-    except (MilestoneError, ValueError, TypeError, AttributeError) as error:
-        print(f"warning: points of {epic} set but points_history not recorded: {error}", file=sys.stderr)
-
-
-def _points(root: Path, args: argparse.Namespace, beads: dict[str, dict[str, Any]], actor: str) -> tuple[str, str]:
-    if not (args.n.isascii() and args.n.isdigit()) or int(args.n) not in core.POINT_SCALE:
-        raise MilestoneError("points must be one of " + ", ".join(map(str, core.POINT_SCALE)))
-    if not args.reason.strip():
-        raise MilestoneError("--reason must not be empty")
-    bead = beads.get(args.epic)
-    if bead is None:
-        raise MilestoneError(f"{args.epic} not found")
-    if bead.get("issue_type") != "epic" or "roadmap" not in (bead.get("labels") or []):
-        raise MilestoneError(f"{args.epic} is not a roadmap epic")
-    if bead.get("status") == "closed":
-        raise MilestoneError(f"{args.epic} is closed")
-    parent = beads.get(bead.get("parent") or "") or {}
-    meta = parent.get("metadata") if isinstance(parent.get("metadata"), Mapping) else {}
-    if parent.get("issue_type") == "milestone" and meta.get("kickoff") and args.stage != "close":
-        raise MilestoneError(f"points of {args.epic} are locked since the kick-start of {parent['id']}; "
-                             "change them through /milestone-close")
-    _bd(root, ["update", args.epic, "--set-metadata", f"points={int(args.n)}",
-               "--set-metadata", f"points_reason={args.reason}"], actor)
-    _trace_points(root, bead, args.epic, int(args.n), args.stage, actor)
-    return f"points of {args.epic} set to {int(args.n)}", "points"
 
 
 def _close(root: Path, args: argparse.Namespace, beads: dict[str, dict[str, Any]], actor: str) -> tuple[str, str]:
@@ -419,7 +377,7 @@ def _close(root: Path, args: argparse.Namespace, beads: dict[str, dict[str, Any]
 
 
 WRITES = {"create": _create, "update": _update, "kickstart": _kickstart, "move": _move,
-          "estimate": _estimate, "points": _points, "close": _close}
+          "estimate": _estimate, "close": _close}
 
 
 def _guard(root: Path, config: dict[str, Any]) -> tuple[Any, str]:
@@ -442,12 +400,13 @@ def _guard(root: Path, config: dict[str, Any]) -> tuple[Any, str]:
     return team, member.email if member else ""
 
 
-def _write(root: Path, config: dict[str, Any], args: argparse.Namespace) -> int:
+def _write(root: Path, config: dict[str, Any], args: argparse.Namespace,
+           write: Callable[..., tuple[str, str]] | None = None) -> int:
     from . import team as team_core
     from . import team_beads
 
     team, actor = _guard(root, config)
-    text, change = WRITES[args.command](root, args, _beads(root), actor)
+    text, change = (write or WRITES[args.command])(root, args, _beads(root), actor)
     if team is not None and team.beads_remote:
         try:
             team_beads.push(root, team)
@@ -486,6 +445,9 @@ def _run(args: argparse.Namespace) -> int:
 def main(arguments: Sequence[str]) -> int:
     from .configuration import ConfigValidationError
 
+    if arguments and arguments[0] == "points":  # `gin milestone points` is an alias of `gin points`
+        from .points_cli import main as points_main
+        return points_main(arguments[1:])
     try:
         args = _parser().parse_args(list(arguments))
     except SystemExit as error:
