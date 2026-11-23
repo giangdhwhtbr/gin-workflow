@@ -115,7 +115,7 @@ gin 3.4 removes AI usage tracking. The configuration schema stays 2.11, and `gin
 gin 3.5 needs no configuration step. Update gin on each machine; raise `.ginrc` only when a project needs 3.5.
 
 - The first gin-qa result recorded with 3.5 creates the `runs` folder next to the cases folder (`qa/runs` by default) and adds a `merge=union` line to `.gitattributes`. Commit both with the case files. See [run history](qa.md#run-history).
-- `gin attach` works with the `git-ref` store and no configuration. The optional [`attachments`](../reference/config.md#attachments) section picks another store; the `s3` store needs `python3 -m pip install boto3`.
+- `gin attach` needs Beads and works with the `git-ref` store without other configuration. The optional [`attachments`](../reference/config.md#attachments) section picks another store; the `s3` store needs `python3 -m pip install boto3`.
 - A track bead that orchestrate created before 3.5 may hold its epic's `export:` label, and `bd ship <capability>` then refuses. Remove the label from the track with `gin task update <track> --remove-label export:<capability>`.
 
 The changelog lists the rest in its [upgrade notes](../changelog.md#350-2026-11-22).

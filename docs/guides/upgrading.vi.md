@@ -115,7 +115,7 @@ gin 3.4 bỏ việc theo dõi AI usage. Schema cấu hình vẫn là 2.11, và `
 gin 3.5 không cần bước cấu hình nào. Cập nhật gin trên mỗi máy; chỉ nâng `.ginrc` khi project cần 3.5.
 
 - Kết quả gin-qa đầu tiên ghi bằng 3.5 tạo thư mục `runs` cạnh thư mục case (`qa/runs` theo mặc định) và thêm một dòng `merge=union` vào `.gitattributes`. Commit cả hai cùng các case file. Xem [lịch sử chạy](qa.md#run-history).
-- `gin attach` chạy với store `git-ref` mà không cần cấu hình. Mục [`attachments`](../reference/config.md#attachments) (tùy chọn) chọn store khác; store `s3` cần `python3 -m pip install boto3`.
+- `gin attach` cần Beads và chạy với store `git-ref` mà không cần cấu hình nào khác. Mục [`attachments`](../reference/config.md#attachments) (tùy chọn) chọn store khác; store `s3` cần `python3 -m pip install boto3`.
 - Một track bead do orchestrate tạo trước 3.5 có thể mang label `export:` của epic, khi đó `bd ship <capability>` từ chối. Gỡ label khỏi track bằng `gin task update <track> --remove-label export:<capability>`.
 
 Nhật ký thay đổi liệt kê phần còn lại trong [ghi chú nâng cấp](../changelog.md#350-2026-11-22).
