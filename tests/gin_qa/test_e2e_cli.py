@@ -242,6 +242,21 @@ class TestE2eFolderConfig(E2eCase):
                 self.assertEqual(2, result.returncode)
                 self.assertIn(f"qa.{key} must be a path inside the repository", result.stderr)
 
+    def test_an_explicit_e2e_folder_keeps_the_evidence_in_the_qa_home(self):
+        config = self.root / ".agent-workflow/config.yaml"
+        config.write_text(config.read_text() + "qa:\n  e2e: newapp/e2e\n")
+        self.assertIn("added /qa/evidence/ to .gitignore", self.e2e("init").stdout)
+        write(self.root, "node_modules/@playwright/test/package.json", "{}")
+        write(self.root, "newapp/e2e/auth/tc-auth-001.spec.ts", spec_text("TC-AUTH-001", self.tc_hash()))
+        npx = self.base / "npx-bin"
+        python_stub(npx, "npx", FAKE_NPX)
+        result = self.e2e("run", "--format", "json", path=os.pathsep.join([str(npx), TOOLS_PATH]))
+        self.assertEqual(0, result.returncode, result.stderr)
+        run = json.loads(result.stdout)["run"]
+        self.assertRegex(run, r"^qa/evidence/\d{4}-\d\d-\d\dT\d\d-\d\d-\d\d$")
+        self.assertFalse((self.root / "newapp/evidence").exists())
+        self.assertEqual(0, self.e2e("check", "--run", run).returncode)
+
 
 class TestCheckSpecs(E2eCase):
     def test_clean_and_unaffected_by_requirement_pins(self):

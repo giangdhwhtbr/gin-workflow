@@ -54,8 +54,8 @@ class Spec:
 
 
 def evidence_root(eff: Effective) -> str:
-    """The `evidence` folder next to the e2e folder: `qa/evidence` for `qa/e2e`."""
-    return (PurePosixPath(eff.e2e_dir).parent / "evidence").as_posix()
+    """The `evidence` folder of the QA home, wherever `qa.e2e` points: `qa/evidence` by default."""
+    return eff.evidence_dir
 
 
 def new_run_folder(root: Path, eff: Effective, suffix: str = "") -> str:
