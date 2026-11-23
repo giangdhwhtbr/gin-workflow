@@ -267,7 +267,8 @@ def _install(root: Path, eff: Effective) -> list[str]:
 
 
 def _package_name(root: Path, eff: Effective) -> str:
-    """`<QA home folder>-e2e` as an npm name: the folder above the e2e folder, else the files root's own name."""
+    """`<folder above the e2e folder>-e2e` as an npm name (`qa-e2e` for `qa/e2e`), else `<files root name>-e2e`.
+    Not the QA home: an explicit `qa.e2e` names the package after the folder it lives in."""
     home = PurePosixPath(eff.package_dir).parent.name or root.name
     return (re.sub(r"[^a-z0-9._-]+", "-", home.lower()).strip("._-") or "qa") + "-e2e"
 
