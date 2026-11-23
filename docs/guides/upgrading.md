@@ -71,7 +71,7 @@ One `gin setup update --approve` migrates the configuration through every schema
 For example, a project on 3.2 that moves to 3.5:
 
 1. Every member updates gin to 3.5.
-2. The lead deletes `usage:` from `.agent-workflow/config.yaml` and deletes `.agent-workflow/usage-prices.yaml` if it exists ([3.4](#what-changes-at-34)).
+2. The lead deletes `usage:` from `.agent-workflow/config.yaml` and the price catalog file ([3.4](#what-changes-at-34)).
 3. The lead runs `gin setup update`, reads the proposal, and runs `gin setup update --approve`. It migrates schema 2.10 to 2.11 ([3.3](#what-changes-at-33)) and writes `.ginrc` 3.5.0.
 4. The lead commits `.agent-workflow/config.yaml` and `.ginrc`.
 
@@ -106,9 +106,9 @@ The changelog lists the rest in its [upgrade notes](../changelog.md#330-2026-11-
 gin 3.4 removes AI usage tracking. The configuration schema stays 2.11, and `gin setup update` does not remove the old keys, so the lead deletes them by hand:
 
 - Delete `usage:` from `.agent-workflow/config.yaml`. Until then, `gin state` and `gin setup doctor` say it is ignored.
-- Delete `.agent-workflow/usage-prices.yaml` if it exists. Nothing reads it.
+- Delete the price catalog file under `.agent-workflow/` if it exists. Nothing reads it, and the [3.4.0 upgrade notes](../changelog.md#340-2026-11-21) name it.
 
-`gin usage` and the `report` skill are gone; a project install removes gin's copy of the skill and keeps gin-qa's `report` skill. `ai_usage` already stored on beads stays. The changelog lists the rest in its [upgrade notes](../changelog.md#340-2026-11-21).
+The usage command and gin's `report` skill are gone; a project install removes gin's copy of the skill and keeps gin-qa's `report` skill. Usage data already stored on beads stays. The changelog lists the rest in its [upgrade notes](../changelog.md#340-2026-11-21).
 
 ## What changes at 3.5
 

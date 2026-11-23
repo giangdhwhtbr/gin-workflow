@@ -71,7 +71,7 @@ Một lần `gin setup update --approve` chuyển cấu hình qua mọi bước 
 Ví dụ, một project đang ở 3.2 chuyển lên 3.5:
 
 1. Mọi member cập nhật gin lên 3.5.
-2. Lead xóa `usage:` khỏi `.agent-workflow/config.yaml` và xóa `.agent-workflow/usage-prices.yaml` nếu có ([3.4](#what-changes-at-34)).
+2. Lead xóa `usage:` khỏi `.agent-workflow/config.yaml` và xóa file bảng giá ([3.4](#what-changes-at-34)).
 3. Lead chạy `gin setup update`, đọc đề xuất, rồi chạy `gin setup update --approve`. Lệnh này chuyển schema 2.10 sang 2.11 ([3.3](#what-changes-at-33)) và ghi `.ginrc` 3.5.0.
 4. Lead commit `.agent-workflow/config.yaml` và `.ginrc`.
 
@@ -106,9 +106,9 @@ Nhật ký thay đổi liệt kê phần còn lại trong [ghi chú nâng cấp]
 gin 3.4 bỏ việc theo dõi AI usage. Schema cấu hình vẫn là 2.11, và `gin setup update` không xóa các khóa cũ, nên lead xóa chúng bằng tay:
 
 - Xóa `usage:` khỏi `.agent-workflow/config.yaml`. Đến khi xóa, `gin state` và `gin setup doctor` báo rằng khóa này bị bỏ qua.
-- Xóa `.agent-workflow/usage-prices.yaml` nếu có. Không còn gì đọc file này.
+- Xóa file bảng giá trong `.agent-workflow/` nếu có. Không còn gì đọc file này, và [ghi chú nâng cấp 3.4.0](../changelog.md#340-2026-11-21) nêu tên nó.
 
-`gin usage` và skill `report` đã bị gỡ; khi cài vào project, bản skill của gin bị xóa và skill `report` của gin-qa được giữ. `ai_usage` đã lưu trên bead vẫn còn. Nhật ký thay đổi liệt kê phần còn lại trong [ghi chú nâng cấp](../changelog.md#340-2026-11-21).
+Lệnh usage và skill `report` của gin đã bị gỡ; khi cài vào project, bản skill của gin bị xóa và skill `report` của gin-qa được giữ. Dữ liệu usage đã lưu trên bead vẫn còn. Nhật ký thay đổi liệt kê phần còn lại trong [ghi chú nâng cấp](../changelog.md#340-2026-11-21).
 
 ## Những gì thay đổi ở 3.5 { #what-changes-at-35 }
 
