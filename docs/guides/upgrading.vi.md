@@ -62,6 +62,19 @@ Trên Claude Code, file hooks do `install.sh` hoặc `install.ps1` tạo còn ch
 
 Để hết bị từ chối, [cập nhật máy của bạn](#update-a-machine), rồi chạy `gin version` và kiểm tra `compatible: yes`.
 
+## Nâng cấp qua nhiều phiên bản { #upgrading-across-several-versions }
+
+Một project có thể nhảy qua nhiều phiên bản trong một lần nâng cấp. Mọi member cập nhật gin lên phiên bản mới nhất trước. Sau đó lead đọc các mục bên dưới cho từng phiên bản cao hơn phiên bản hiện tại của project, từ cũ đến mới, và làm các bước của chúng.
+
+Một lần `gin setup update --approve` chuyển cấu hình qua mọi bước schema đến schema hiện tại, nên chỉ chạy nó một lần, sau các bước thủ công. Lệnh này cũng nâng `.ginrc` lên phiên bản đã cài. Những bước nó không làm là các bước thủ công: xóa `usage:` ở 3.4, và commit lịch sử chạy của gin-qa ở 3.5.
+
+Ví dụ, một project đang ở 3.2 chuyển lên 3.5:
+
+1. Mọi member cập nhật gin lên 3.5.
+2. Lead xóa `usage:` khỏi `.agent-workflow/config.yaml` và xóa `.agent-workflow/usage-prices.yaml` nếu có ([3.4](#what-changes-at-34)).
+3. Lead chạy `gin setup update`, đọc đề xuất, rồi chạy `gin setup update --approve`. Lệnh này chuyển schema 2.10 sang 2.11 ([3.3](#what-changes-at-33)) và ghi `.ginrc` 3.5.0.
+4. Lead commit `.agent-workflow/config.yaml` và `.ginrc`.
+
 ## Những gì thay đổi ở 3.1 { #what-changes-at-31 }
 
 Nhật ký thay đổi liệt kê toàn bộ trong [ghi chú nâng cấp](../changelog.md#upgrade-notes). Cần xử lý những điểm sau:
@@ -87,3 +100,22 @@ Project bỏ qua bước này vẫn chạy được, và `gin state` cảnh báo
 | Research trong `discuss` và `plan`; scout, writer và reviewer trong `tech-doc` | subagent native | lần lượt từng việc trong session |
 
 Nhật ký thay đổi liệt kê phần còn lại trong [ghi chú nâng cấp](../changelog.md#330-2026-11-21). [Providers](../concepts/providers.md) mô tả các role, model và review.
+
+## Những gì thay đổi ở 3.4 { #what-changes-at-34 }
+
+gin 3.4 bỏ việc theo dõi AI usage. Schema cấu hình vẫn là 2.11, và `gin setup update` không xóa các khóa cũ, nên lead xóa chúng bằng tay:
+
+- Xóa `usage:` khỏi `.agent-workflow/config.yaml`. Đến khi xóa, `gin state` và `gin setup doctor` báo rằng khóa này bị bỏ qua.
+- Xóa `.agent-workflow/usage-prices.yaml` nếu có. Không còn gì đọc file này.
+
+`gin usage` và skill `report` đã bị gỡ; khi cài vào project, bản skill của gin bị xóa và skill `report` của gin-qa được giữ. `ai_usage` đã lưu trên bead vẫn còn. Nhật ký thay đổi liệt kê phần còn lại trong [ghi chú nâng cấp](../changelog.md#340-2026-11-21).
+
+## Những gì thay đổi ở 3.5 { #what-changes-at-35 }
+
+gin 3.5 không cần bước cấu hình nào. Cập nhật gin trên mỗi máy; chỉ nâng `.ginrc` khi project cần 3.5.
+
+- Kết quả gin-qa đầu tiên ghi bằng 3.5 tạo thư mục `runs` cạnh thư mục case (`qa/runs` theo mặc định) và thêm một dòng `merge=union` vào `.gitattributes`. Commit cả hai cùng các case file. Xem [lịch sử chạy](qa.md#run-history).
+- `gin attach` chạy với store `git-ref` mà không cần cấu hình. Mục [`attachments`](../reference/config.md#attachments) (tùy chọn) chọn store khác; store `s3` cần `python3 -m pip install boto3`.
+- Một track bead do orchestrate tạo trước 3.5 có thể mang label `export:` của epic, khi đó `bd ship <capability>` từ chối. Gỡ label khỏi track bằng `gin task update <track> --remove-label export:<capability>`.
+
+Nhật ký thay đổi liệt kê phần còn lại trong [ghi chú nâng cấp](../changelog.md#350-2026-11-22).

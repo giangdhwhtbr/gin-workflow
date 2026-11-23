@@ -62,6 +62,19 @@ On Claude Code, the hooks file that `install.sh` or `install.ps1` generates also
 
 To clear the refusal, [update your machine](#update-a-machine), then run `gin version` and check for `compatible: yes`.
 
+## Upgrading across several versions
+
+A project can skip versions in one upgrade. Every member updates gin to the newest version first. The lead then reads the sections below for each version above the project's current one, oldest first, and does their steps.
+
+One `gin setup update --approve` migrates the configuration through every schema step up to the current one, so run it once, after the manual steps. It also raises `.ginrc` to the installed version. The steps it does not do are the manual ones: deleting `usage:` at 3.4, and committing the gin-qa run history at 3.5.
+
+For example, a project on 3.2 that moves to 3.5:
+
+1. Every member updates gin to 3.5.
+2. The lead deletes `usage:` from `.agent-workflow/config.yaml` and deletes `.agent-workflow/usage-prices.yaml` if it exists ([3.4](#what-changes-at-34)).
+3. The lead runs `gin setup update`, reads the proposal, and runs `gin setup update --approve`. It migrates schema 2.10 to 2.11 ([3.3](#what-changes-at-33)) and writes `.ginrc` 3.5.0.
+4. The lead commits `.agent-workflow/config.yaml` and `.ginrc`.
+
 ## What changes at 3.1
 
 The changelog lists everything in its [upgrade notes](../changelog.md#upgrade-notes). Act on these points:
@@ -87,3 +100,22 @@ A project that skips the update keeps working, and `gin state` warns once. The u
 | Research in `discuss` and `plan`; scouts, writers, and reviewers in `tech-doc` | native subagent | one after another in the session |
 
 The changelog lists the rest in its [upgrade notes](../changelog.md#330-2026-11-21). [Providers](../concepts/providers.md) describes the roles, the models, and the review.
+
+## What changes at 3.4
+
+gin 3.4 removes AI usage tracking. The configuration schema stays 2.11, and `gin setup update` does not remove the old keys, so the lead deletes them by hand:
+
+- Delete `usage:` from `.agent-workflow/config.yaml`. Until then, `gin state` and `gin setup doctor` say it is ignored.
+- Delete `.agent-workflow/usage-prices.yaml` if it exists. Nothing reads it.
+
+`gin usage` and the `report` skill are gone; a project install removes gin's copy of the skill and keeps gin-qa's `report` skill. `ai_usage` already stored on beads stays. The changelog lists the rest in its [upgrade notes](../changelog.md#340-2026-11-21).
+
+## What changes at 3.5
+
+gin 3.5 needs no configuration step. Update gin on each machine; raise `.ginrc` only when a project needs 3.5.
+
+- The first gin-qa result recorded with 3.5 creates the `runs` folder next to the cases folder (`qa/runs` by default) and adds a `merge=union` line to `.gitattributes`. Commit both with the case files. See [run history](qa.md#run-history).
+- `gin attach` works with the `git-ref` store and no configuration. The optional [`attachments`](../reference/config.md#attachments) section picks another store; the `s3` store needs `python3 -m pip install boto3`.
+- A track bead that orchestrate created before 3.5 may hold its epic's `export:` label, and `bd ship <capability>` then refuses. Remove the label from the track with `gin task update <track> --remove-label export:<capability>`.
+
+The changelog lists the rest in its [upgrade notes](../changelog.md#350-2026-11-22).
