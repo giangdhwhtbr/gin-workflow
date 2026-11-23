@@ -29,7 +29,7 @@ Mọi thứ gin-qa ghi nằm trong một thư mục, QA home:
 - Trong một [workspace](workspace.md), QA home là repository con có `shape: qa`. Path và tên của nó tự do. gin-qa tìm nó theo shape, từ repository con đó, từ một worktree của nó, hoặc từ bất kỳ đâu trong dự án. `qa.dir` bị bỏ qua ở đó.
 - Trong một repository đơn, QA home là thư mục `qa.dir` (mặc định `qa`). `qa.dir` phải là một path nằm trong repository.
 
-QA home chứa `cases/`, `guidelines.md`, `evidence/` và `e2e/`. `evidence/` nằm cạnh thư mục e2e, mà mặc định nằm trong QA home. gin-qa thêm `evidence/` vào `.gitignore` của repository chứa QA home.
+QA home chứa `cases/`, `guidelines.md`, `evidence/` và `e2e/`. `evidence/` vẫn nằm trong QA home khi `qa.e2e` trỏ tới nơi khác. gin-qa thêm `evidence/` vào `.gitignore` của repository chứa QA home.
 
 `e2e/` là Playwright project: có `package.json` riêng, `playwright.config.ts`, và các spec. `gin-qa e2e init` tạo `e2e/package.json` khi chưa có. Lệnh của trình quản lý gói chạy trong `e2e/`; lockfile được tìm từ đó lên tới gốc repo.
 

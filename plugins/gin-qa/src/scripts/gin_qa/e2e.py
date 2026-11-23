@@ -54,8 +54,8 @@ class Spec:
 
 
 def evidence_root(eff: Effective) -> str:
-    """The `evidence` folder next to the e2e folder: `qa/evidence` for `qa/e2e`."""
-    return (PurePosixPath(eff.e2e_dir).parent / "evidence").as_posix()
+    """The `evidence` folder of the QA home, wherever `qa.e2e` points: `qa/evidence` by default."""
+    return eff.evidence_dir
 
 
 def new_run_folder(root: Path, eff: Effective, suffix: str = "") -> str:
@@ -267,7 +267,8 @@ def _install(root: Path, eff: Effective) -> list[str]:
 
 
 def _package_name(root: Path, eff: Effective) -> str:
-    """`<QA home folder>-e2e` as an npm name: the folder above the e2e folder, else the files root's own name."""
+    """`<folder above the e2e folder>-e2e` as an npm name (`qa-e2e` for `qa/e2e`), else `<files root name>-e2e`.
+    Not the QA home: an explicit `qa.e2e` names the package after the folder it lives in."""
     home = PurePosixPath(eff.package_dir).parent.name or root.name
     return (re.sub(r"[^a-z0-9._-]+", "-", home.lower()).strip("._-") or "qa") + "-e2e"
 

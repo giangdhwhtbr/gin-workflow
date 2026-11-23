@@ -15,6 +15,7 @@ import shutil
 DEFAULT_CASES = "qa/cases"
 DEFAULT_GUIDELINES = "qa/guidelines.md"
 DEFAULT_E2E = "qa/e2e"
+DEFAULT_EVIDENCE = "qa/evidence"
 
 
 class QaError(RuntimeError):
@@ -28,6 +29,7 @@ class Effective:
     guidelines: str
     test_globs: list[str]
     e2e_dir: str = DEFAULT_E2E
+    evidence_dir: str = DEFAULT_EVIDENCE
     project_root: Path = field(default_factory=Path)
     package_dir: str = ""
     reqs: dict[str, dict[str, Any]] = field(default_factory=dict)
@@ -131,7 +133,7 @@ def resolve(payload: dict[str, Any], qa_home: str = "qa") -> Effective:
                           _inside("cases", qa["cases"]) if "cases" in qa else _under(qa_home, "cases"),
                           _inside("guidelines", qa["guidelines"]) if "guidelines" in qa
                           else _under(qa_home, "guidelines.md"),
-                          list(payload.get("test_globs", [])), e2e_dir)
+                          list(payload.get("test_globs", [])), e2e_dir, _under(qa_home, "evidence"))
     effective.package_dir = e2e_dir  # `locate` keeps the files root for an existing root setup
     owner: dict[str, str] = {}
     for row in payload["requirements"]:

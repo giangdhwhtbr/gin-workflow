@@ -29,7 +29,7 @@ Everything gin-qa writes lives in one folder, the QA home:
 - In a [workspace](workspace.md), the QA home is the child with `shape: qa`. Its path and name are free. gin-qa finds it by shape, from that child, from a worktree of it, or from anywhere in the project. `qa.dir` is ignored there.
 - In a single repository, the QA home is the `qa.dir` folder (default `qa`). `qa.dir` must be a path inside the repository.
 
-The QA home holds `cases/`, `guidelines.md`, `evidence/`, and `e2e/`. `evidence/` sits next to the e2e folder, which is in the QA home by default. gin-qa adds `evidence/` to the `.gitignore` of the repository that holds the QA home.
+The QA home holds `cases/`, `guidelines.md`, `evidence/`, and `e2e/`. `evidence/` stays in the QA home when `qa.e2e` points elsewhere. gin-qa adds `evidence/` to the `.gitignore` of the repository that holds the QA home.
 
 `e2e/` is the Playwright project: its own `package.json`, `playwright.config.ts`, and the specs. `gin-qa e2e init` creates `e2e/package.json` when it is missing. Package manager commands run in `e2e/`; the lockfile is looked up from there to the repository root.
 
