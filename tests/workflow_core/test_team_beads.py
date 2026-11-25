@@ -494,6 +494,26 @@ class TestDoltTimeout(unittest.TestCase):
                 team_beads.sync(Path("."))
 
 
+class TestOverrideForce(unittest.TestCase):
+    """bd 1.3.4 refuses to take a live claim from another actor without `--force`; bd before 1.3 has no such flag."""
+
+    def override(self, help_text: str, holder: str) -> list[str]:
+        team_beads._update_has_force.cache_clear()
+        self.addCleanup(team_beads._update_has_force.cache_clear)
+        done = subprocess.CompletedProcess([], 0, help_text, "")
+        with mock.patch.object(team_beads, "tool", return_value="bd"), \
+                mock.patch.object(team_beads.subprocess, "run", return_value=done):
+            return team_beads._override(Path("."), holder, "binh@corp.com")
+
+    def test_force_only_for_another_holder_and_only_where_bd_has_the_flag(self):
+        new = "Flags:\n  -a, --assignee string   Assignee\n      --force                  Override two refusals\n"
+        old = "Flags:\n  -a, --assignee string   Assignee\n  -s, --status string     Status (see bd close --force)\n"
+        self.assertEqual(["--force"], self.override(new, "em@corp.com"))
+        self.assertEqual([], self.override(new, "binh@corp.com"))
+        self.assertEqual([], self.override(new, ""))
+        self.assertEqual([], self.override(old, "em@corp.com"))
+
+
 class TestPushWithoutReset(unittest.TestCase):
     """A rejected push retries through sync once; local Beads are never reset."""
 
@@ -1117,7 +1137,7 @@ class TestTeamLaneClaim(LaneBeads, unittest.TestCase):
         t1, t2, _t3 = self.track(1), self.track(2), self.track(3)
         first = json.loads(self.claim(t1).stdout)
         work = self.commit(Path(first["worktree"]), "one.txt")
-        bd(self.root, "close", t1)
+        bd(self.root, "close", t1, actor="binh@corp.com")
         claimed = self.claim(t2, [{"argv": ["pr", "list"], "stdout": []}])
         self.assertEqual(0, claimed.returncode, claimed.stdout + claimed.stderr)
         data = json.loads(claimed.stdout)
@@ -1187,7 +1207,7 @@ class TestTeamLaneClaim(LaneBeads, unittest.TestCase):
         git(worktree, "push", "-q", "-u", "origin", "feat/shop-be")
         if after_merge:
             self.commit(worktree, "late.txt")
-        bd(self.root, "close", t1)
+        bd(self.root, "close", t1, actor="binh@corp.com")
         git(self.root, "commit", "-q", "--allow-empty", "-m", "merged upstream")
         if merge:
             git(self.root, "merge", "-q", "--no-ff", "-m", "Merge feat/shop-be", "feat/shop-be")
@@ -1213,7 +1233,7 @@ class TestTeamLaneClaim(LaneBeads, unittest.TestCase):
         self.assertEqual(0, restarted.returncode, restarted.stdout + restarted.stderr)
         self.assertIn("restarted from origin/main", json.loads(restarted.stdout)["note"])
         work = self.commit(worktree, "two.txt")
-        bd(self.root, "close", t2)
+        bd(self.root, "close", t2, actor="binh@corp.com")
         claimed = self.claim(t3, rules)
         self.assertEqual(0, claimed.returncode, claimed.stdout + claimed.stderr)
         self.assertNotIn("note", json.loads(claimed.stdout))
@@ -1326,7 +1346,7 @@ class TestTeamLaneBeadClaim(LaneBeads, unittest.TestCase):
 
     def test_a_closed_lane_bead_does_not_count_as_a_delivered_track(self):
         lane = self.lane_bead()
-        bd(self.root, "close", lane)
+        bd(self.root, "close", lane, actor="binh@corp.com")
         t1, t2 = self.lane_track(1), self.lane_track(2)
         self.assertEqual(0, self.claim(t1, []).returncode)
         claimed = self.claim(t2, [])
@@ -1350,7 +1370,7 @@ class TestTeamDepsLane(LaneBeads, unittest.TestCase):
     def planned_lane(self, *open_tracks: int) -> tuple[str, str]:
         """A closed lane bead, tracks 1 and 2 of the lane plan (closed unless listed), and the placeholder."""
         lane = self.lane_bead()
-        bd(self.root, "close", lane)
+        bd(self.root, "close", lane, actor="binh@corp.com")
         for number in (1, 2):
             track = self.lane_track(number)
             if number not in open_tracks:
@@ -1381,7 +1401,7 @@ class TestTeamDepsLane(LaneBeads, unittest.TestCase):
         lane = self.lane_bead()
         ext = create(self.root, f"external: {self.PLAN}#lane-be")
         self.assertEqual(f"lane be has open beads: {lane}", self.deps()["reasons"][ext])
-        bd(self.root, "close", lane)
+        bd(self.root, "close", lane, actor="binh@corp.com")
         self.assertEqual("lane be has no track bead yet", self.deps()["reasons"][ext])
         other = create(self.root, f"external: {self.PLAN}#lane-ops")
         self.assertEqual(f"lane ops of {self.PLAN} has no bead", self.deps()["reasons"][other])
@@ -1429,7 +1449,7 @@ class TestTeamLaneHandoff(LaneBeads, unittest.TestCase):
         self.t1, self.t2, self.t3 = self.track(1), self.track(2), self.track(3)
         self.worktree = Path(json.loads(self.claim(self.t1).stdout)["worktree"])
         self.commit(self.worktree, "one.txt")
-        bd(self.root, "close", self.t1)
+        bd(self.root, "close", self.t1, actor="binh@corp.com")
         claimed = self.claim(self.t2, self.GH)
         self.assertEqual(0, claimed.returncode, claimed.stdout + claimed.stderr)
 
@@ -1462,6 +1482,14 @@ class TestTeamLaneHandoff(LaneBeads, unittest.TestCase):
             self.assertEqual("open", row["status"])
             self.assertIn("released", row["labels"])
             self.assertNotIn("claim", row.get("metadata") or {})
+
+    def test_the_lead_releases_a_lane_another_member_holds(self):
+        self.assertEqual(0, self.cli("reassign", self.t2, "em@corp.com").returncode)
+        done = self.cli("handoff", self.t2, "--release")
+        self.assertEqual(0, done.returncode, done.stdout + done.stderr)
+        for bead in (self.t2, self.t3):
+            row = show(self.root, bead)
+            self.assertEqual(("", "open"), (row.get("assignee") or "", row["status"]))
 
     def test_takeover_checks_out_the_lane_and_leases_every_track(self):
         self.assertEqual(0, self.cli("handoff", self.t2, "em@corp.com").returncode)
