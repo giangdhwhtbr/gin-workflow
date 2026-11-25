@@ -230,6 +230,29 @@ class TestTeamComplete(unittest.TestCase):
         self.assertEqual("closed", prep_data["status"])
         self.assertEqual(f"not needed: {self.epic} shipped", prep_data.get("close_reason"))
 
+    def test_orchestration_ready_starts_the_epic_without_an_assignee(self):
+        git(self.root, "config", "user.email", "em@corp.com")
+        recorded = run_cli(self.root, "record", "orchestration-ready", "--evidence", "beads", "--workflow-id", "w",
+                           "--epic", self.epic, env=self.env)
+        self.assertEqual(0, recorded.returncode, recorded.stdout + recorded.stderr)
+        epic_data = show(self.root, self.epic)
+        self.assertEqual(("in_progress", ""), (epic_data["status"], epic_data.get("assignee") or ""))
+
+    def test_the_lead_completes_an_epic_another_member_claimed(self):
+        bd(self.root, "update", self.epic, "--claim", actor="em@corp.com")
+        self.merged_gh()
+        result = run_cli(self.root, "team", "complete", self.epic, env=self.env)
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        self.assertEqual("closed", show(self.root, self.epic)["status"])
+
+    def test_an_open_prep_another_member_holds_is_closed_before_the_epic(self):
+        prep = create(self.root, "Capture notes", "prep", parent=self.epic)
+        bd(self.root, "update", prep, "--claim", actor="an@corp.com")
+        self.merged_gh()
+        result = run_cli(self.root, "team", "complete", self.epic, env=self.env)
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        self.assertEqual(("closed", "closed"), (show(self.root, prep)["status"], show(self.root, self.epic)["status"]))
+
     def test_closed_prep_is_listed_in_json(self):
         prep = create(self.root, "Capture notes", "prep", parent=self.epic)
         self.merged_gh()
