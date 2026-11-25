@@ -2,6 +2,17 @@
 
 This page lists what changed in each release of gin-workflow and its add-ons (gin-qa, gin-ba), newest first. Releases before 3.1.0 are on the [GitHub releases page](https://github.com/giangdhwhtbr/gin-workflow/releases).
 
+## [3.5.2] - 2026-11-25
+
+### Upgrade notes
+
+- Update gin on each machine. No project step is needed, and `.ginrc` stays as it is.
+- In team mode, a member who runs bd 1.3.4 needs gin 3.5.2 to take over a claim, reassign, or release a bead that another member holds.
+
+### Fixed
+
+- `gin team claim` on an expired claim, `gin team reassign`, and `gin team handoff --release` work with bd 1.3.4. That bd refuses to change the assignee of a bead another member holds without `--force`. gin passes `--force` after its own checks, and only to a bd that has the flag (1.3 and later).
+
 ## [3.5.1] - 2026-11-25
 
 ### Upgrade notes
