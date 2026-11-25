@@ -13,7 +13,7 @@ from . import cases as tc
 from . import bugs, e2e, numbering, report, runs, tests
 from .reqs import Effective, QaError, current_hashes, locate, specs_reqs
 
-VERSION = "3.5.2"
+VERSION = "3.5.3"
 
 
 def _parser() -> argparse.ArgumentParser:

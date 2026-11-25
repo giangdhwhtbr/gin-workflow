@@ -2,6 +2,23 @@
 
 This page lists what changed in each release of gin-workflow and its add-ons (gin-qa, gin-ba), newest first. Releases before 3.1.0 are on the [GitHub releases page](https://github.com/giangdhwhtbr/gin-workflow/releases).
 
+## [3.5.3] - 2026-11-25
+
+### Upgrade notes
+
+- Update gin on each machine. No project step is needed, and `.ginrc` stays as it is.
+- gin needs bd 1.3.4 or later. Update bd on each machine that uses the Beads backend.
+- In team mode, an epic that `gin record orchestration-ready --epic` claimed before 3.5.3 stays assigned. `gin team complete` takes it over. To close it with `gin task close` instead, remove its assignee once: `bd update <epic> --assignee "" --force`.
+
+### Changed
+
+- gin no longer supports bd before 1.3.4. `gin team claim`, `reassign`, and `handoff --release` always pass `--force` when they take a bead from another member.
+- In team mode, `gin record orchestration-ready --epic` sets the epic `in_progress` without assigning it to anyone. Its tracks carry the claims.
+
+### Fixed
+
+- `gin team complete` closes an epic or open `prep` child that another member holds. It assigns the bead to the lead with a note, then closes it. bd 1.3.4 refused the close, so the command exited 2.
+
 ## [3.5.2] - 2026-11-25
 
 ### Upgrade notes
