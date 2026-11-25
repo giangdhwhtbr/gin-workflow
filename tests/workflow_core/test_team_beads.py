@@ -494,26 +494,6 @@ class TestDoltTimeout(unittest.TestCase):
                 team_beads.sync(Path("."))
 
 
-class TestOverrideForce(unittest.TestCase):
-    """bd 1.3.4 refuses to take a live claim from another actor without `--force`; bd before 1.3 has no such flag."""
-
-    def override(self, help_text: str, holder: str) -> list[str]:
-        team_beads._update_has_force.cache_clear()
-        self.addCleanup(team_beads._update_has_force.cache_clear)
-        done = subprocess.CompletedProcess([], 0, help_text, "")
-        with mock.patch.object(team_beads, "tool", return_value="bd"), \
-                mock.patch.object(team_beads.subprocess, "run", return_value=done):
-            return team_beads._override(Path("."), holder, "binh@corp.com")
-
-    def test_force_only_for_another_holder_and_only_where_bd_has_the_flag(self):
-        new = "Flags:\n  -a, --assignee string   Assignee\n      --force                  Override two refusals\n"
-        old = "Flags:\n  -a, --assignee string   Assignee\n  -s, --status string     Status (see bd close --force)\n"
-        self.assertEqual(["--force"], self.override(new, "em@corp.com"))
-        self.assertEqual([], self.override(new, "binh@corp.com"))
-        self.assertEqual([], self.override(new, ""))
-        self.assertEqual([], self.override(old, "em@corp.com"))
-
-
 class TestPushWithoutReset(unittest.TestCase):
     """A rejected push retries through sync once; local Beads are never reset."""
 

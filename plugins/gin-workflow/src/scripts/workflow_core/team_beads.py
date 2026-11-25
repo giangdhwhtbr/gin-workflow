@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
-import functools
 import json
 import os
 from pathlib import Path
@@ -22,7 +21,6 @@ _EXTERNAL = re.compile(r"^external: (\S+)#(\d+|lane-[a-z0-9][a-z0-9-]*)$")
 _PLAN_LINE = re.compile(r"^Plan:\s*`?([^`\s]+)`?\s*$", re.M)
 _REPO_LINE = re.compile(r"^Repo:\s*`?([^`\s]+)`?\s*$", re.M)
 _TRACKS_LINE = re.compile(r"^Tracks:\s*([\d,\s]+)$", re.M)
-_FORCE_FLAG = re.compile(r"^\s*(?:-\w, )?--force\b", re.M)
 RELEASED = "released"
 
 
@@ -46,22 +44,10 @@ def _bd(root: Path, argv: list[str], *, actor: str = "", timeout: int = 120) -> 
         raise TeamError(f"bd {' '.join(argv)} timed out after {timeout}s") from error
 
 
-@functools.lru_cache(maxsize=None)
-def _update_has_force(executable: str) -> bool:
-    """Whether `bd update` takes `--force` (bd 1.3 and later)."""
-    try:
-        completed = subprocess.run([executable, "update", "--help"], text=True, capture_output=True, check=False,
-                                   timeout=30)
-    except (OSError, subprocess.TimeoutExpired):
-        return False
-    return bool(_FORCE_FLAG.search(completed.stdout))
-
-
-def _override(root: Path, holder: str, actor: str) -> list[str]:
+def _override(holder: str, actor: str) -> list[str]:
     """`--force` for an update that takes a bead from another holder, which bd 1.3.4 refuses without it. gin has
-    already checked that `actor` may: an expired lease, or the lead of the bead's area. Older bd has no flag."""
-    executable = tool("bd", root)
-    return ["--force"] if holder and holder != actor and executable and _update_has_force(executable) else []
+    already checked that `actor` may: an expired lease, or the lead of the bead's area."""
+    return ["--force"] if holder and holder != actor else []
 
 
 def _bd_json(root: Path, argv: list[str], *, timeout: int = 120) -> Any:
@@ -461,7 +447,7 @@ def claim(root: Path, team: TeamConfig, member: Member, bead: str) -> dict[str, 
                 argv += ["--status", "in_progress"]
             if holder and holder != member.email:
                 argv += ["--append-notes", f"took over expired claim from {holder}",
-                         *_override(root, holder, member.email)]
+                         *_override(holder, member.email)]
         argv += ["--set-metadata", f"claim={lease}"]
         if RELEASED in (target.get("labels") or []):
             argv += ["--remove-label", RELEASED]
@@ -551,7 +537,7 @@ def _write_reassign(root: Path, team: TeamConfig, member: Member, bead: str, hol
     note = f"reassigned {holder or 'nobody'} -> {target.email} by {member.email}"
     completed = _bd(root, ["update", bead, "--assignee", target.email, "--append-notes", note,
                            "--set-metadata", f'claim={json.dumps({"holder": target.email, "expires_at": _expires(team)})}',
-                           *_override(root, holder, member.email)], actor=member.email)
+                           *_override(holder, member.email)], actor=member.email)
     if completed.returncode != 0:
         raise SyncConflict(completed.stderr.strip() or completed.stdout.strip())
 
@@ -696,7 +682,7 @@ def handoff(root: Path, team: TeamConfig, member: Member, bead: str, *, email: s
             completed = _bd(root, ["update", row["id"], "--assignee", "", "--status", "open", "--unset-metadata",
                                    "claim", "--add-label", RELEASED, "--append-notes",
                                    f"released to the pool by {member.email}",
-                                   *_override(root, (row.get("assignee") or "").lower(), member.email)],
+                                   *_override((row.get("assignee") or "").lower(), member.email)],
                          actor=member.email)
             if completed.returncode != 0:
                 raise SyncConflict(completed.stderr.strip() or completed.stdout.strip())
