@@ -2,6 +2,17 @@
 
 This page lists what changed in each release of gin-workflow and its add-ons (gin-qa, gin-ba), newest first. Releases before 3.1.0 are on the [GitHub releases page](https://github.com/giangdhwhtbr/gin-workflow/releases).
 
+## [3.5.1] - 2026-11-25
+
+### Upgrade notes
+
+- Update gin on each machine. No project step is needed, and `.ginrc` stays as it is.
+- A project whose `qa.e2e` points outside the QA home now gets its e2e and tests runs in `evidence/` of the QA home (`qa/evidence` by default). Run folders written before stay where they are: `gin-qa report` shows their results without steps, and `gin-qa e2e check --run` refuses them. Run the cases again to get evidence in the new folder.
+
+### Fixed
+
+- gin-qa keeps the evidence folder in the QA home when `qa.e2e` points elsewhere. `qa.e2e: newapp/e2e` wrote runs to `newapp/evidence` instead of `qa/evidence`. When `newapp` is a repository of its own, the `.gitignore` entry that gin-qa added did not cover them.
+
 ## [3.5.0] - 2026-11-22
 
 Beads can carry images: `gin attach` stores screenshots outside the tracker, and `gin-qa cases bug` attaches the evidence of a failed case. gin-qa keeps every recorded result in a run history that merges without conflicts. With the SDD layout, each requirement records who signed it off, and `gin specs trace --all` joins it to its beads, cases, and tests. Any epic takes story points, and the milestone forecast gives every roadmap epic chained dates.
