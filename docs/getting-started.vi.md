@@ -22,7 +22,7 @@ flowchart LR
    curl -sSL https://raw.githubusercontent.com/giangdhwhtbr/gin-workflow/master/remote-install.sh | bash -s -- --platform claude
    ```
    Trên Windows PowerShell, xem [hướng dẫn Windows](guides/windows.md) để dùng `install.ps1`.
-3. Tùy chọn: [Beads](https://github.com/gastownhall/beads) (`bd`) để theo dõi task (`brew install beads` hoặc `npm install -g @beads/bd`, rồi `bd init` trong repository của bạn). Nếu không có, task là các file Markdown cục bộ.
+3. Tùy chọn: [Beads](https://github.com/gastownhall/beads) (`bd`) 1.3.4 trở lên để theo dõi task (`brew install beads` hoặc `npm install -g @beads/bd`, rồi `bd init` trong repository của bạn). Nếu không có, task là các file Markdown cục bộ.
 4. Tùy chọn: [các công cụ khuyến nghị](guides/recommended-tools.md) như CodeGraph, giúp agent tra cứu code nhanh hơn.
 
 ---

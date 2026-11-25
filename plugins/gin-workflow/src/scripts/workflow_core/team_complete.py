@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from pathlib import Path
 import subprocess
-from typing import Any
+from typing import Any, Mapping
 
 from . import team_beads, team_host, team_pending, workspace
 from .team import Member, TeamConfig, TeamError
@@ -16,6 +16,21 @@ def _child_sort_key(child: dict[str, Any]) -> tuple[int, int, str]:
     if track is not None:
         return (0, track[1], str(child.get("id") or ""))
     return (1, 0, str(child.get("id") or ""))
+
+
+def _close(root: Path, member: Member, bead: Mapping[str, Any], reason: str) -> None:
+    """Close `bead` as `member`. bd 1.3.4 refuses to close a bead another member holds, so the lead takes it first;
+    the close itself keeps bd's other checks."""
+    holder = (bead.get("assignee") or "").lower()
+    if holder and holder != member.email:
+        taken = team_beads._bd(root, ["update", bead["id"], "--assignee", member.email, "--force", "--append-notes",
+                                      f"taken from {holder} by {member.email} to complete the epic"],
+                               actor=member.email)
+        if taken.returncode != 0:
+            raise TeamError(f"bd update failed: {taken.stderr.strip()}")
+    done = team_beads._bd(root, ["close", bead["id"], "--reason", reason], actor=member.email)
+    if done.returncode != 0:
+        raise TeamError(f"bd close failed: {done.stderr.strip()}")
 
 
 def complete(root: Path, team: TeamConfig, member: Member, epic: str) -> dict[str, Any]:
@@ -85,16 +100,11 @@ def complete(root: Path, team: TeamConfig, member: Member, epic: str) -> dict[st
     closed_prep: list[str] = []
     for child in children:
         if child.get("status") != "closed":
-            done = team_beads._bd(root, ["close", child["id"], "--reason", f"not needed: {epic} shipped"],
-                                  actor=member.email)
-            if done.returncode != 0:
-                raise TeamError(f"bd close failed: {done.stderr.strip()}")
+            _close(root, member, child, f"not needed: {epic} shipped")
             closed_prep.append(child["id"])
 
     reason = f"shipped: {', '.join(pull_requests)}" if pull_requests else "shipped"
-    completed = team_beads._bd(root, ["close", epic, "--reason", reason], actor=member.email)
-    if completed.returncode != 0:
-        raise TeamError(f"bd close failed: {completed.stderr.strip()}")
+    _close(root, member, issue, reason)
 
     return {"status": "completed", "epic": epic, "pull_requests": pull_requests, "missing": [],
             "closed_prep": closed_prep}

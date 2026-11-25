@@ -26,7 +26,7 @@ from .prep import is_prep, tracks_of
 from .project import project_settings
 from .tasks import backend as tasks_backend
 from . import epic_kind, workspace
-from .team import load_team, summary as team_summary, team_for_repo
+from .team import TeamConfig, load_team, summary as team_summary, team_for_repo
 from .router import _STAGE_GATES, route_next_stage, _gate_status
 from .waivers import (
     NON_WAIVABLE_GATES,
@@ -243,8 +243,9 @@ def _share_gate(repo_path: Path, events: Sequence[WorkflowEvent], args: argparse
     return None
 
 
-def _start_epic(repo_path: Path, epic: str) -> str | None:
-    """Mark the epic bead in_progress, claimed like `task update --claim` when it has no assignee.
+def _start_epic(repo_path: Path, epic: str, team: TeamConfig | None) -> str | None:
+    """Mark the epic bead in_progress, claimed like `task update --claim` when it has no assignee. In team mode
+    nobody holds the epic: its tracks carry the claims, and any lead may close it.
 
     Returns a warning on failure; the recorded gate stands."""
     from .configuration import ConfigValidationError
@@ -256,7 +257,8 @@ def _start_epic(repo_path: Path, epic: str) -> str | None:
         if tasks_backend(repo_path) != "beads":
             return None
         env = _bd_env(repo_path, [])
-        start = ["--status", "in_progress"] if _show(repo_path, epic, timeout=30).get("assignee") else ["--claim"]
+        start = (["--status", "in_progress"] if team is not None or _show(repo_path, epic, timeout=30).get("assignee")
+                 else ["--claim"])
         done = _bd(repo_path, ["update", epic, *start], actor=env["BD_ACTOR"] if env else "", timeout=30)
     except (ConfigValidationError, TeamError, OSError, subprocess.SubprocessError, ValueError, IndexError) as error:
         return f"could not set {epic} in_progress: {error}"
@@ -419,7 +421,7 @@ def _record_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
     if team is not None and appended and (team_payload or args.gate == "orchestration-ready"):
         warning = _share_gate(Path(args.repository).resolve(), prior, args, actor, team_payload)
     if appended and args.epic:
-        started = _start_epic(Path(args.repository).resolve(), args.epic)
+        started = _start_epic(Path(args.repository).resolve(), args.epic, team)
         warning = "; ".join(w for w in (warning, started) if w) or None
     result = {
         "status": "recorded" if appended else "already_recorded",
