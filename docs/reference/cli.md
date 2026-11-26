@@ -64,6 +64,8 @@ Prints the current lifecycle stage, the routing decision, the main harness, ever
 
 A gate reads `unknown` when `state` cannot read the task tracker or the event log. The decision is then `hold`. `warnings` and `remedies` carry the cause: `tracker unavailable: <cause>` or `event log unreadable: <error>; waivers not applied`.
 
+Inside a Claude Code session, `state` also records which session worked on the workflow. It reads `CLAUDE_CODE_SESSION_ID`, which Claude Code sets for the commands it runs, and appends one `session.bound` event per session and workflow to the event log. `gin record`, `gin unblock`, and `gin routes dispatch` do the same. Nothing is recorded for `default-workflow`, without the variable, or when its value has a character other than a letter, a digit, `_`, `.`, or `-`. JSON lists the bindings of the workflow as `sessions` (`session_id`, `bound_at`), oldest first. A binding that cannot be written prints `gin: session not bound: <cause>` on stderr and changes neither the output nor the exit code.
+
 `--workflow-id` defaults to `default-workflow`. Use one id per feature (for example the spec's topic slug) so gates from different features do not mix.
 
 Exit codes: 0 when the decision is `route`; 1 when the workflow is held or blocked.

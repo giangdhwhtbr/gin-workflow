@@ -23,6 +23,7 @@ from .catalog import catalog_for, escalate, route_diagnostics
 from .checkout import main_checkout
 from .configuration import ConfigValidationError, load_effective_config, require_yaml
 from .events import WorkflowEvent, WorkflowEventStore
+from .session_binding import bind_session
 from .locking import file_lock
 from .models import EffectiveConfig
 from . import workspace
@@ -253,6 +254,7 @@ def dispatch(
         },
     )
     store.append(event)
+    bind_session(store, workflow_id)
 
     return {
         "task_id": task_id,

@@ -1,5 +1,6 @@
 import io
 import json
+import os
 from pathlib import Path
 import sys
 import tempfile
@@ -239,7 +240,8 @@ class TestRoutesCLI(unittest.TestCase):
         self._write_manifest("wf-disp", [entry])
 
         stdout = io.StringIO()
-        with patch("sys.stdout", stdout):
+        with patch("sys.stdout", stdout), patch.dict("os.environ"):
+            os.environ.pop("CLAUDE_CODE_SESSION_ID", None)
             code = routes.main([
                 "dispatch",
                 "--workflow-id", "wf-disp",
@@ -267,6 +269,25 @@ class TestRoutesCLI(unittest.TestCase):
         self.assertEqual("sonnet", e["payload"]["model"])
         self.assertEqual("medium", e["payload"]["effort"])
         self.assertIsNone(e["payload"]["reason"])
+
+    def test_dispatch_binds_the_claude_code_session_to_the_workflow(self):
+        entry = {
+            "task_id": "t1",
+            "requested": {"provider_role": "backend", "model": "sonnet", "effort": "medium"},
+            "resolved": {"provider": "claude", "model": "sonnet", "effort": "medium", "selection_mode": "explicit"},
+            "fallback": [],
+            "escalations": [],
+        }
+        self._write_manifest("wf-bind", [entry])
+        argv = ["dispatch", "--workflow-id", "wf-bind", "--task-id", "t1", "--repository", str(self.root), "--json"]
+        with patch.dict(os.environ, {"CLAUDE_CODE_SESSION_ID": "session-a"}), patch("sys.stdout", io.StringIO()):
+            self.assertEqual(0, routes.main(argv))
+            self.assertEqual(0, routes.main(argv))
+        events_file = self.root / ".agent-workflow/runtime/events.jsonl"
+        events = [json.loads(line) for line in events_file.read_text(encoding="utf-8").splitlines() if line.strip()]
+        bound = [event for event in events if event["event_type"] == "session.bound"]
+        self.assertEqual([("wf-bind", {"session_id": "session-a"})],
+                         [(event["workflow_id"], event["payload"]) for event in bound])
 
     def test_dispatch_escalate_haiku_low_gives_sonnet_low(self):
         entry = {
