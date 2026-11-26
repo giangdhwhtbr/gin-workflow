@@ -1,7 +1,7 @@
 # Roadmap: Cost and friction of the common path
 
 Date: 2026-11-26
-Source: product brief "gin-workflow: product brief for the next improvements" (Claude Doc, 2026-11-25, https://claude.ai/artifact/7fQvBeHDvkXfbRp5xwxT1m), confirmed with the PM in `/roadmap` on 2026-11-26 and revised the same day (Claude Code only, an upkeep epic, team mode as a supported mode). The previous roadmap (process review follow-up, 2026-11-10) is fully shipped; it stays in git history.
+Source: product brief "gin-workflow: product brief for the next improvements" (Claude Doc, 2026-11-25, https://claude.ai/artifact/7fQvBeHDvkXfbRp5xwxT1m), confirmed with the PM in `/roadmap` on 2026-11-26 and revised the same day (Claude Code only, an upkeep epic, team mode as a supported mode, platform first with two agent team epics). The previous roadmap (process review follow-up, 2026-11-10) is fully shipped; it stays in git history.
 
 <!-- Written by /roadmap after the PM confirms it. One "### " block per epic; an epic id never changes once written.
      Depends on: epic ids from this file. Evidence: the tech-doc file and section (for example
@@ -26,13 +26,14 @@ Source: product brief "gin-workflow: product brief for the next improvements" (C
 - Cost per epic and per stage can be read without spending agent tokens.
 - A marketplace install is enough on Claude Code.
 - The maintainer learns of a breaking change in Claude Code or Beads within a week and releases from a written procedure.
+- A team can give a role to an agent under the same gates, and the specs of a milestone are drafted in one run with the open questions gathered once.
 - Reopened beads and findings at ship stay flat while the numbers above move.
 
 ## Summary
 
 | Milestone | Period | Outcome | Demo | Epics |
 |---|---|---|---|---|
-| Unassigned | | | | Session binding for the cost view; Upkeep for one maintainer; Fresh context per stage with a state card; Orchestrate as one CLI command; Ship checks and options in the CLI; One-call stage brief; Plans that record decisions; Effort and model matched to the stage; Review sized to risk; Execute as a Claude Code workflow; One entry command; Skill text audit for current models; Marketplace install without extra steps |
+| Unassigned | | | | Session binding for the cost view; Upkeep for one maintainer; Fresh context per stage with a state card; Orchestrate as one CLI command; Ship checks and options in the CLI; One-call stage brief; Plans that record decisions; Effort and model matched to the stage; Review sized to risk; Execute as a Claude Code workflow; Team roles run by agents; Milestone specs drafted in one run; One entry command; Skill text audit for current models; Marketplace install without extra steps |
 
 ## Constraints
 
@@ -41,6 +42,8 @@ Source: product brief "gin-workflow: product brief for the next improvements" (C
 - Claude Code only (PM decision, 2026-11-26): the epics of this file are built and verified on Claude Code. The Codex, OpenCode, Copilot, and Antigravity builds stay as they are and get no new behaviour. Every hook runs on Windows.
 - Team mode is in use (PM, 2026-11-26): a team of 11 members with different roles runs gin on Claude Code with a Gitea host. Team mode, workspaces, and the SDD layout stay supported. Every epic states its team-mode behaviour in its spec, keeps the team tests green, and freezes or removes no mode.
 - A change to team behaviour is checked on that team's project before the release that carries it, because no project on the maintainer's machine uses team mode.
+- Platform first (PM, 2026-11-26): gin-workflow keeps state and rules (the CLI, gates, Beads), and Claude Code is the runtime (context, agents, review, interface). Every epic checks in its discuss whether a Claude Code feature already does the job, and writes the glue to it, not a replacement.
+- Focus (PM, 2026-11-26): the lane goes to gin-workflow. Work in gin-harness waits for the measurement of `gin-workflow-batch-discuss`.
 - gin-workflow dispatches no work to another harness (decided 2026-11-21). Work shared between harnesses belongs to gin-harness.
 - Gates, evidence, and approvals do not change. A merge, a pull request, or a force-push still needs explicit approval.
 - Keep the JSON read by gin-console backward compatible (`gin state`, `gin milestone list --json`, `bd ... --json`): add keys, never rename or remove them.
@@ -62,7 +65,7 @@ Source: product brief "gin-workflow: product brief for the next improvements" (C
 
 ## Strategy
 
-Measure first, then shrink the main session, then make agent turns cheaper, then shorten the path for the user. The main session holds 81% of prompt tokens at a 293K median context, so phase 1 carries most of the saving and makes every later epic cheaper to build. Until gin-console shows cost per epic, the transcript scan of the brief gives the baseline. In phase 1 the two CLI stages come before the stage brief, because they shrink the skills the brief then rewrites. In phase 2 the three small epics come before the workflow, so the saving they bring is measured on its own. Phase 3 changes what the user types and how the plugin is packaged, and it builds on the commands of phases 1 and 2. The upkeep epic runs second, because every later epic builds on Claude Code surfaces that change every week. Epics that edit the same stage skills run back to back in the listed order.
+Measure first, then shrink the main session, then make agent turns cheaper, then shorten the path for the user. The main session holds 81% of prompt tokens at a 293K median context, so phase 1 carries most of the saving and makes every later epic cheaper to build. Until gin-console shows cost per epic, the transcript scan of the brief gives the baseline. In phase 1 the two CLI stages come before the stage brief, because they shrink the skills the brief then rewrites. In phase 2 the three small epics come before the workflow, so the saving they bring is measured on its own. The agent team phase follows the workflow: it reuses the way the plugin ships a workflow, and it changes how discuss starts before the entry command builds on it. The last phase changes what the user types and how the plugin is packaged, and it builds on the commands of phases 1 and 2. The upkeep epic runs second, because every later epic builds on Claude Code surfaces that change every week. Epics that edit the same stage skills run back to back in the listed order.
 
 ## Order
 
@@ -73,8 +76,12 @@ flowchart LR
     CO[cli-orchestrate] --> EW[execute-workflow]
     CO --> OE
     EW --> OE
-    CS[cli-ship]
+    CS[cli-ship] --> OE
     SB[stage-brief] --> SA[skill-audit]
+    SB --> OE
+    SB --> BD[batch-discuss]
+    EW --> BD
+    AR[agent-roles]
     LP[lean-plans]
     SR[stage-routes]
     RR[review-by-risk]
@@ -87,9 +94,10 @@ flowchart LR
 | Measure | A baseline per epic is recorded | `gin-workflow-cost-binding`, `gin-workflow-upkeep` |
 | Small sessions | The median main-session context is under 120K | `gin-workflow-context-boundaries`, `gin-workflow-cli-orchestrate`, `gin-workflow-cli-ship`, `gin-workflow-stage-brief` |
 | Cheaper turns | Main-session tokens per epic are halved | `gin-workflow-lean-plans`, `gin-workflow-stage-routes`, `gin-workflow-review-by-risk`, `gin-workflow-execute-workflow` |
+| Agent team | A shadow run reports how many questions the user still answers | `gin-workflow-agent-roles`, `gin-workflow-batch-discuss` |
 | Shorter path | | `gin-workflow-one-entry`, `gin-workflow-skill-audit`, `gin-workflow-simpler-install` |
 
-With 1 lane the epics run in the listed order: cost-binding, upkeep, context-boundaries, cli-orchestrate, cli-ship, stage-brief, lean-plans, stage-routes, review-by-risk, execute-workflow, one-entry, skill-audit, simpler-install. The 13 epics total 86 points and 21 working days at the measured pace of 0.17 days per point. The deadline leaves 12 working days from 2026-11-26, which covers the order through stage-routes.
+With 1 lane the epics run in the listed order: cost-binding, upkeep, context-boundaries, cli-orchestrate, cli-ship, stage-brief, lean-plans, stage-routes, review-by-risk, execute-workflow, agent-roles, batch-discuss, one-entry, skill-audit, simpler-install. The 15 epics total 99 points and 24 working days at the measured pace of 0.17 days per point. The deadline leaves 12 working days from 2026-11-26, which covers the order through stage-routes.
 
 ## Unassigned
 
@@ -243,6 +251,36 @@ Depends on: gin-workflow-cli-orchestrate
 Evidence: brief epic 6 and "Where the tokens go" (105 developer and 111 reviewer runs driven from the main session); `plugins/gin-workflow/src/skills/execute/SKILL.md` (worker dispatch loop), `skills/execute/references/result-contract.md`; Claude Code workflows docs.
 Risks: a run cannot ask a question, so a `needs_clarification` result must stop its track cleanly; subagent worktrees branch from the remote default branch by default; a stopped run resumes only in its session.
 
+### Team roles run by agents
+Epic: gin-workflow-agent-roles
+Points: 5 (one guide in two languages, one JSON key, one contract page)
+Estimate: 1
+Kind: technical
+Complexity: medium: the guide sets who may approve what, and identity on one host
+Goal: A team can give a role to an agent under the same gates and the same approval record as for a person.
+Scope: a guide on agents as team members: one host account and token per agent, a git identity per session, a policy for every gate, and the gates that stay with a person by default (`requirement_confirmed` of a capability epic and `ship`); `gin team pending --format json` names the roles still missing as ids; one contract page for the JSON of `gin state`, `gin milestone`, and `gin team`, where keys are added and never renamed or removed; unattended lane runs with `gin goal --lane` and scheduled Claude Code sessions.
+Out of scope: a control plane or a scheduler of agents; new policy values; dispatch to other harnesses; an agent that approves product decisions by default.
+Features: Agent roles (PM decision, 2026-11-26; from the gin-harness brief)
+Legacy: none
+Depends on:
+Evidence: PM decision in `/roadmap` on 2026-11-26; the gin-harness product brief (private), sections 5.2 and 6.3; `workflow_core/team.py:586-591` (approvers are host logins, and the author is excluded), `team.py:785-788` (a policy per epic kind), `team_pending.py:133-159` (`missing` holds text); `workflow_core/epic_kind.py:58-82` (parity checks a `Confirmed:` date, not who confirmed); `README.md:3`.
+Risks: the guide is read as leave for agents to approve product decisions; a git email is self-declared, so any session can record a gate that has no policy; checked on the team's project before release.
+
+### Milestone specs drafted in one run
+Epic: gin-workflow-batch-discuss
+Points: 8 (one workflow, a draft mode of discuss, the gathered question list, one shadow run with its measurement)
+Estimate: 2
+Kind: capability
+Complexity: high: an agent answers questions a person answered before, and the quality of that sorting is unproven
+Goal: The specs of the epics of a milestone are drafted in one run, and the user answers the open questions in one sitting.
+Scope: a workflow in the plugin's `workflows/` drafts the discuss of each epic of a milestone or of a list; each draft sorts its open questions into three classes: answered by evidence with a citation, assumed with a default that is easy to reverse, and asked; a second agent checks every citation; the asked questions are gathered in one list on the epics; `/gin:discuss <epic>` then starts from the draft and the answers; a shadow run comes first, where the user still confirms every spec and the questions, the assumptions, and the user's own answers are counted; in team mode the member who holds the discuss role runs it, and each spec goes through the team's spec review.
+Out of scope: an agent that confirms a spec, because the team policy decides who approves; a decision backend or a decision log service; any interface beyond Claude Code.
+Features: Batch discuss (PM decision, 2026-11-26; from the gin-harness brief)
+Legacy: none
+Depends on: gin-workflow-stage-brief, gin-workflow-execute-workflow
+Evidence: PM decision in `/roadmap` on 2026-11-26; the gin-harness product brief (private), section 5.6 and Phase 0B; `plugins/gin-workflow/src/skills/discuss/SKILL.md` (one question per message, `project.max_questions`); `plugins/gin-workflow/src/skills/allocate/references/prep-catalog.md:10` (`question` prep tasks answer with `[gin answer]` comments); the discuss stage chain has 451 of 12,000 characters free.
+Risks: a wrong answer spreads into specs without notice; counting only the asked questions misses those turned into assumptions, so the shadow run counts both and keeps a control group; checked on the team's project before release.
+
 ### One entry command
 Epic: gin-workflow-one-entry
 Points: 8 (one router skill, two automatic hand-overs, the stops at pull request gates in team mode, visibility settings on 18 skills, docs)
@@ -254,9 +292,9 @@ Scope: `/gin <request>` sizes the work with the `quick-check` rule and routes to
 Out of scope: removing the stage commands, which stay; changes to the team approval policies.
 Features: One entry
 Legacy: none
-Depends on: gin-workflow-context-boundaries, gin-workflow-cli-orchestrate, gin-workflow-execute-workflow
+Depends on: gin-workflow-context-boundaries, gin-workflow-cli-orchestrate, gin-workflow-execute-workflow, gin-workflow-cli-ship, gin-workflow-stage-brief
 Evidence: brief epic 10 and open question 3; `docs/getting-started.md` (five typed stages); `plugins/gin-workflow/src/skills/workflow/SKILL.md`, `skills/quick/SKILL.md`; Claude Code skills docs (`user-invocable`, `disable-model-invocation`).
-Risks: starting execution without a prompt is a new default (decided in discuss); the router cannot load a stage skill that is hidden from the model.
+Risks: starting execution without a prompt is a new default (decided in discuss); the router cannot load a stage skill that is hidden from the model; its hand-over text needs the room that `gin-workflow-stage-brief` and `gin-workflow-cli-ship` free in the plan and ship chains.
 
 ### Skill text audit for current models
 Epic: gin-workflow-skill-audit
