@@ -1103,8 +1103,7 @@ class TestRequirementsInTheSignOff(unittest.TestCase):
         code = cli_main(["record", "requirement-confirmed", "--repository", str(root), "--evidence",
                          "docs/changes/ep-1-lockout", "--actor", "ba", "--workflow-id", workflow_id])
         self.assertEqual(0, code)
-        events = WorkflowEventStore(root / ".agent-workflow/runtime/events.jsonl").read_all()
-        return [event for event in events if event.event_type != "session.bound"][-1].to_dict()["payload"]
+        return WorkflowEventStore(root / ".agent-workflow/runtime/events.jsonl").read_all()[-1].to_dict()["payload"]
 
     def test_the_event_lists_the_change_requirements(self):
         make_change(self.root)

@@ -240,8 +240,7 @@ class TestRoutesCLI(unittest.TestCase):
         self._write_manifest("wf-disp", [entry])
 
         stdout = io.StringIO()
-        with patch("sys.stdout", stdout), patch.dict("os.environ"):
-            os.environ.pop("CLAUDE_CODE_SESSION_ID", None)
+        with patch("sys.stdout", stdout):
             code = routes.main([
                 "dispatch",
                 "--workflow-id", "wf-disp",
