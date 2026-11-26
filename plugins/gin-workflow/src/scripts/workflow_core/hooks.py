@@ -192,7 +192,7 @@ def _untested(root: Path, changed: Collection[str] | None) -> list[str]:
     return [path for path in paths if any(_under(name, path) for name in changed)]
 
 
-_ENV_PREFIX =re.compile(r"^([A-Za-z_][A-Za-z0-9_]*)=([^\s\"'$`;|&<>()\\]*)\s+")
+_ENV_PREFIX = re.compile(r"^([A-Za-z_][A-Za-z0-9_]*)=([^\s\"'$`;|&<>()\\]*)\s+")
 
 
 def _split_env_prefix(command: str) -> tuple[str, dict[str, str]]:

@@ -420,6 +420,18 @@ class TestHooksRun(unittest.TestCase):
         self.assertEqual("ran\n", (root / "ran.txt").read_text())
 
     @unittest.skipIf(os.name == "nt", "the verify command is POSIX sh syntax")
+    def test_pre_push_runs_the_checks_when_the_pushed_commits_change_no_file(self):
+        root = self.untested("a")
+        before = git(root, "rev-parse", "HEAD")
+        git(root, "commit", "-qm", "empty", "--allow-empty", "--no-verify")
+        line = f"refs/heads/main {git(root, 'rev-parse', 'HEAD')} refs/heads/main {before}"
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            self.assertNotEqual(0, hooks.run(root, "pre-push", [line]))
+        self.assertEqual("ran\n", (root / "ran.txt").read_text())
+        self.assertNotIn("verify.no_test_paths", err.getvalue())
+
+    @unittest.skipIf(os.name == "nt", "the verify command is POSIX sh syntax")
     def test_no_test_paths_takes_a_trailing_slash_and_evidence_run_still_runs(self):
         root = self.untested("a", paths='[".planning/"]')
         with contextlib.redirect_stderr(io.StringIO()):

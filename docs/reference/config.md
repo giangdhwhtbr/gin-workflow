@@ -99,7 +99,7 @@ Where the full suite (`test`, `build`, `e2e`) runs: `track` after each track, `p
 
 ### `verify.no_test_paths`
 
-Paths whose changes need no local test run: repository-relative files or directories, for example `docs` or `.planning`. Optional; the default is none. When every file the pushed commits change lies under these paths, `gin hooks run pre-push` runs nothing and records nothing. A push that changes any other file runs every check, and so does a push whose change set git cannot name. The `pre-commit` hook and `gin evidence run` are unchanged. A workspace child uses the parent's value on its own paths. Nothing else runs the suite for such a push, so list only paths that no test reads.
+Paths whose changes need no local test run: repository-relative files or directories, for example `docs` or `.planning`. Optional; the default is none. When every file the pushed commits change lies under these paths, `gin hooks run pre-push` runs nothing and records nothing. A push that changes any other file, or whose change set git cannot name, runs the checks as it would without this key. The `pre-commit` hook and `gin evidence run` are unchanged. A workspace child uses the parent's value on its own paths. Nothing else runs the suite for such a push, so list only paths that no test reads.
 
 ### `verify.checks`
 
