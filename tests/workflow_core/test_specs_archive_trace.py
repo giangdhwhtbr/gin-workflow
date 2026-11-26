@@ -350,15 +350,36 @@ class TestTraceWorkspace(unittest.TestCase):
         self.assertEqual(["services/api/tests/test_lock.py"], result["requirements"][0]["sources"])
         self.assertEqual(["apps/web"], result["skipped"])
 
-    def test_cli_ref_for_an_unknown_repo_or_ref_exits_2_naming_it(self):
-        for value, named in (("nope=main", "nope"), ("services/api=no-such-ref", "no-such-ref"),
-                             ("legacy/portal=main", "legacy/portal"), ("services/api", "expected")):
+    def run_trace(self, *args: str) -> subprocess.CompletedProcess[str]:
+        return subprocess.run([sys.executable, str(LAUNCHER), "specs", "trace", *args, "--repository", str(self.root)],
+                              text=True, capture_output=True, check=False)
+
+    def test_cli_ref_errors_exit_2_with_their_message(self):
+        workable = "is not a workable workspace repository"
+        for value, message in (("nope=main", workable), ("legacy/portal=main", workable),
+                               ("services/api=no-such-ref", "cannot resolve no-such-ref in services/api"),
+                               ("services/api", "expected <repo>=<ref>"),
+                               ("apps/web=main", "apps/web is not cloned; run gin workspace clone apps/web")):
             with self.subTest(value=value):
-                run = subprocess.run([sys.executable, str(LAUNCHER), "specs", "trace", "--change", "ep-1",
-                                      "--ref", value, "--repository", str(self.root)],
-                                     text=True, capture_output=True, check=False)
+                run = self.run_trace("--change", "ep-1", "--ref", value)
                 self.assertEqual(2, run.returncode)
-                self.assertIn(named, run.stderr)
+                self.assertIn(message, run.stderr)
+                self.assertNotIn("Traceback", run.stderr)
+
+    def test_cli_trace_all_refuses_ref(self):
+        run = self.run_trace("--all", "--ref", "services/api=main")
+        self.assertEqual(2, run.returncode)
+        self.assertIn("--ref needs --change", run.stderr)
+
+    def test_a_non_utf8_file_on_the_ref_is_skipped(self):
+        api = self.root / "services/api"
+        base = git(api, "rev-parse", "--abbrev-ref", "HEAD").strip()
+        git(api, "checkout", "-q", "-b", "lane")
+        (api / "tests/test_bin.py").write_bytes(b"\xff\xfe REQ-AUTH-003\n")
+        commit_all(api, "lane")
+        git(api, "checkout", "-q", base)
+        result = specs_trace.trace(self.root, self.cfg, self.change, {"services/api": "lane"})
+        self.assertEqual(["services/api/tests/test_lock.py"], result["requirements"][0]["sources"])
 
 
 class TestEndToEnd(unittest.TestCase):

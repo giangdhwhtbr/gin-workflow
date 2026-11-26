@@ -82,7 +82,9 @@ def req_sources(root: Path, cfg: Mapping[str, Any], req_ids: Iterable[str],
     for repo in repos:
         checkout = _child_checkout(space, repo)
         ref = refs.get(repo.path)
-        if ref is not None and checkout is not None:
+        if ref is not None and checkout is None:
+            raise SpecsError(f"--ref {repo.path}={ref}: {repo.path} is not cloned; run gin workspace clone {repo.path}")
+        if ref is not None:
             tracked = _ref_tracked(checkout, ref)
             if tracked is None:
                 raise SpecsError(f"--ref {repo.path}={ref}: cannot resolve {ref} in {repo.path}")
