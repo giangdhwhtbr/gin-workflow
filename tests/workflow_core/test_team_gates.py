@@ -888,11 +888,26 @@ class TestPlanChecks(unittest.TestCase):
                 "### Track 6: Fine\n- **Repo**: `apps/web`\n- **Files**:\n  - Modify `apps/web/c.tsx`\n\n"
                 "## Integration\n")
         path = write(self.root, PLAN_PATH, plan)
-        self.assertEqual(["Track 1: missing Repo:",
+        self.assertEqual(["Track 1: `services/api/a.py` is in repo services/api; set Repo: services/api",
                           "Track 2: Repo: services/billing is not in workspace.repos",
                           "Track 3: Repo: legacy/portal is frozen",
                           "Track 4: `apps/web/b.tsx` is outside repo services/api",
                           "Track 5: Repo: .beads is the beads repository"], check_plan_repos(space, path))
+
+    def test_check_plan_repos_dot_and_no_repo_name_the_parent(self):
+        space = Workspace(self.root, repos_from(yaml.safe_load(WORKSPACE)))
+        plan = ("# Plan\n\n## Tasks\n\n"
+                "### Track 1: Docs\n- **Repo**: `.`\n- **Files**:\n  - Modify `docs/guide.md`\n\n"
+                "### Track 2: Implicit parent\n- **Files**:\n  - Modify `.planning/notes.md`\n\n"
+                "### Track 3: Child file under the parent\n- **Repo**: `.`\n- **Files**:\n"
+                "  - Modify `docs/a.md`, `services/api/a.py`\n\n"
+                "### Track 4: Child file, no Repo\n- **Files**:\n  - Modify `apps/web/c.tsx`\n\n"
+                "## Integration\n")
+        path = write(self.root, PLAN_PATH, plan)
+        self.assertEqual("", plan_tracks(path)[0].repo)
+        self.assertEqual(["Track 3: `services/api/a.py` is in repo services/api; set Repo: services/api",
+                          "Track 4: `apps/web/c.tsx` is in repo apps/web; set Repo: apps/web"],
+                         check_plan_repos(space, path))
 
     def test_plan_tracks_reads_paths(self):
         # R2: Reads: in both spellings, absent, and repeated
@@ -918,7 +933,6 @@ class TestPlanChecks(unittest.TestCase):
         self.assertEqual(["Track 2: Reads: services/billing is not in workspace.repos",
                           "Track 2: Reads: .beads is the beads repository",
                           "Track 2: Reads: apps/web is the track's own Repo:",
-                          "Track 3: missing Repo:",
                           "Track 3: Reads: nope is not in workspace.repos"], check_plan_repos(space, path))
 
     def test_check_plan_cli_reports_reads_findings(self):
@@ -932,10 +946,11 @@ class TestPlanChecks(unittest.TestCase):
 
     def test_check_plan_cli_adds_workspace_findings(self):
         root = make_team_repo(Path(self.tmp.name) / "ws", extra=WORKSPACE)
-        path = write(root, PLAN_PATH, PLAN)
+        path = write(root, PLAN_PATH, PLAN.replace("services/auth/login.py", "services/api/handler.py"))
         result = run_cli(root, "team", "check-plan", str(path), "--format", "json")
         self.assertEqual(1, result.returncode, result.stderr)
-        self.assertEqual(["Track 1: missing Repo:", "Track 2: missing Repo:"], json.loads(result.stdout)["findings"])
+        self.assertEqual(["Track 1: `services/api/handler.py` is in repo services/api; set Repo: services/api"],
+                         json.loads(result.stdout)["findings"])
 
     def test_a_file_in_two_tracks_is_rejected(self):
         plan = PLAN.replace("- Modify: `web/login.tsx:10-20`\n",

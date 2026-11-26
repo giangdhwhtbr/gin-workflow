@@ -292,7 +292,7 @@ def default_branch(repo: Path, entry: workspace.Repo | None) -> str:
 
 def _track_repo(root: Path, repo: str | None) -> tuple[Path, workspace.Repo | None]:
     """The track's repository: the cloned, workable workspace child its `Repo:` names, else `root`."""
-    if repo is None:
+    if repo in (None, "."):
         return root, None
     space = workspace.locate(root).workspace
     entry = space.repo(repo) if space is not None else None

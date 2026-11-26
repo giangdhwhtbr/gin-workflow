@@ -4,7 +4,7 @@ Read this when `gin state --format json` reports `workspace` and `project.team.e
 
 ## Branches
 
-- A lane branch `feat/<topic>-<lane>` starts from `origin/<default_branch>` of the lane's repository (the child its tracks' `Repo:` names, else the parent). Its PR targets that branch and is approved by the `team.approvals.ship` roles.
+- A lane branch `feat/<topic>-<lane>` starts from `origin/<default_branch>` of the lane's repository (the child its tracks' `Repo:` names, else (`Repo: .` or none) the parent). Its PR targets that branch and is approved by the `team.approvals.ship` roles.
 - Orchestrate creates no child `feat/<topic>`. It creates the parent's `feat/<topic>` from the parent's default branch and pushes it. That branch holds the epic's knowledge records and, with `project.review_ledger: true`, its review ledgers.
 - Spec and plan reach the default branch through their own PRs first; lanes start after both merge.
 
