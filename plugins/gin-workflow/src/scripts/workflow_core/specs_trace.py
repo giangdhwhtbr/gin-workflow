@@ -4,10 +4,11 @@ from __future__ import annotations
 
 from pathlib import Path
 import subprocess
-from typing import Any, Iterable, Mapping
+from typing import Any, Callable, Iterable, Mapping
 
+from .checkout import main_checkout
 from .specs import REQ_ID, SpecsError, change_file, delta_blocks, test_files
-from .workspace import load
+from .workspace import Repo, Workspace, load
 
 
 def _tracked(root: Path) -> list[str]:
@@ -20,6 +21,34 @@ def _tracked(root: Path) -> list[str]:
 def _child_tracked(checkout: Path) -> list[str] | None:
     listed = subprocess.run(["git", "ls-files"], cwd=checkout, text=True, capture_output=True, check=False)
     return listed.stdout.splitlines() if listed.returncode == 0 else None
+
+
+def _ref_tracked(checkout: Path, ref: str) -> list[str] | None:
+    listed = subprocess.run(["git", "ls-tree", "-r", "--name-only", ref], cwd=checkout, text=True,
+                            capture_output=True, check=False)
+    return listed.stdout.splitlines() if listed.returncode == 0 else None
+
+
+def _from_disk(path: Path) -> Callable[[], str]:
+    return lambda: path.read_text(encoding="utf-8")
+
+
+def _from_ref(checkout: Path, ref: str, path: str) -> Callable[[], str]:
+    def read() -> str:
+        done = subprocess.run(["git", "show", f"{ref}:{path}"], cwd=checkout, capture_output=True, check=False)
+        if done.returncode != 0:
+            raise OSError(path)
+        return done.stdout.decode("utf-8")
+    return read
+
+
+def _child_checkout(space: Workspace, repo: Repo) -> Path | None:
+    """The child's clone under the gin root, else, from a linked worktree of the parent, under its main checkout."""
+    if space.present(repo):
+        return space.checkout(repo)
+    main = main_checkout(space.root)
+    other = main / repo.path
+    return other if main != space.root and (other / ".git").exists() else None
 
 
 def _tests_md_rows(path: Path) -> list[tuple[str, set[str], str]]:
@@ -35,24 +64,39 @@ def _tests_md_rows(path: Path) -> list[tuple[str, set[str], str]]:
     return rows
 
 
-def req_sources(root: Path, cfg: Mapping[str, Any], req_ids: Iterable[str]) -> tuple[dict[str, list[str]], list[str]]:
-    """Test files citing each REQ-ID (sorted repository paths), and the workspace children that could not be listed."""
+def req_sources(root: Path, cfg: Mapping[str, Any], req_ids: Iterable[str],
+                refs: Mapping[str, str] | None = None) -> tuple[dict[str, list[str]], list[str]]:
+    """Test files citing each REQ-ID (sorted repository paths), and the workspace children that could not be listed.
+
+    `refs` maps a child path to a git ref whose files are read instead of its checkout."""
     wanted = set(req_ids)
+    refs = refs or {}
     sources: dict[str, list[str]] = {req: [] for req in wanted}
-    candidates = list(test_files(root, cfg, _tracked(root)))
+    candidates = [(relative, _from_disk(Path(root) / relative)) for relative in test_files(root, cfg, _tracked(root))]
     skipped: list[str] = []
     space = load(root)
-    for repo in (space.repos if space else []):
-        if not repo.workable:
-            continue
-        tracked = _child_tracked(space.checkout(repo)) if space.present(repo) else None
+    repos = [repo for repo in (space.repos if space else []) if repo.workable]
+    for name in refs:
+        if name not in {repo.path for repo in repos}:
+            raise SpecsError(f"--ref {name}={refs[name]}: {name} is not a workable workspace repository")
+    for repo in repos:
+        checkout = _child_checkout(space, repo)
+        ref = refs.get(repo.path)
+        if ref is not None and checkout is not None:
+            tracked = _ref_tracked(checkout, ref)
+            if tracked is None:
+                raise SpecsError(f"--ref {repo.path}={ref}: cannot resolve {ref} in {repo.path}")
+        else:
+            tracked = _child_tracked(checkout) if checkout is not None else None
         if tracked is None:
             skipped.append(repo.path)
             continue
-        candidates += [f"{repo.path}/{path}" for path in test_files(root, cfg, tracked)]
-    for relative in candidates:
+        for path in test_files(root, cfg, tracked):
+            reader = _from_ref(checkout, ref, path) if ref is not None else _from_disk(checkout / path)
+            candidates.append((f"{repo.path}/{path}", reader))
+    for relative, read in candidates:
         try:
-            text = (Path(root) / relative).read_text(encoding="utf-8")
+            text = read()
         except (OSError, UnicodeDecodeError):
             continue
         for req in {match.group(0) for match in REQ_ID.finditer(text)} & wanted:
@@ -60,12 +104,12 @@ def req_sources(root: Path, cfg: Mapping[str, Any], req_ids: Iterable[str]) -> t
     return {req: sorted(paths) for req, paths in sources.items()}, skipped
 
 
-def trace(root: Path, cfg: Mapping[str, Any], change: Path) -> dict[str, Any]:
+def trace(root: Path, cfg: Mapping[str, Any], change: Path, refs: Mapping[str, str] | None = None) -> dict[str, Any]:
     blocks, errors = delta_blocks(root, change)
     if errors:
         raise SpecsError("; ".join(errors))
     wanted = [block.id for block in blocks if block.section in ("ADDED", "MODIFIED")]
-    sources, skipped = req_sources(root, cfg, wanted)
+    sources, skipped = req_sources(root, cfg, wanted, refs)
     tests_md = change_file(change, "tests")
     for case, ids, evidence in _tests_md_rows(tests_md):
         if evidence and evidence != "-":

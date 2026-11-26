@@ -87,7 +87,7 @@ Open: the parent checkout. Everything happens there; `/gin:roadmap` creates its 
 
 Who runs discuss for which kind of epic is in [who owns what](../roles.md#who-owns-what).
 
-Specs and plans are committed to the parent. Requirements and their REQ-IDs live only in the parent's specs; children reference them in tests, and `gin specs trace` scans every cloned child ([REQ-IDs](sdd.md#requirements)).
+Specs and plans are committed to the parent. Requirements and their REQ-IDs live only in the parent's specs; children reference them in tests, and `gin specs trace` scans every cloned child ([REQ-IDs](sdd.md#requirements)). From a linked worktree of the parent, a child that is not cloned there is read from the parent's main checkout. `gin specs trace --change <change> --ref <repo>=<branch>` reads an unmerged lane branch of that child.
 
 ## Tech lead
 

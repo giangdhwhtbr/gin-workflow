@@ -87,7 +87,7 @@ Mở: checkout của repository cha. Mọi việc diễn ra ở đó; `/gin:road
 
 Ai chạy discuss cho loại epic nào được nêu ở [ai sở hữu gì](../roles.md#who-owns-what).
 
-Spec và plan được commit vào repository cha. Requirement và REQ-ID của chúng chỉ nằm trong spec của repository cha; các repository con tham chiếu tới chúng trong test, và `gin specs trace` quét mọi repository con đã clone ([REQ-ID](sdd.md#requirements)).
+Spec và plan được commit vào repository cha. Requirement và REQ-ID của chúng chỉ nằm trong spec của repository cha; các repository con tham chiếu tới chúng trong test, và `gin specs trace` quét mọi repository con đã clone ([REQ-ID](sdd.md#requirements)). Từ một linked worktree của repository cha, repository con chưa được clone ở đó sẽ được đọc từ main checkout của repository cha. `gin specs trace --change <change> --ref <repo>=<branch>` đọc nhánh lane chưa merge của repository con đó.
 
 ## Tech lead { #tech-lead }
 

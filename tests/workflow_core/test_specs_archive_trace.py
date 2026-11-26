@@ -330,6 +330,36 @@ class TestTraceWorkspace(unittest.TestCase):
         self.assertEqual(0, run.returncode, run.stderr)
         self.assertIn("skipped: apps/web", run.stdout)
 
+    def test_ref_reads_a_child_branch_that_is_not_checked_out(self):
+        api = self.root / "services/api"
+        base = git(api, "rev-parse", "--abbrev-ref", "HEAD").strip()
+        git(api, "checkout", "-q", "-b", "lane")
+        write(api, "tests/test_lane.py", "def test_lane():  # REQ-AUTH-003\n    pass\n")
+        commit_all(api, "lane")
+        git(api, "checkout", "-q", base)
+        plain = specs_trace.trace(self.root, self.cfg, self.change)
+        self.assertEqual(["services/api/tests/test_lock.py"], plain["requirements"][0]["sources"])
+        laned = specs_trace.trace(self.root, self.cfg, self.change, {"services/api": "lane"})
+        self.assertEqual(["services/api/tests/test_lane.py", "services/api/tests/test_lock.py"],
+                         laned["requirements"][0]["sources"])
+
+    def test_a_child_is_found_through_the_main_checkout_from_a_parent_worktree(self):
+        wt = Path(self.tmp.name) / "wt"
+        git(self.root, "worktree", "add", "-q", "-b", "wt-branch", str(wt))
+        result = specs_trace.trace(wt, self.cfg, wt / "docs/changes/ep-1-lockout")
+        self.assertEqual(["services/api/tests/test_lock.py"], result["requirements"][0]["sources"])
+        self.assertEqual(["apps/web"], result["skipped"])
+
+    def test_cli_ref_for_an_unknown_repo_or_ref_exits_2_naming_it(self):
+        for value, named in (("nope=main", "nope"), ("services/api=no-such-ref", "no-such-ref"),
+                             ("legacy/portal=main", "legacy/portal"), ("services/api", "expected")):
+            with self.subTest(value=value):
+                run = subprocess.run([sys.executable, str(LAUNCHER), "specs", "trace", "--change", "ep-1",
+                                      "--ref", value, "--repository", str(self.root)],
+                                     text=True, capture_output=True, check=False)
+                self.assertEqual(2, run.returncode)
+                self.assertIn(named, run.stderr)
+
 
 class TestEndToEnd(unittest.TestCase):
     def run_specs(self, root: Path, *args: str) -> subprocess.CompletedProcess[str]:
