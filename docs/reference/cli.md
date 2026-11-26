@@ -361,14 +361,14 @@ Exit codes: `run` 0 pass, 2 tracked changes, otherwise the failing command's exi
 ## `gin reviewer`
 
 ```
-gin reviewer --base SHA --implementer PROVIDER --model MODEL [--effort EFFORT] [--repository DIR] [--json]
+gin reviewer --base SHA --implementer PROVIDER --model MODEL [--effort EFFORT] [--worktree DIR] [--repository DIR] [--json]
 ```
 
-Called by the `review` skill to pick the reviewer; you do not need to run it. `--model` and `--effort` are the implementer's final route, including any escalation, in the implementer's [catalog](config.md#models); a value outside that catalog exits 2. A diff since `--base` that changes anything but documentation (`*.md` or `docs/`, excluding `skills/`) raises the weakest model of a multi-model catalog to the next one. `reason` then reads `non-docs files changed`.
+Called by the `review` skill to pick the reviewer; you do not need to run it. `--model` and `--effort` are the implementer's final route, including any escalation, in the implementer's [catalog](config.md#models); a value outside that catalog exits 2. A diff since `--base` that changes anything but documentation (`*.md` or `docs/`, excluding `skills/`) raises the weakest model of a multi-model catalog to the next one. `reason` then reads `non-docs files changed`. `--worktree DIR` runs the diff since `--base` in that git worktree instead of the gin root; configuration still comes from the gin root.
 
 The reviewer runs on the main harness. It keeps the route when the main harness is the implementer; otherwise it gets the route mapped from the implementer's catalog: the model at the same relative position in the main harness's catalog, and the same effort when that catalog lists it, otherwise the effort at the same relative position. `actor_id` is `reviewer:<harness>`, or `reviewer:<harness>:session-<id>` (a fresh session) when the harness is also the implementer. Always prints the route document `{"model", "effort", "reason", "warnings", "routes": [{"provider", "model", "effort", "actor_id"}]}`; `--json` changes nothing. `--tier` was removed in 2.9 and exits 2 as an unknown option.
 
-Exit codes: 0 routes printed; 2 bad `--base`, an invalid config, an unknown harness, a model or effort outside the catalog, or an unknown option.
+Exit codes: 0 routes printed; 2 bad `--base`, an invalid config, an unknown harness, a model or effort outside the catalog, a `--worktree` that is not a directory, or an unknown option.
 
 ## `gin routes`
 
