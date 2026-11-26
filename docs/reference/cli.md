@@ -105,7 +105,7 @@ Waives a gate or clears a recorded blocker. A waiver is an auditable `gate.waive
 
 Exit codes: 0 success; 1 invalid or non-waivable gate, or missing reason or follow-up; 2 missing actor or team-mode refusal.
 
-In team mode with Beads, a waiver of `requirement_confirmed` or `plan_approved` is also written to the epic bead's `gates` metadata as `{waived, reason, waived_by, at}`. Without an epic bead, or when that write fails, the waiver stays local and the command prints `warning: ...` to stderr (`warning` in JSON). `record orchestration-ready` writes each earlier local waiver of those gates that has no PR proof. A shared waiver is not bound to the source tree, and a later `record` of the gate replaces it.
+In team mode with Beads, a waiver of `requirement_confirmed` or `plan_approved` is also written to the epic bead's `gates` metadata as `{waived, reason, waived_by, at}`. Without an epic bead, when the bead already holds the gate's PR proof, or when that write fails, the waiver stays local and the command prints `warning: ...` to stderr (`warning` in JSON). `record orchestration-ready` writes each earlier local waiver of those gates that has no PR proof, locally or on the bead. A shared waiver is not bound to the source tree, and a later `record` of the gate with a PR proof replaces it.
 
 ## `gin quick-check`
 
@@ -184,7 +184,7 @@ Exit codes: 0 ok; 1 findings (lint errors, untraced requirements of `trace --cha
 | `requirements[].tests` | Test files that name the id, and the `05-tests.md#<case>` rows of open and archived changes whose evidence cell is filled (not empty or `-`) |
 | `warnings`, `skipped` | Sources that could not be read; workspace children that could not be listed |
 
-A change's sign-off comes from its `06-signoff.md` (`source: git`), else its epic bead's `gates` (`beads`), else the newest local `requirement.confirmed` event of the epic (`events`). A waiver in the bead's `gates` gives a `beads` sign-off with `waived: true` and the reason in `evidence`. A local `requirement_confirmed` waiver comes last, with `waived: true` and the reason in `evidence`. The text output prints one line per requirement: `<id> <state> signoff:<yes|stale|waived|no> beads:<n|-> cases:<n|-> tests:<n>`.
+A change's sign-off comes from its `06-signoff.md` (`source: git`), else its epic bead's `gates` (`beads`), else the newest local `requirement.confirmed` event of the epic (`events`). A `requirement_confirmed` waiver counts only when neither holds a proof: the bead's waiver (`beads`), else the newest local one (`events`). It has `waived: true` and the reason in `evidence`. The text output prints one line per requirement: `<id> <state> signoff:<yes|stale|waived|no> beads:<n|-> cases:<n|-> tests:<n>`.
 
 ## `gin docs`
 

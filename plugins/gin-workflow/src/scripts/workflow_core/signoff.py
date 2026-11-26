@@ -109,8 +109,9 @@ def from_events(events: Sequence[WorkflowEvent], epic: str) -> Signoff | None:
 
 
 def epic_signoff(gates: Mapping[str, Any], events: Sequence[WorkflowEvent], epic: str) -> Signoff | None:
-    """An epic's sign-off: its bead's `gates`, then its newest local event, then its waiver."""
-    return from_gates(gates) or from_events(events, epic)
+    """An epic's sign-off: a proof (its bead's `gates`, then its newest local event) before a waiver (bead, then local)."""
+    shared, local = from_gates(gates), from_events(events, epic)
+    return next((found for found in (shared, local) if found and not found.waived), shared or local)
 
 
 def bead_gates(row: Mapping[str, Any] | None) -> dict[str, Any]:

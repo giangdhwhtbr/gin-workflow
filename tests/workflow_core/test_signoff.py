@@ -68,6 +68,12 @@ class TestSources(unittest.TestCase):
         self.assertEqual((True, "binh@corp.com", "agreed in a call", "beads", "2026-11-01T00:00:00Z", None),
                          (found.waived, found.actor, found.evidence, found.source, found.at, found.requirements))
 
+    def test_a_local_confirmation_wins_over_a_shared_waiver(self):
+        gates = {"requirement_confirmed": {"waived": True, "reason": "agreed in a call", "waived_by": "binh@corp.com",
+                                           "at": "2026-11-01T00:00:00Z"}}
+        found = signoff.epic_signoff(gates, [event("requirement.confirmed", "ep-1", {"evidence": "spec.md"})], "ep-1")
+        self.assertEqual(("events", False, "spec.md"), (found.source, found.waived, found.evidence))
+
     def test_newest_event_of_the_epic_then_its_waiver(self):
         events = [event("requirement.confirmed", "ep-1", {"evidence": "old"}),
                   event("requirement.confirmed", "ep-1", {"evidence": "new", "requirements": [

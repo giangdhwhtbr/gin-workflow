@@ -600,6 +600,41 @@ class TestSharedGates(GateCase):
                      if u[2] == "e-2" and u[3] == "--set-metadata" and "requirement_confirmed" in u[4])
         self.assertEqual((True, "agreed"),
                          (gates["requirement_confirmed"]["waived"], gates["requirement_confirmed"]["reason"]))
+        waived_at = [e["timestamp"] for e in self.events() if e["event_type"] == "gate.waived"][-1]
+        self.assertEqual(waived_at, gates["requirement_confirmed"]["at"])
+
+    def test_unblock_keeps_a_proof_already_on_the_epic_bead(self):
+        proof = {"pr_url": PR, "merge_commit": "m" * 40, "approvers": ["chi@corp.com"], "actor": "chi@corp.com",
+                 "at": "2026-11-01T00:00:00Z"}
+        self.bd({"e-1": {"id": "e-1", "issue_type": "epic", "status": "open",
+                         "metadata": {"gates": json.dumps({"plan_approved": proof})}}})
+        result = run_cli(self.root, "unblock", "--gate", "plan_approved", "--reason", "lead absent",
+                         "--workflow-id", "e-1", env=self.env)
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertIn("warning: gate plan_approved waived locally; the epic bead already holds its proof", result.stderr)
+        self.assertEqual([], self.bd_updates())
+
+    def test_orchestration_ready_keeps_a_teammates_proof(self):
+        proof = {"pr_url": PR, "merge_commit": "m" * 40, "approvers": ["an@corp.com"], "actor": "an@corp.com",
+                 "at": "2026-11-01T00:00:00Z"}
+        self.bd({"e-2": {"id": "e-2", "issue_type": "epic", "status": "open",
+                         "metadata": {"gates": json.dumps({"requirement_confirmed": proof})}}})
+        self.assertEqual(0, run_cli(self.root, "unblock", "--gate", "requirement_confirmed", "--reason", "agreed",
+                                    "--workflow-id", "w", env=self.env).returncode)
+        ready = run_cli(self.root, "record", "orchestration-ready", "--evidence", "w", "--workflow-id", "w",
+                        "--epic", "e-2", env=self.env)
+        self.assertEqual(0, ready.returncode, ready.stderr)
+        writes = [json.loads(u[4].removeprefix("gates=")) for u in self.bd_updates()
+                  if u[2] == "e-2" and u[3] == "--set-metadata"]
+        self.assertTrue(writes)
+        self.assertEqual([proof] * len(writes), [gates["requirement_confirmed"] for gates in writes])
+
+    def test_state_reads_a_shared_waiver_with_a_blank_reason(self):
+        waiver = {"waived": True, "reason": " ", "waived_by": "", "at": "2026-11-01T00:00:00Z"}
+        self.bd({"e-1": {"id": "e-1", "issue_type": "epic", "status": "open",
+                         "metadata": {"gates": json.dumps({"plan_approved": waiver})}}})
+        result = run_cli(self.root, "state", "--workflow-id", "e-1", "--format", "json", env=self.env)
+        self.assertEqual("waived(waived)", json.loads(result.stdout)["gates"]["plan_approved"], result.stderr)
 
 
 class TestWaivers(GateCase):
