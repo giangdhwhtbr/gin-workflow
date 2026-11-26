@@ -6,7 +6,8 @@ This page lists what changed in each release of gin-workflow and its add-ons (gi
 
 ### Upgrade notes
 
-- Update gin on each machine, then run `gin setup update` in each project, or follow its `.ginrc` prompt. `.ginrc` moves to 3.5.4.
+- Update gin on each machine. No project step is needed, and `.ginrc` stays as it is.
+- A clone of the gin-workflow repository itself needs gin 3.5.4: its `.ginrc` moves to 3.5.4 for `verify.no_test_paths`, and an older gin refuses it.
 - Run `gin team hooks` in each repository, or `gin team hooks --all-repos` in a workspace, to install the new commit-msg shim.
 - An SDD epic whose lanes use `feat/04-plan-<lane>` branches: finish it on 3.5.3, or rename its lane branches to `feat/<change>-<lane>` before the next `gin team claim`.
 - In team mode, every member should upgrade. gin 3.5.3 reads a shared waiver on the epic bead as a real confirmation in `gin state`, the sign-off, and the milestone spec count.
