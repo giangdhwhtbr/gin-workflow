@@ -90,14 +90,14 @@ class RouteTests(unittest.TestCase):
         with self.assertRaisesRegex(ReviewerError, "git diff"):
             route(self.root, base, model="haiku", effort="low", implementer="claude", config=config(self.root))
 
-    def test_worktree_flag_is_parsed_and_a_missing_directory_exits_2(self):
+    def test_a_worktree_that_is_not_a_directory_exits_2(self):
         stderr = io.StringIO()
         with mock.patch.object(reviewer, "load_effective_config", return_value=config(self.root)), \
                 mock.patch("sys.stderr", stderr):
             code = reviewer.main(["--base", self.base, "--implementer", "claude", "--model", "sonnet",
                                   "--repository", str(self.root), "--worktree", str(self.root / "nope")])
         self.assertEqual(2, code)
-        self.assertIn("worktree", stderr.getvalue())
+        self.assertIn("is not a directory", stderr.getvalue())
 
     def test_reviewer_runs_on_the_main_harness_in_a_fresh_session(self):
         out = route(self.root, self.base, model="sonnet", effort="medium", implementer="claude", config=config(self.root, harness="claude"))
