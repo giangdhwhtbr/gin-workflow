@@ -1,7 +1,7 @@
 # Roadmap: Cost and friction of the common path
 
 Date: 2026-11-26
-Source: product brief "gin-workflow: product brief for the next improvements" (Claude Doc, 2026-11-25, https://claude.ai/artifact/7fQvBeHDvkXfbRp5xwxT1m), confirmed with the PM in `/roadmap` on 2026-11-26. The previous roadmap (process review follow-up, 2026-11-10) is fully shipped; it stays in git history.
+Source: product brief "gin-workflow: product brief for the next improvements" (Claude Doc, 2026-11-25, https://claude.ai/artifact/7fQvBeHDvkXfbRp5xwxT1m), confirmed with the PM in `/roadmap` on 2026-11-26 and revised the same day (Claude Code only, an upkeep epic). The previous roadmap (process review follow-up, 2026-11-10) is fully shipped; it stays in git history.
 
 <!-- Written by /roadmap after the PM confirms it. One "### " block per epic; an epic id never changes once written.
      Depends on: epic ids from this file. Evidence: the tech-doc file and section (for example
@@ -24,28 +24,30 @@ Source: product brief "gin-workflow: product brief for the next improvements" (C
 - A feature asks the user for one command and three decisions: confirm the spec, approve the plan, choose how to ship.
 - Orchestrate, the ship checks, and the stage preflight are single CLI calls. The model handles failures and the user's choices.
 - Cost per epic and per stage can be read without spending agent tokens.
-- A marketplace install is enough on Claude Code, and the other four harnesses install one skills tree.
+- A marketplace install is enough on Claude Code.
+- The maintainer learns of a breaking change in Claude Code or Beads within a week and maintains only the parts that have a real user.
 - Reopened beads and findings at ship stay flat while the numbers above move.
 
 ## Summary
 
 | Milestone | Period | Outcome | Demo | Epics |
 |---|---|---|---|---|
-| Unassigned | | | | Session binding for the cost view; Fresh context per stage with a state card; Orchestrate as one CLI command; Ship checks and options in the CLI; One-call stage brief; Plans that record decisions; Effort and model matched to the stage; Review sized to risk; Execute as a Claude Code workflow; One entry command; Skill text audit for current models; Marketplace install without extra steps; One skills tree for the other harnesses |
+| Unassigned | | | | Session binding for the cost view; Upkeep for one maintainer; Fresh context per stage with a state card; Orchestrate as one CLI command; Ship checks and options in the CLI; One-call stage brief; Plans that record decisions; Effort and model matched to the stage; Review sized to risk; Execute as a Claude Code workflow; One entry command; Skill text audit for current models; Marketplace install without extra steps |
 
 ## Constraints
 
 - AI capacity: 1 lane: 1 person building with AI agents, 1 Claude Max account.
 - Deadline: 2026-12-11
-- Claude Code is the reference harness: a mechanism lands there first, and Codex, OpenCode, Copilot, and Antigravity get the same behaviour through the `gin` CLI. Every hook runs on Windows.
+- Claude Code only (PM decision, 2026-11-26): the epics of this file are built and verified on Claude Code. The Codex, OpenCode, Copilot, and Antigravity builds stay as they are and get no new behaviour. Every hook runs on Windows.
 - gin-workflow dispatches no work to another harness (decided 2026-11-21). Work shared between harnesses belongs to gin-harness.
 - Gates, evidence, and approvals do not change. A merge, a pull request, or a force-push still needs explicit approval.
 - Keep the JSON read by gin-console backward compatible (`gin state`, `gin milestone list --json`, `bd ... --json`): add keys, never rename or remove them.
 - The cost view lives in gin-console (PM decision, 2026-11-26). Its epic and the cross-repository parent in gin-harness are outside this file.
 - Skill files keep character budgets enforced by tests. An epic that moves text into the CLI moves its budget test too.
 - Two candidates of the brief are decided after phases 1 and 2 (PM decision, 2026-11-26): the Beads 1.4 upgrade and a status surface built as a Claude Code mod. A later `/gin:roadmap` run adds them.
+- One skills tree for the other harnesses (`gin-workflow-harness-convergence`) is deferred until the Claude Code work is done (PM decision, 2026-11-26). Its bead stays in Beads as deferred.
 - The open questions of the brief are decided in the `/gin:discuss` of the epic that owns them. The name of the ship stage next to Claude Code's built-in `/ship` belongs to `gin-workflow-cli-ship`. Starting execution right after plan approval belongs to `gin-workflow-one-entry`. A self check for `low` and docs-only tracks belongs to `gin-workflow-review-by-risk`. `gin prime` next to `bd prime` belongs to `gin-workflow-context-boundaries`.
-- `gin-workflow-nox6` (native subagents on Codex, OpenCode, and Copilot) stays its own epic outside this file. `gin-workflow-harness-convergence` re-plans it.
+- `gin-workflow-nox6` (native subagents on Codex, OpenCode, and Copilot) is outside this file and deferred for the same reason.
 
 ## Way of working
 
@@ -58,7 +60,7 @@ Source: product brief "gin-workflow: product brief for the next improvements" (C
 
 ## Strategy
 
-Measure first, then shrink the main session, then make agent turns cheaper, then shorten the path for the user. The main session holds 81% of prompt tokens at a 293K median context, so phase 1 carries most of the saving and makes every later epic cheaper to build. Until gin-console shows cost per epic, the transcript scan of the brief gives the baseline. In phase 1 the two CLI stages come before the stage brief, because they shrink the skills the brief then rewrites. In phase 2 the three small epics come before the workflow, so the saving they bring is measured on its own. Phase 3 changes what the user types and how the plugin is packaged, and it builds on the commands of phases 1 and 2. Epics that edit the same stage skills run back to back in the listed order.
+Measure first, then shrink the main session, then make agent turns cheaper, then shorten the path for the user. The main session holds 81% of prompt tokens at a 293K median context, so phase 1 carries most of the saving and makes every later epic cheaper to build. Until gin-console shows cost per epic, the transcript scan of the brief gives the baseline. In phase 1 the two CLI stages come before the stage brief, because they shrink the skills the brief then rewrites. In phase 2 the three small epics come before the workflow, so the saving they bring is measured on its own. Phase 3 changes what the user types and how the plugin is packaged, and it builds on the commands of phases 1 and 2. The upkeep epic runs second, because every later epic builds on Claude Code surfaces that change every week. Epics that edit the same stage skills run back to back in the listed order.
 
 ## Order
 
@@ -74,17 +76,18 @@ flowchart LR
     LP[lean-plans]
     SR[stage-routes]
     RR[review-by-risk]
-    SI[simpler-install] --> HC[harness-convergence]
+    SI[simpler-install]
+    UP[upkeep]
 ```
 
 | Phase | Gate before the next phase | Epics |
 |---|---|---|
-| Measure | A baseline per epic is recorded | `gin-workflow-cost-binding` |
+| Measure | A baseline per epic is recorded | `gin-workflow-cost-binding`, `gin-workflow-upkeep` |
 | Small sessions | The median main-session context is under 120K | `gin-workflow-context-boundaries`, `gin-workflow-cli-orchestrate`, `gin-workflow-cli-ship`, `gin-workflow-stage-brief` |
 | Cheaper turns | Main-session tokens per epic are halved | `gin-workflow-lean-plans`, `gin-workflow-stage-routes`, `gin-workflow-review-by-risk`, `gin-workflow-execute-workflow` |
-| Shorter path | | `gin-workflow-one-entry`, `gin-workflow-skill-audit`, `gin-workflow-simpler-install`, `gin-workflow-harness-convergence` |
+| Shorter path | | `gin-workflow-one-entry`, `gin-workflow-skill-audit`, `gin-workflow-simpler-install` |
 
-With 1 lane the epics run in the listed order: cost-binding, context-boundaries, cli-orchestrate, cli-ship, stage-brief, lean-plans, stage-routes, review-by-risk, execute-workflow, one-entry, skill-audit, simpler-install, harness-convergence. The 13 epics total 88 points and 21 working days at the measured pace of 0.17 days per point. The deadline leaves 12 working days from 2026-11-26, which covers the order through review-by-risk.
+With 1 lane the epics run in the listed order: cost-binding, upkeep, context-boundaries, cli-orchestrate, cli-ship, stage-brief, lean-plans, stage-routes, review-by-risk, execute-workflow, one-entry, skill-audit, simpler-install. The 13 epics total 78 points and 19 working days at the measured pace of 0.17 days per point. The deadline leaves 12 working days from 2026-11-26, which covers the order through stage-routes.
 
 ## Unassigned
 
@@ -103,6 +106,21 @@ Depends on:
 Evidence: brief "Where the tokens go" and "Proposed work", epic 1; `.planning/knowledge/retire-ai-usage.md`; `plugins/gin-workflow/src/scripts/workflow_core/events.py`, `lifecycle_cli.py:518`.
 Risks: an older gin must still read the event log; no number is shown until gin-console has its own epic.
 
+### Upkeep for one maintainer
+Epic: gin-workflow-upkeep
+Points: 3 (one scheduled check, two docs pages, one usage report with a freeze decision)
+Estimate: 1
+Kind: technical
+Complexity: low: scripts and docs, no change to the lifecycle
+Goal: One maintainer learns of a breaking change in Claude Code or Beads within a week, releases from a written procedure, and maintains only the parts that have a real user.
+Scope: a weekly scheduled check reads the Claude Code changelog and the Beads releases and files a bead for each change that touches a surface gin uses; a release runbook that covers the tag and the Pages deploy; a docs page on what keeps working in a project without gin; a usage report of skills and modes from the session transcripts, and a freeze list decided from it, where a frozen part gets fixes only; team mode is the first candidate.
+Out of scope: removing a frozen part; recruiting maintainers; the other harness builds, which this file already leaves as they are.
+Features: Upkeep (PM request, 2026-11-26; not in the brief)
+Legacy: none
+Depends on:
+Evidence: PM decision in `/roadmap` on 2026-11-26; team mode is 2,849 of the 18,632 lines of `workflow_core` plus 4,931 lines of tests, and none of the four maintained projects configures `team:`; `install.sh`, `install.ps1`, and their smoke tests total 174K characters; Claude Code 2.1.330 reserved the `ship` name; `.planning/knowledge/release-versioning.md`.
+Risks: a team outside the maintained projects may rely on team mode; the scheduled check needs a Claude Code cloud task or a local cron (decided in discuss).
+
 ### Fresh context per stage with a state card
 Epic: gin-workflow-context-boundaries
 Points: 5 (one command, two hooks, a handoff line in nine stage skills, one setup proposal; same size as gin-workflow-g2gx = 5)
@@ -110,13 +128,13 @@ Estimate: 1
 Kind: capability
 Complexity: medium: the card must hold what a fresh session needs in under 10,000 characters
 Goal: A stage starts in a small session and loses nothing, because the workflow state is shown again after every clear and every compaction.
-Scope: `gin prime` prints the state card (workflow, stage, gates, ready tracks, open questions, review cycles used, next command); a `SessionStart` hook injects it on `startup`, `clear`, and `compact`, and a `PreCompact` hook tells the summary what to keep; each stage skill ends with one handoff line (clear, then the next command); `/gin:setup` proposes `autoCompactWindow: 200000`; the hooks run on Windows; the other harnesses run `gin prime` as a command.
+Scope: `gin prime` prints the state card (workflow, stage, gates, ready tracks, open questions, review cycles used, next command); a `SessionStart` hook injects it on `startup`, `clear`, and `compact`, and a `PreCompact` hook tells the summary what to keep; each stage skill ends with one handoff line (clear, then the next command); `/gin:setup` proposes `autoCompactWindow: 200000`; the hooks run on Windows.
 Out of scope: the stage preflight and mode text (`gin-workflow-stage-brief`); moving to the next stage without a typed command (`gin-workflow-one-entry`); a status line or pane.
 Features: Context boundaries
 Legacy: none
 Depends on:
 Evidence: brief "Where the tokens go" (median context 293K, peak 967K) and epic 2; `plugins/gin-workflow/src/hooks/hooks.json` (one `PreToolUse` hook today); `docs/guides/claude-workflow.md` (context hygiene is a convention); Claude Code hooks and model configuration docs.
-Risks: `bd prime` may inject a second card (decided in discuss); the card omits a decision made only in chat; hook formats differ per harness.
+Risks: `bd prime` may inject a second card (decided in discuss); the card omits a decision made only in chat.
 
 ### Orchestrate as one CLI command
 Epic: gin-workflow-cli-orchestrate
@@ -155,7 +173,7 @@ Estimate: 3
 Kind: technical
 Complexity: high: every stage skill and its budget test change together
 Goal: A stage learns its state and only the rules that apply to this project in one fast call.
-Scope: `gin stage <name>` returns the preflight, the state the stage needs, and the rules for the project's modes; on Claude Code the skill inlines it, and other harnesses run it first; mode text moves from the skills into CLI templates under the budget tests; each `gin` command on the stage path makes one `bd` call (`gin state` makes three, `gin task ready` two); `gin setup doctor` no longer takes 66 seconds.
+Scope: `gin stage <name>` returns the preflight, the state the stage needs, and the rules for the project's modes; the skill inlines it on Claude Code; mode text moves from the skills into CLI templates under the budget tests; each `gin` command on the stage path makes one `bd` call (`gin state` makes three, `gin task ready` two); `gin setup doctor` no longer takes 66 seconds.
 Out of scope: rewriting skill prose for current models (`gin-workflow-skill-audit`); new modes.
 Features: Stage brief
 Legacy: none
@@ -185,13 +203,13 @@ Estimate: 1
 Kind: technical
 Complexity: low: declarative settings and one measured comparison
 Goal: Coordination work runs at low effort and lookups run on the cheapest model, as the AI strategy guide already recommends.
-Scope: stage skills declare `effort`; the researcher agent defaults to the weakest model; the model catalog names tiers by each harness's aliases; one comparison of developer routes by cost per closed track; the installers keep or strip the field per harness.
+Scope: stage skills declare `effort`; the researcher agent defaults to the weakest model; the Claude model catalog names tiers by its aliases; one comparison of developer routes by cost per closed track.
 Out of scope: forcing a model on the user's session; budgets.
 Features: Routes that match the stage
 Legacy: none
 Depends on:
-Evidence: brief epic 9 (97% of main-session requests at `high` or `xhigh`; Haiku served 1% of subagent requests); `docs/guides/ai-strategy.md`; `.agent-workflow/config.yaml` (Codex and Antigravity model names that are no longer current); Claude Code skills and prompt caching docs.
-Risks: another harness may reject the frontmatter field; an effort set too low on a stage that needs judgement.
+Evidence: brief epic 9 (97% of main-session requests at `high` or `xhigh`; Haiku served 1% of subagent requests); `docs/guides/ai-strategy.md`; Claude Code skills and prompt caching docs.
+Risks: the field reaches the other harness builds without a check; an effort set too low on a stage that needs judgement.
 
 ### Review sized to risk
 Epic: gin-workflow-review-by-risk
@@ -261,24 +279,9 @@ Kind: technical
 Complexity: medium: two installers and Windows
 Goal: Installing the plugin from the marketplace is the whole install on Claude Code.
 Scope: the `gin` CLI ships in the plugin's `bin/`; the PyYAML requirement goes; `gin hooks install` writes the CLI's absolute path into the git hooks; `install.sh` and `install.ps1` stay for the other harnesses; getting started and troubleshooting are updated.
-Out of scope: the bundle layout for the other harnesses (`gin-workflow-harness-convergence`); gin-qa's Node requirement.
+Out of scope: the bundle layout for the other harnesses, which is deferred; gin-qa's Node requirement.
 Features: Simpler install
 Legacy: none
 Depends on:
 Evidence: brief epic 12; `README.md` (a marketplace install leaves `gin` off `PATH`); `workflow_core/hooks.py:34-36` (git hooks call `gin` from `PATH`); Claude Code plugin components docs (`bin/`).
 Risks: configs written by hand must still load; one machine may hold two copies of `gin` (launcher and plugin).
-
-### One skills tree for the other harnesses
-Epic: gin-workflow-harness-convergence
-Points: 13 (four harness builds, two installers, agent and hook adapters, model catalogs)
-Estimate: 3
-Kind: technical
-Complexity: high: five harness builds and Windows, checked by install smoke tests
-Goal: Codex, OpenCode, Copilot, and Antigravity install the same skills tree, and the installer shrinks to the parts that still differ.
-Scope: one skills tree installed to `.agents/skills` where a harness reads it; `AGENTS.md` as the only instruction file gin writes; a root `plugin.json` for Codex, Copilot, and Cursor; adapters only for hooks and agents; model catalogs read from each CLI; a re-plan of `gin-workflow-nox6` against file-based subagents.
-Out of scope: implementing native subagents (`gin-workflow-nox6`); dispatch to other harnesses; Cursor as a supported main harness.
-Features: Harness convergence
-Legacy: none
-Depends on: gin-workflow-simpler-install
-Evidence: brief "Other harnesses and standards" and epic 13; `install.sh` (35,726 characters), `install.ps1` (53,345 characters); `.planning/knowledge/non-claude-dispatch.md` (agent packaging per harness); the Agent Skills and Agent Plugins specifications.
-Risks: the development machine has no `pwsh`, so the Windows job is the check; harness docs change monthly; OpenCode skill names carry a `gin-` prefix today.
