@@ -152,7 +152,8 @@ class WorkspaceCliTests(unittest.TestCase):
         self.assertEqual("occupied", row.get("hooks", {}).get("commit-msg"))
         expected_hook = self.root / "services/api/.git/hooks/commit-msg"
         expected_line = (
-            f'services/api: add `exec "$(git rev-parse --show-toplevel)/.githooks/commit-msg" "$@"` '
+            f'services/api: add `hook="$(git rev-parse --show-toplevel)/.githooks/commit-msg"; '
+            f'if [ -f "$hook" ]; then sh "$hook" "$@"; fi` '
             f'to {expected_hook} to chain it'
         )
         self.assertIn(expected_line, done.stderr)
