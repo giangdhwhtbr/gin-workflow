@@ -18,6 +18,7 @@ SCRIPTS = Path(__file__).resolve().parents[2] / "plugins/gin-workflow/src/script
 sys.path.insert(0, str(SCRIPTS))
 
 from workflow_core import hooks, setup_service, verification  # noqa: E402
+from workflow_core.configuration import ConfigValidationError  # noqa: E402
 from workflow_core.events import WorkflowEventStore  # noqa: E402
 from tests.workflow_core.test_workspace import init_repo, make_workspace  # noqa: E402
 
@@ -379,6 +380,60 @@ class TestHooksRun(unittest.TestCase):
                 self.assertEqual(["api", "root", "web"], self.ran(root, "test"))
                 (root / ".agent-workflow/runtime/events.jsonl").unlink()
 
+    def untested(self, name, paths="[docs, NOTES.md]"):
+        """A repository whose `test` leaves `ran.txt` and fails, with `verify.no_test_paths` set to `paths`."""
+        root = self.repo(name, test="echo ran >> ran.txt; false")
+        config = root / ".agent-workflow/config.yaml"
+        config.write_text(config.read_text().replace("verify:\n", f"verify:\n  no_test_paths: {paths}\n"))
+        for directory in ("docs", ".planning"):
+            (root / directory).mkdir()
+        git(root, "add", "-A")
+        git(root, "commit", "-qm", "paths", "--no-verify")
+        return root
+
+    @unittest.skipIf(os.name == "nt", "the verify command is POSIX sh syntax")
+    def test_pre_push_runs_nothing_when_every_pushed_file_is_under_no_test_paths(self):
+        root = self.untested("a")
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            self.assertEqual(0, hooks.run(root, "pre-push", [self.commit_change(root, "docs/a.md", "NOTES.md")]))
+        self.assertFalse((root / "ran.txt").exists())
+        self.assertIn("gin pre-push: only docs, NOTES.md changed (verify.no_test_paths); nothing to run",
+                      err.getvalue())
+        self.assertFalse((root / ".agent-workflow/runtime/events.jsonl").exists())
+
+    @unittest.skipIf(os.name == "nt", "the verify command is POSIX sh syntax")
+    def test_pre_push_runs_the_checks_when_a_pushed_file_is_outside_no_test_paths(self):
+        root = self.untested("a")
+        for paths in (("docs/a.md", "f.txt"), ("docs2.md",)):
+            with self.subTest(paths=paths), contextlib.redirect_stderr(io.StringIO()):
+                self.assertNotEqual(0, hooks.run(root, "pre-push", [self.commit_change(root, *paths)]))
+                self.assertEqual("ran\n", (root / "ran.txt").read_text())
+                (root / "ran.txt").unlink()
+
+    @unittest.skipIf(os.name == "nt", "the verify command is POSIX sh syntax")
+    def test_pre_push_runs_the_checks_when_the_pushed_range_is_unknown(self):
+        root = self.untested("a")
+        self.commit_change(root, "docs/a.md")
+        with contextlib.redirect_stderr(io.StringIO()):
+            self.assertNotEqual(0, hooks.run(root, "pre-push", [push_ref(root)]))
+        self.assertEqual("ran\n", (root / "ran.txt").read_text())
+
+    @unittest.skipIf(os.name == "nt", "the verify command is POSIX sh syntax")
+    def test_no_test_paths_takes_a_trailing_slash_and_evidence_run_still_runs(self):
+        root = self.untested("a", paths='[".planning/"]')
+        with contextlib.redirect_stderr(io.StringIO()):
+            self.assertEqual(0, hooks.run(root, "pre-push", [self.commit_change(root, ".planning/roadmap.md")]))
+            self.assertFalse((root / "ran.txt").exists())
+            self.assertNotEqual(0, verification.run(root))
+        self.assertEqual("ran\n", (root / "ran.txt").read_text())
+
+    def test_no_test_paths_must_be_a_list_of_paths(self):
+        for index, value in enumerate(("docs", '[""]', "[1]")):
+            root = self.untested(f"bad{index}", paths=value)
+            with self.subTest(value=value), self.assertRaises(ConfigValidationError):
+                hooks.run(root, "pre-push", [self.commit_change(root, "docs/a.md")])
+
     def test_evidence_run_runs_all_packages_and_covers_a_later_scoped_push(self):
         root = self.monorepo("a")
         ref = self.commit_change(root, "web/x.txt")
@@ -660,6 +715,21 @@ class WorkspaceHookTests(unittest.TestCase):
         self.assertEqual(0, code)
         self.assertIn("already passed on this tree", err)
         self.assertEqual(1, len(self.events()))
+
+    def test_a_child_uses_the_parent_no_test_paths_on_its_own_paths(self):
+        config = self.root / ".agent-workflow/config.yaml"
+        config.write_text(config.read_text(encoding="utf-8") + "  no_test_paths: [docs]\n", encoding="utf-8")
+        before = git(self.child, "rev-parse", "HEAD")
+        (self.child / "docs").mkdir()
+        (self.child / "docs/a.md").write_text("a", encoding="utf-8")
+        git(self.child, "add", "docs/a.md")
+        git(self.child, "commit", "-qm", "docs", "--no-verify")
+        line = f"refs/heads/main {git(self.child, 'rev-parse', 'HEAD')} refs/heads/main {before}"
+        with mock.patch.object(sys, "stdin", io.StringIO(line)):
+            code, _, err = self.hook("run", "pre-push", "--repository", str(self.child))
+        self.assertEqual(0, code)
+        self.assertIn("gin pre-push: only docs changed (verify.no_test_paths); nothing to run", err)
+        self.assertEqual([], self.events())
 
     def child_worktree(self):
         worktree = self.root / ".planning/worktrees/t1"

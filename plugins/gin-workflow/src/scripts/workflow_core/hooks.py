@@ -179,7 +179,20 @@ def _pushed_files(root: Path, pushes: Sequence[tuple[str, str]]) -> set[str] | N
     return changed
 
 
-_ENV_PREFIX = re.compile(r"^([A-Za-z_][A-Za-z0-9_]*)=([^\s\"'$`;|&<>()\\]*)\s+")
+def _untested(root: Path, changed: Collection[str] | None) -> list[str]:
+    """The `verify.no_test_paths` entries that hold every file in `changed`, in configured order.
+
+    Empty when a file lies outside them, when the key is unset, or when `changed` is unknown or empty."""
+    if not changed:
+        return []
+    config = resolve_effective_config(workspace.locate(Path(root)).root, write=False).config.to_dict()
+    paths = [PurePosixPath(path).as_posix() for path in (config.get("verify") or {}).get("no_test_paths") or []]
+    if not all(any(_under(name, path) for path in paths) for name in changed):
+        return []
+    return [path for path in paths if any(_under(name, path) for name in changed)]
+
+
+_ENV_PREFIX =re.compile(r"^([A-Za-z_][A-Za-z0-9_]*)=([^\s\"'$`;|&<>()\\]*)\s+")
 
 
 def _split_env_prefix(command: str) -> tuple[str, dict[str, str]]:
@@ -211,7 +224,13 @@ def run(root: Path, hook: str, refs: Sequence[str] = ()) -> int:
     if not pushes:
         print("gin: pre-push tested nothing (no pushed branch at the checked-out HEAD)", file=sys.stderr)
         return 0
-    return verify(root, hook, _pushed_files(root, pushes))
+    changed = _pushed_files(root, pushes)
+    untested = _untested(root, changed)
+    if untested:
+        print(f"gin pre-push: only {', '.join(untested)} changed (verify.no_test_paths); nothing to run",
+              file=sys.stderr)
+        return 0
+    return verify(root, hook, changed)
 
 
 def verify(root: Path, hook: str, changed: Collection[str] | None = None) -> int:

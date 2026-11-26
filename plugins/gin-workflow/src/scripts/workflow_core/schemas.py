@@ -262,7 +262,9 @@ CONFIG_SCHEMA: dict[str, Any] = {
         "provider_mode": {"enum": ["single", "multi"]},
         "verify": {
             "type": "object",
-            "properties": {"checks": _CHECKS, "run_at": {"enum": ["track", "push", "host"]}},
+            "properties": {"checks": _CHECKS, "run_at": {"enum": ["track", "push", "host"]},
+                           "no_test_paths": {"type": "array", "uniqueItems": True,
+                                             "items": {"type": "string", "minLength": 1}}},
             "additionalProperties": False,
         },
         "quick": {

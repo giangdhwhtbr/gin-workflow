@@ -97,6 +97,10 @@ Rigor presets:
 
 Where the full suite (`test`, `build`, `e2e`) runs: `track` after each track, `push` once before the push, `host` never locally because the host CI runs it. Optional; the default is `push` under `easy` and `standard` and `track` under `strict`. Any other value is a configuration error. With `host`, `gin hooks run pre-push` and `gin evidence run` run nothing and record nothing, and `gin quick-check` lists only `lint` and `typecheck`. The `pre-commit` hook is unchanged. A workspace child uses the parent's value.
 
+### `verify.no_test_paths`
+
+Paths whose changes need no local test run: repository-relative files or directories, for example `docs` or `.planning`. Optional; the default is none. When every file the pushed commits change lies under these paths, `gin hooks run pre-push` runs nothing and records nothing. A push that changes any other file runs every check, and so does a push whose change set git cannot name. The `pre-commit` hook and `gin evidence run` are unchanged. A workspace child uses the parent's value on its own paths. Nothing else runs the suite for such a push, so list only paths that no test reads.
+
 ### `verify.checks`
 
 `lint`, `typecheck`, `test`, `build`, `e2e`: shell commands. The git hooks ([`gin hooks`](cli.md#gin-hooks)) and `/quick` run the ones the rigor requires. Empty commands are skipped. `gin setup doctor` reports missing ones. A `project.packages` entry may carry its own `verify.checks`; the git hooks run them only for the packages a change touches, as [`gin hooks run`](cli.md#gin-hooks) describes.
