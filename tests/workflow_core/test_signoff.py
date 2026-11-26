@@ -61,6 +61,13 @@ class TestSources(unittest.TestCase):
         self.assertEqual(("beads", "an@corp.com", "https://h/pull/1", "1a2b3c4d"),
                          (found.source, found.actor, found.evidence, found.hash_of("REQ-AUTH-003")))
 
+    def test_a_shared_waiver_is_a_waived_signoff(self):
+        gates = {"requirement_confirmed": {"waived": True, "reason": "agreed in a call", "waived_by": "binh@corp.com",
+                                           "at": "2026-11-01T00:00:00Z"}}
+        found = signoff.epic_signoff(gates, [], "ep-1")
+        self.assertEqual((True, "binh@corp.com", "agreed in a call", "beads", "2026-11-01T00:00:00Z", None),
+                         (found.waived, found.actor, found.evidence, found.source, found.at, found.requirements))
+
     def test_newest_event_of_the_epic_then_its_waiver(self):
         events = [event("requirement.confirmed", "ep-1", {"evidence": "old"}),
                   event("requirement.confirmed", "ep-1", {"evidence": "new", "requirements": [

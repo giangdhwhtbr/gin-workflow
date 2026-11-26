@@ -78,10 +78,13 @@ def _requirements(value: Any) -> tuple[tuple[str, str, str], ...] | None:
 
 
 def from_gates(gates: Mapping[str, Any]) -> Signoff | None:
-    """The `requirement_confirmed` proof of an epic bead's `gates` metadata."""
+    """The `requirement_confirmed` proof of an epic bead's `gates` metadata; a shared waiver is a waived sign-off."""
     proof = gates.get("requirement_confirmed")
     if not isinstance(proof, Mapping):
         return None
+    if proof.get("waived"):
+        return Signoff(at=str(proof.get("at") or ""), actor=str(proof.get("waived_by") or ""),
+                       evidence=str(proof.get("reason") or ""), source="beads", requirements=None, waived=True)
     return Signoff(at=str(proof.get("at") or ""), actor=str(proof.get("actor") or ""),
                    evidence=str(proof.get("pr_url") or ""), source="beads",
                    requirements=_requirements(proof.get("requirements")))

@@ -206,6 +206,17 @@ class MilestoneCliTests(unittest.TestCase):
         self.assertEqual((True, False), (rows["t-a"]["spec_confirmed"], rows["t-b"]["spec_confirmed"]))
         self.assertNotIn({"code": "spec_not_ready"}, rows["t-a"]["warnings"])
 
+    def test_shared_waiver_does_not_confirm_the_spec(self):
+        self.seed()
+        self.bd("update", "t-a", "--set-metadata", 'gates={"requirement_confirmed": {"waived": true, "reason": "r", '
+                '"waived_by": "binh@corp.com", "at": "2026-10-20T00:00:00Z"}}')
+        self.bd("update", "t-m1", "--set-metadata", "kickoff=2026-11-02")
+        code, out, err = self.run_cli("show", "t-m1", "--json")
+        self.assertEqual(0, code, err)
+        rows = {row["id"]: row for row in json.loads(out)["epics"]}
+        self.assertEqual((False, False), (rows["t-a"]["spec_confirmed"], rows["t-b"]["spec_confirmed"]))
+        self.assertIn({"code": "spec_not_ready"}, rows["t-a"]["warnings"])
+
     def test_unreadable_log_still_uses_shared_gates(self):
         self.seed()
         self.bd("update", "t-a", "--set-metadata", 'gates={"requirement_confirmed": {"actor": "x", "at": "y"}}')

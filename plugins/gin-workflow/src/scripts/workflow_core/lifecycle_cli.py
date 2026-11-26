@@ -229,6 +229,11 @@ def _share_gate(repo_path: Path, events: Sequence[WorkflowEvent], args: argparse
             for prior in _proven_locally(events, args.workflow_id):
                 write_gate(repo_path, epic, _SHARED_EVENTS[prior.event_type],
                            _proof(prior.payload, prior.actor, prior.timestamp), actor=actor)
+            proven = {_SHARED_EVENTS[p.event_type] for p in _proven_locally(events, args.workflow_id)}
+            scope = getattr(args, "scope_hash", None) or _resolve_scope_hash(repo_path)
+            for waived, waiver in waivers_from_events(events, workflow_id=args.workflow_id, scope_hash=scope).items():
+                if waived in _SHARED_WAIVABLE and waived not in proven:
+                    write_gate(repo_path, epic, waived, _waiver_entry(waiver, utc_now()), actor=actor)
             write_gate(repo_path, epic, "orchestration_ready", {"actor": actor, "at": utc_now(), "epic": epic}, actor=actor)
             labelled = _bd(repo_path, ["update", epic, "--add-label", f"workflow:{args.workflow_id}"], actor=actor)
             if labelled.returncode != 0:
@@ -240,6 +245,33 @@ def _share_gate(repo_path: Path, events: Sequence[WorkflowEvent], args: argparse
         write_gate(repo_path, epic, gate, _proof(team_payload, actor, utc_now()), actor=actor)
     except Exception as error:  # broad on purpose: the local event is already durable, sharing is best effort
         return f"gate recorded locally; could not write it to {epic or 'the epic bead'}: {error}"
+    return None
+
+
+_SHARED_WAIVABLE = ("requirement_confirmed", "plan_approved")
+
+
+def _waiver_entry(waiver: GateWaiver, at: str) -> dict[str, Any]:
+    return {"waived": True, "reason": waiver.reason, "waived_by": waiver.waived_by, "at": at}
+
+
+def _share_waiver(repo_path: Path, events: Sequence[WorkflowEvent], workflow_id: str, waiver: GateWaiver,
+                  actor: str) -> str | None:
+    """Team mode with Beads: mirror a waiver of requirement_confirmed or plan_approved into the epic bead.
+    Returns a warning when it could not; the local event stays the source of truth."""
+    from .team_beads import epic_for, utc_now, write_gate
+
+    if waiver.gate not in _SHARED_WAIVABLE:
+        return None
+    try:
+        if tasks_backend(repo_path) != "beads":
+            return None
+        epic = epic_for(repo_path, workflow_id, _recorded_epic(events, workflow_id))
+        if not epic:
+            return f"gate {waiver.gate} waived locally; no epic bead to share it"
+        write_gate(repo_path, epic, waiver.gate, _waiver_entry(waiver, utc_now()), actor=actor)
+    except Exception as error:  # broad on purpose, as in _share_gate: the waiver event is durable, sharing best effort
+        return f"gate waived locally; could not write it to the epic bead: {error}"
     return None
 
 
@@ -536,6 +568,7 @@ def _state_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
         gates_state = _process_gate_state(events, workflow_id)
         recorded = _recorded_epic(events, workflow_id)
         shared_epic, shared, shared_cause = "", {}, None
+        shared_waived: dict[str, Mapping[str, Any]] = {}
         try:
             share = team is not None and tasks_backend(repo_path) == "beads"
         except ConfigValidationError as error:
@@ -545,7 +578,9 @@ def _state_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
 
             shared_epic, shared, shared_cause = shared_gates(repo_path, workflow_id, recorded)
             for gate in ("requirement_confirmed", "plan_approved", "orchestration_ready"):
-                if gate in shared:
+                if gate in shared and isinstance(shared[gate], Mapping) and shared[gate].get("waived"):
+                    shared_waived[gate] = shared[gate]
+                elif gate in shared:
                     gates_state[gate] = True
         warn_epic = shared_epic or recorded or None
         delivery, standalone, tracker_error = _delivery_state(repo_path, events, workflow_id,
@@ -569,6 +604,10 @@ def _state_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
             unshared = [f"gate {gate} proven locally; no epic bead to share it" for gate in
                         dict.fromkeys(_SHARED_EVENTS[event.event_type] for event in _proven_locally(events, workflow_id))]
         waivers = waivers_from_events(events, workflow_id=workflow_id, scope_hash=scope_hash)
+        for gate, entry in shared_waived.items():
+            waivers.setdefault(gate, GateWaiver(
+                gate=gate, gate_class=GateClass.PROCESS, reason=str(entry.get("reason") or "waived"),
+                scope_hash=scope_hash, waived_by=str(entry.get("waived_by") or "unknown")))
 
     state: dict[str, Any] = {
         "workflow_id": workflow_id,
@@ -702,12 +741,18 @@ def _unblock_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
     except (ValueError, TypeError) as err:
         return {"status": "error", "message": str(err)}, 1
 
-    return {
+    result = {
         "status": "success",
         "message": f"Waived gate '{gate}'. Recorded event {event.event_id}",
         "event_id": event.event_id,
         "gate": gate,
-    }, 0
+    }
+    if team is not None:
+        prior, _ = _read_events(event_store)
+        warning = _share_waiver(repo_path, prior or (), workflow_id, waiver, actor)
+        if warning is not None:
+            result["warning"] = warning
+    return result, 0
 
 
 _QUICK_COMMANDS = {"easy": ("lint", "typecheck", "test"), "standard": ("lint", "typecheck", "test", "build"),
@@ -839,6 +884,8 @@ def main(arguments: Sequence[str] | None = None) -> int:
         else:
             if exit_code == 0:
                 print(payload.get("message", "Success"))
+                if payload.get("warning"):
+                    print(f"warning: {payload['warning']}", file=sys.stderr)
             else:
                 print(f"error: {payload.get('message', 'Failed')}", file=sys.stderr)
         return exit_code

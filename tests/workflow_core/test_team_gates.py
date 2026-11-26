@@ -561,17 +561,58 @@ class TestSharedGates(GateCase):
         self.assertEqual(0, result.returncode, result.stderr)
         self.assertEqual([], self.bd_updates())
 
+    def test_unblock_writes_the_waiver_into_the_epic_bead(self):
+        self.bd({"e-1": {"id": "e-1", "issue_type": "epic", "status": "open", "metadata": {}}})
+        result = run_cli(self.root, "unblock", "--gate", "plan_approved", "--reason", "lead absent",
+                         "--workflow-id", "e-1", env=self.env)
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        update = self.bd_updates()[-1]
+        self.assertEqual(["bd", "update", "e-1", "--set-metadata"], update[:4])
+        gate = json.loads(update[4].removeprefix("gates="))["plan_approved"]
+        self.assertEqual((True, "lead absent", "binh@corp.com"), (gate["waived"], gate["reason"], gate["waived_by"]))
+        self.assertRegex(gate["at"], r"^\d{4}-\d{2}-\d{2}T")
+
+    def test_unblock_without_an_epic_bead_stays_local_and_warns(self):
+        self.bd({})
+        result = run_cli(self.root, "unblock", "--gate", "requirement_confirmed", "--reason", "agreed in a call",
+                         "--workflow-id", "w", env=self.env)
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertIn("warning: gate requirement_confirmed waived locally; no epic bead to share it", result.stderr)
+        self.assertEqual([], self.bd_updates())
+
+    def test_state_shows_a_shared_waiver_as_waived(self):
+        waiver = {"waived": True, "reason": "lead absent", "waived_by": "binh@corp.com", "at": "2026-11-01T00:00:00Z"}
+        self.bd({"e-1": {"id": "e-1", "issue_type": "epic", "status": "open",
+                         "metadata": {"gates": json.dumps({"plan_approved": waiver})}}})
+        state = json.loads(run_cli_subprocess(self.root, "state", "--workflow-id", "e-1", "--format", "json",
+                                              env=self.env).stdout)
+        self.assertEqual("waived(lead absent)", state["gates"]["plan_approved"])
+        self.assertEqual("unmet", state["gates"]["requirement_confirmed"])
+
+    def test_orchestration_ready_mirrors_a_local_waiver(self):
+        self.bd({"e-2": {"id": "e-2", "issue_type": "epic", "status": "open", "metadata": {}}})
+        self.assertEqual(0, run_cli(self.root, "unblock", "--gate", "requirement_confirmed", "--reason", "agreed",
+                                    "--workflow-id", "w", env=self.env).returncode)
+        ready = run_cli(self.root, "record", "orchestration-ready", "--evidence", "w", "--workflow-id", "w",
+                        "--epic", "e-2", env=self.env)
+        self.assertEqual(0, ready.returncode, ready.stderr)
+        gates = next(json.loads(u[4].removeprefix("gates=")) for u in reversed(self.bd_updates())
+                     if u[2] == "e-2" and u[3] == "--set-metadata" and "requirement_confirmed" in u[4])
+        self.assertEqual((True, "agreed"),
+                         (gates["requirement_confirmed"]["waived"], gates["requirement_confirmed"]["reason"]))
+
 
 class TestWaivers(GateCase):
     def test_waiver_needs_a_gate_role(self):
+        self.bd({})
         git(self.root, "config", "user.email", "em@corp.com")
-        denied = run_cli_subprocess(self.root, "unblock", "--gate", "plan_approved", "--reason", "r")
+        denied = run_cli_subprocess(self.root, "unblock", "--gate", "plan_approved", "--reason", "r", env=self.env)
         self.assertEqual(2, denied.returncode)
         self.assertIn("needs one of the roles be_lead, fe_lead", denied.stdout + denied.stderr)
         git(self.root, "config", "user.email", "chi@corp.com")
-        allowed = run_cli(self.root, "unblock", "--gate", "plan_approved", "--reason", "r")
+        allowed = run_cli(self.root, "unblock", "--gate", "plan_approved", "--reason", "r", env=self.env)
         self.assertEqual(0, allowed.returncode, allowed.stdout + allowed.stderr)
-        self.assertEqual(0, run_cli(self.root, "unblock", "--clear-blocker", "--reason", "r").returncode)
+        self.assertEqual(0, run_cli(self.root, "unblock", "--clear-blocker", "--reason", "r", env=self.env).returncode)
 
 
 ROADMAP_TEAM = TEAM.format(host="github").replace(
