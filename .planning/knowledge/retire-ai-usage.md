@@ -9,6 +9,7 @@ Epic `gin-workflow-wkwb` (2026-11-21, spec `.planning/specs/2026-11-21-retire-ai
 - `usage:` stays valid in schema 2.11 and is ignored: `USAGE_IGNORED_NOTICE` (`configuration.py`) appears once in `gin state` warnings and once in `gin setup doctor` actions. No schema bump, no migration.
 - `Worktree` and `worktrees()` moved to `checkout.py`; `close_guard` still needs them for review ledgers in linked worktrees.
 - A global install rebuilds its folders, so no stale skill stays. A project install removes `.opencode/skills/gin-report`, and removes `skills/report` under `.claude`, `.agents` and `.codex` only when its `SKILL.md` contains `Report AI usage`, because gin-qa's `report` skill shares the folder name.
+- Since `gin-workflow-cost-binding` (2026-11-26) gin records which Claude Code session worked on which workflow, and the cost view belongs to gin-console ([session-binding](session-binding.md)).
 - Quality signals (reopens, bugs, review cycles, rejections, findings, waivers) are not replaced in gin-workflow. gin-console computes them from files it reads (`gin-console-5c4`): reopens are the closes in `interactions.jsonl` minus one, which matched `ai_usage.quality` for 435 of 439 gin-workflow beads.
 
 **Consequences**
