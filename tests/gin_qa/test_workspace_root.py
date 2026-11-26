@@ -234,6 +234,45 @@ class TestQaWorkspaceRoot(unittest.TestCase):
         self.assertEqual(["playwright", "test", "auth/tc-auth-002.spec.ts", "--output",
                           str(child / run / "playwright")], json.loads((child / "e2e/.npx-args").read_text()))
 
+    def app_workspace(self) -> tuple[Path, Path]:
+        """(parent, app): `qa.e2e` points into the frontend child `app`, which has one commit."""
+        parent = make_repo(self.base / "ws", extra="qa:\n  e2e: app/e2e\nworkspace:\n  repos:\n"
+                           "    - path: app\n      url: git@example.com:org/app.git\n      shape: frontend\n")
+        write(parent, "docs/specs/auth/spec.md", AUTH_SPEC)
+        write(parent, "qa/cases/auth/TC-AUTH-001-sign-in.md", case_file("TC-AUTH-001", "REQ: REQ-AUTH-001@00000000"))
+        app = parent / "app"
+        app.mkdir()
+        for args in (("init", "-q", "-b", "main"), ("config", "user.email", "t@example.com"),
+                     ("config", "user.name", "T")):
+            subprocess.run(["git", *args], cwd=app, check=True, capture_output=True)
+        write(app, "README.md", "app\n")
+        commit_all(app, "init")
+        return parent, app
+
+    def e2e_dir(self, cwd: Path) -> str:
+        result = qa(None, self.bin, "plan", "auth", "--format", "json", group="e2e", cwd=cwd)
+        self.assertEqual(0, result.returncode, result.stderr)
+        return json.loads(result.stdout)["e2e"]
+
+    def test_e2e_follows_the_worktree_of_the_child_that_holds_qa_e2e(self):
+        parent, app = self.app_workspace()
+        self.assertEqual("app/e2e", self.e2e_dir(app))
+        linked = parent / ".planning/worktrees/t"
+        subprocess.run(["git", "worktree", "add", "-q", "-b", "t", str(linked)], cwd=app, check=True,
+                       capture_output=True)
+        self.assertEqual(".planning/worktrees/t/e2e", self.e2e_dir(linked))
+        self.assertEqual("app/e2e", self.e2e_dir(parent))
+
+    def test_a_child_worktree_outside_the_parent_is_refused(self):
+        _, app = self.app_workspace()
+        outside = self.base / "linked"
+        subprocess.run(["git", "worktree", "add", "-q", "-b", "o", str(outside)], cwd=app, check=True,
+                       capture_output=True)
+        result = qa(None, self.bin, "plan", "auth", "--format", "json", group="e2e", cwd=outside)
+        self.assertEqual(2, result.returncode, result.stderr)
+        self.assertIn(f"{outside} is outside", result.stderr)
+        self.assertNotIn("Traceback", result.stderr)
+
     def test_old_gin_is_refused(self):
         root = self.single()
         result = qa(root, gin_workflow_bin(self.base / "old", OLD_GIN), "next-id", "auth")

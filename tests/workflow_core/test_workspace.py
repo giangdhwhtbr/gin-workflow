@@ -292,5 +292,38 @@ class QaRootTests(unittest.TestCase):
         self.assertIn("more than one shape: qa entry", out.stderr)
 
 
+
+class E2eCheckoutTests(unittest.TestCase):
+    """`e2e_checkout`: the linked worktree of the child that holds `qa.e2e` (#33)."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.base = Path(self.tmp.name).resolve()
+        self.root = make_workspace(self.base)
+        self.api = self.root / "services/api"
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_none_outside_a_linked_worktree_of_the_child(self):
+        self.assertIsNone(workspace.e2e_checkout(self.root, self.root, "services/api/e2e"))
+        self.assertIsNone(workspace.e2e_checkout(self.root, self.api, "services/api/e2e"))
+
+    def test_the_linked_worktree_of_the_child(self):
+        wt = self.root / ".planning/worktrees/t"
+        git(self.api, "worktree", "add", "-q", "-b", "t", str(wt))
+        self.assertEqual({"repo": "services/api", "path": str(wt)},
+                         workspace.e2e_checkout(self.root, wt, "./services/api/e2e/"))
+        self.assertIsNone(workspace.e2e_checkout(self.root, wt, "qa/e2e"))  # outside every child
+
+    def test_none_for_a_qa_child(self):
+        config = self.root / ".agent-workflow/config.yaml"
+        config.write_text(config.read_text(encoding="utf-8") + QaRootTests.QA.format(path="qa"), encoding="utf-8")
+        qa = init_repo(self.root / "qa")
+        wt = self.base / "wt"
+        git(qa, "worktree", "add", "-q", "-b", "t", str(wt))
+        self.assertIsNone(workspace.e2e_checkout(self.root, wt, "qa/e2e"))
+
+
 if __name__ == "__main__":
     unittest.main()

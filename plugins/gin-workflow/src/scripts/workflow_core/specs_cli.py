@@ -113,7 +113,10 @@ def _run(args: argparse.Namespace) -> int:
             specs.require_layout(cfg, "sdd")
             change = specs.find_change(root, cfg, args.change)
         result = requirements(root, config, cfg, change)
-        result = {**result, "root": str(root), "qa_root": _qa_root(root)}
+        qa_root = _qa_root(root)
+        e2e = result["qa"].get("e2e")
+        moved = workspace.e2e_checkout(root, Path.cwd(), e2e) if qa_root is None and isinstance(e2e, str) else None
+        result = {**result, "root": str(root), "qa_root": qa_root, "e2e_checkout": moved}
         _emit(result, args.format, "\n".join(f"{row['id']} {row['section']} {row['hash'][:8]} {row['title']}"
                                              for row in result["requirements"]))
         return 0

@@ -170,4 +170,15 @@ def locate(repository: Path | None, change: str | None = None) -> tuple[Path, Ef
     eff.workspace = bool(payload.get("qa_root"))
     if not payload.get("qa_root") and "dir" not in qa and _root_playwright(files_root):
         eff.package_dir = ""  # R6: an existing root setup keeps the root
+    moved = payload.get("e2e_checkout")
+    if isinstance(moved, dict) and not payload.get("qa_root") and "e2e" in qa:
+        try:
+            lane = Path(moved["path"]).resolve().relative_to(files_root.resolve()).as_posix()
+        except ValueError:
+            raise QaError(f"{moved['path']} is outside {files_root}; run from "
+                          "<parent>/.planning/worktrees/<track>") from None
+        rebased = posixpath.normpath(posixpath.join(lane, posixpath.relpath(eff.e2e_dir, moved["repo"])))
+        if eff.package_dir == eff.e2e_dir:  # an existing root setup keeps ""
+            eff.package_dir = rebased
+        eff.e2e_dir = rebased
     return files_root, eff
