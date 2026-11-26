@@ -314,6 +314,10 @@ class E2eCheckoutTests(unittest.TestCase):
         git(self.api, "worktree", "add", "-q", "-b", "t", str(wt))
         self.assertEqual({"repo": "services/api", "path": str(wt)},
                          workspace.e2e_checkout(self.root, wt, "./services/api/e2e/"))
+        self.assertEqual({"repo": "services/api", "path": str(wt)},
+                         workspace.e2e_checkout(self.root, wt, "services\\api\\e2e"))
+        self.assertEqual({"repo": "services/api", "path": str(wt)},
+                         workspace.e2e_checkout(self.root, wt, "services/api"))  # the child itself
         self.assertIsNone(workspace.e2e_checkout(self.root, wt, "qa/e2e"))  # outside every child
 
     def test_none_for_a_qa_child(self):

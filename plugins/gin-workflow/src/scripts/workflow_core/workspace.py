@@ -193,28 +193,30 @@ def qa_root(root: Path, cwd: Path) -> Path | None:
     if len(entries) > 1:
         raise WorkspaceError("more than one shape: qa entry: " + ", ".join(repo.path for repo in entries))
     checkout = found.checkout(entries[0])
-    if checkout.is_dir() and main_checkout(Path(cwd).resolve()) == checkout.resolve():
-        top = subprocess.run(["git", "rev-parse", "--show-toplevel"], cwd=cwd, text=True, capture_output=True,
-                             check=False)
-        if top.returncode == 0 and top.stdout.strip():
-            return Path(top.stdout.strip())
-    return checkout
+    return _top_in(checkout, cwd) or checkout
+
+
+def _top_in(checkout: Path, cwd: Path) -> Path | None:
+    """The top of the checkout of `checkout` (the main one or a linked worktree) that holds `cwd`, else None."""
+    if not checkout.is_dir() or main_checkout(Path(cwd).resolve()) != checkout.resolve():
+        return None
+    top = subprocess.run(["git", "rev-parse", "--show-toplevel"], cwd=cwd, text=True, capture_output=True,
+                         check=False)
+    return Path(top.stdout.strip()) if top.returncode == 0 and top.stdout.strip() else None
 
 
 def e2e_checkout(root: Path, cwd: Path, e2e: str) -> dict[str, str] | None:
     """The linked worktree of the workspace child that holds `qa.e2e`, when `cwd` is inside one; else None."""
     found = load(root)
-    entry = found.repo_of(posixpath.normpath(e2e)) if found and e2e else None
+    path = posixpath.normpath(e2e.replace("\\", "/")) if e2e else ""
+    entry = (found.repo(path) or found.repo_of(path)) if found and path else None
     if entry is None or entry.shape == "qa":
         return None
     checkout = found.checkout(entry)
-    if not checkout.is_dir() or main_checkout(Path(cwd).resolve()) != checkout.resolve():
+    top = _top_in(checkout, cwd)
+    if top is None or top.resolve() == checkout.resolve():
         return None
-    top = subprocess.run(["git", "rev-parse", "--show-toplevel"], cwd=cwd, text=True, capture_output=True,
-                         check=False)
-    if top.returncode != 0 or not top.stdout.strip() or Path(top.stdout.strip()).resolve() == checkout.resolve():
-        return None
-    return {"repo": entry.path, "path": top.stdout.strip()}
+    return {"repo": entry.path, "path": str(top)}
 
 
 def ledger_root(start: Path) -> Path:
