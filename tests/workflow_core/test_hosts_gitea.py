@@ -216,6 +216,21 @@ class TestSearch(GiteaCase):
             self.assertEqual(("u9", "merged", "m" * 40), (merged.url, merged.state, merged.merge_commit))
             self.assertIsNone(adapter("gitea").pr_for_branch("nothing", self.root))
 
+    def test_pr_for_branch_reads_the_branch_from_head_label_once_the_head_branch_is_deleted(self):
+        listing = ["api", "repos/{owner}/{repo}/pulls", "-f", "state=all", "-X", "GET", "-f", "limit=50", "--paginate", "--slurp",
+                   "--max-pages", "10"]
+
+        def gone(number: int, label: str) -> dict:
+            pull = {**gitea_pr(number, branch=f"refs/pull/{number}/head"), "html_url": f"u{number}"}
+            pull["head"]["label"] = label
+            return pull
+
+        self.gt([{"argv": listing, "stdout": [[gone(3, "spec/x"), gone(8, "fork-owner:spec/y")]]}])
+        with mock.patch.dict(os.environ, self.env):
+            self.assertEqual("u3", adapter("gitea").pr_for_branch("spec/x", self.root).url)
+            self.assertEqual("u8", adapter("gitea").pr_for_branch("spec/y", self.root).url)
+            self.assertIsNone(adapter("gitea").pr_for_branch("refs/pull/3/head", self.root))
+
 
 class TestRepoId(unittest.TestCase):
     def test_pull_request_and_remote_forms_compare_equal(self):
