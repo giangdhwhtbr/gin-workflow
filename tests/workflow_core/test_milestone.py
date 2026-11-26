@@ -856,6 +856,16 @@ class PointsTests(unittest.TestCase):
         self.assertIsNone(milestone.forecast(beads, TODAY, milestone.Roadmap(), 1))
         self.assertEqual(0, milestone.list_payload(beads, TODAY, False, milestone.Roadmap(), 1)["unassigned_epics"])
 
+    def test_forecast_and_unassigned_count_leave_out_deferred_roadmap_epics(self):
+        active = bead("A", labels=["roadmap"], minutes=days(2))
+        deferred = bead("D", status="deferred", labels=["roadmap"], minutes=days(5))
+        found = milestone.forecast(world(active, deferred), TODAY, milestone.Roadmap(), 1)
+        alone = milestone.forecast(world(active), TODAY, milestone.Roadmap(), 1)
+        self.assertEqual((1, alone["finish"], ["A"]), (found["open_epics"], found["finish"], list(rows(found))))
+        payload = milestone.list_payload(world(active, deferred), TODAY, False, milestone.Roadmap(), 1)
+        self.assertEqual(1, payload["unassigned_epics"])
+        self.assertIsNone(milestone.forecast(world(deferred), TODAY, milestone.Roadmap(), 1))
+
     def test_epic_days_rounds_up_and_falls_back_to_minutes(self):
         self.assertEqual(4, milestone.epic_days(bead("E", meta={"points": 3}), milestone.Pace(1.33, 3, False)))
         self.assertEqual(1, milestone.epic_days(bead("E", meta={"points": 1}), milestone.Pace(0.2, 3, False)))

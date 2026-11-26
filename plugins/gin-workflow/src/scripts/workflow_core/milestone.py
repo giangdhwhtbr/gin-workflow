@@ -527,9 +527,10 @@ def show_payload(milestone: Mapping[str, Any], beads: Beads, start: date | None,
 
 
 def _open_roadmap_epics(beads: Beads) -> dict[str, Mapping[str, Any]]:
+    """Roadmap epics the forecast plans: a `deferred` one is set aside in Beads, so it is left out like a closed one."""
     return {bead["id"]: bead for bead in beads.values()
             if bead.get("issue_type") == "epic" and "roadmap" in (bead.get("labels") or [])
-            and bead.get("status") != "closed"}
+            and bead.get("status") not in ("closed", "deferred")}
 
 
 def forecast(beads: Beads, today: date, roadmap: Roadmap, default_lanes: int,
