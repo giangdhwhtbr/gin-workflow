@@ -142,6 +142,7 @@ Kind: technical
 
 
 NOT_FOUND = 'bd exited 1: Error fetching e-1: no issue found matching "e-1"'
+NOT_FOUND_1_3 = "bd exited 1: Issue e-1 not found"  # bd 1.3
 
 
 class TestLookup(unittest.TestCase):
@@ -175,7 +176,7 @@ class TestLookup(unittest.TestCase):
 
     def test_spec_kind_when_the_bead_has_none(self):
         # bd's not-found: the workflow id is not a bead; or a bead without a kind: label.
-        for shown, cause in ((None, NOT_FOUND), ([{"id": "e-1", "labels": ["roadmap"]}], None),
+        for shown, cause in ((None, NOT_FOUND), (None, NOT_FOUND_1_3), ([{"id": "e-1", "labels": ["roadmap"]}], None),
                              ([{"id": "e-1"}], None)):
             with self.subTest(shown=shown):
                 self.assertEqual(("technical", None), self.lookup(shown, "e-1", "spec.md", cause)[0])

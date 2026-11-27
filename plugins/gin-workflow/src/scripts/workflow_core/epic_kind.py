@@ -96,7 +96,8 @@ def _kind_source(target: Path) -> Path:
     return change_file(target.parent, "proposal") if target.name in in_change else target
 
 
-# bd's message for an id no bead has: `Error fetching <id>: no issue found matching "<id>"`.
+# bd's message for an id no bead has: `Error fetching <id>: no issue found matching "<id>"` before bd 1.3,
+# `Issue <id> not found` since.
 _BD_NOT_FOUND = "no issue found matching"
 # bd's message in a project without a Beads database.
 _BD_NO_DATABASE = "no beads database found"
@@ -117,7 +118,8 @@ def _bead_labels(root: Path, workflow_id: str) -> tuple[list[str], str | None]:
         if not isinstance(record, Mapping):
             return [], "unexpected show output"
         return list(record.get("labels") or ()), None
-    if _BD_NOT_FOUND in cause or (_BD_NO_DATABASE in cause and team_for_repo(root) is None):
+    if (_BD_NOT_FOUND in cause or f"Issue {workflow_id} not found" in cause
+            or (_BD_NO_DATABASE in cause and team_for_repo(root) is None)):
         return [], None
     if cause == _MARKDOWN_FAILED and tasks.query_result(root, ["list", "--limit", "1"])[1] is None:
         return [], None
