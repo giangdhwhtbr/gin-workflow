@@ -56,6 +56,7 @@ class TestGoalText(unittest.TestCase):
         self.assertNotIn("turns", text)
         # implementation_complete needs every track closed, so it cannot hold while a held track stays open.
         self.assertNotIn("implementation_complete", text)
+        self.assertIn("`python3 review-ledger.py status --bead-id <id>`", text)
         self.assertIn("are closed in Beads (`gin task show`). Do not start",
                       goal_text("epic", tracks, "wf", False))
 
