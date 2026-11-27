@@ -1,7 +1,7 @@
 # Roadmap: Cost and friction of the common path
 
 Date: 2026-11-26
-Source: product brief "gin-workflow: product brief for the next improvements" (Claude Doc, 2026-11-25, https://claude.ai/artifact/7fQvBeHDvkXfbRp5xwxT1m), confirmed with the PM in `/roadmap` on 2026-11-26 and revised the same day (Claude Code only, an upkeep epic, team mode as a supported mode, platform first with two agent team epics). The previous roadmap (process review follow-up, 2026-11-10) is fully shipped; it stays in git history.
+Source: product brief "gin-workflow: product brief for the next improvements" (Claude Doc, 2026-11-25, https://claude.ai/artifact/7fQvBeHDvkXfbRp5xwxT1m), confirmed with the PM in `/roadmap` on 2026-11-26 and revised the same day (Claude Code only, an upkeep epic, team mode as a supported mode, platform first with two agent team epics), and on 2026-11-27 (a team onboarding epic; the install phase moves after phase 1). The previous roadmap (process review follow-up, 2026-11-10) is fully shipped; it stays in git history.
 
 <!-- Written by /roadmap after the PM confirms it. One "### " block per epic; an epic id never changes once written.
      Depends on: epic ids from this file. Evidence: the tech-doc file and section (for example
@@ -25,6 +25,7 @@ Source: product brief "gin-workflow: product brief for the next improvements" (C
 - Orchestrate, the ship checks, and the stage preflight are single CLI calls. The model handles failures and the user's choices.
 - Cost per epic and per stage can be read without spending agent tokens.
 - A marketplace install is enough on Claude Code.
+- A new team member sets up a machine and joins a team repository with one script and one command.
 - The maintainer learns of a breaking change in Claude Code or Beads within a week and releases from a written procedure.
 - A team can give a role to an agent under the same gates, and the specs of a milestone are drafted in one run with the open questions gathered once.
 - Reopened beads and findings at ship stay flat while the numbers above move.
@@ -33,7 +34,7 @@ Source: product brief "gin-workflow: product brief for the next improvements" (C
 
 | Milestone | Period | Outcome | Demo | Epics |
 |---|---|---|---|---|
-| Unassigned | | | | Session binding for the cost view; Upkeep for one maintainer; Fresh context per stage with a state card; Orchestrate as one CLI command; Ship checks and options in the CLI; One-call stage brief; Plans that record decisions; Effort and model matched to the stage; Review sized to risk; Execute as a Claude Code workflow; Team roles run by agents; Milestone specs drafted in one run; One entry command; Skill text audit for current models; Marketplace install without extra steps |
+| Unassigned | | | | Session binding for the cost view; Upkeep for one maintainer; Fresh context per stage with a state card; Orchestrate as one CLI command; Ship checks and options in the CLI; One-call stage brief; Marketplace install without extra steps; Team onboarding in one command; Plans that record decisions; Effort and model matched to the stage; Review sized to risk; Execute as a Claude Code workflow; Team roles run by agents; Milestone specs drafted in one run; One entry command; Skill text audit for current models |
 
 ## Constraints
 
@@ -65,7 +66,7 @@ Source: product brief "gin-workflow: product brief for the next improvements" (C
 
 ## Strategy
 
-Measure first, then shrink the main session, then make agent turns cheaper, then shorten the path for the user. The main session holds 81% of prompt tokens at a 293K median context, so phase 1 carries most of the saving and makes every later epic cheaper to build. Until gin-console shows cost per epic, the transcript scan of the brief gives the baseline. In phase 1 the two CLI stages come before the stage brief, because they shrink the skills the brief then rewrites. In phase 2 the three small epics come before the workflow, so the saving they bring is measured on its own. The agent team phase follows the workflow: it reuses the way the plugin ships a workflow, and it changes how discuss starts before the entry command builds on it. The last phase changes what the user types and how the plugin is packaged, and it builds on the commands of phases 1 and 2. The upkeep epic runs second, because every later epic builds on Claude Code surfaces that change every week. Epics that edit the same stage skills run back to back in the listed order.
+Measure first, then shrink the main session, then make the install and team onboarding one step, then make agent turns cheaper, then shorten the path for the user. The main session holds 81% of prompt tokens at a 293K median context, so phase 1 carries most of the saving and makes every later epic cheaper to build. Until gin-console shows cost per epic, the transcript scan of the brief gives the baseline. In phase 1 the two CLI stages come before the stage brief, because they shrink the skills the brief then rewrites. In phase 2 the three small epics come before the workflow, so the saving they bring is measured on its own. The agent team phase follows the workflow: it reuses the way the plugin ships a workflow, and it changes how discuss starts before the entry command builds on it. The install phase sits between phases 1 and 2 (PM decision, 2026-11-27). Packaging and team onboarding need no command of the later phases, and they are the first thing a new member meets. The last phase changes what the user types, and it builds on the commands of phases 1 and 2. The upkeep epic runs second, because every later epic builds on Claude Code surfaces that change every week. Epics that edit the same stage skills run back to back in the listed order.
 
 ## Order
 
@@ -85,7 +86,7 @@ flowchart LR
     LP[lean-plans]
     SR[stage-routes]
     RR[review-by-risk]
-    SI[simpler-install]
+    SI[simpler-install] --> TO[team-onboarding]
     UP[upkeep]
 ```
 
@@ -93,11 +94,12 @@ flowchart LR
 |---|---|---|
 | Measure | A baseline per epic is recorded | `gin-workflow-cost-binding`, `gin-workflow-upkeep` |
 | Small sessions | The median main-session context is under 120K | `gin-workflow-context-boundaries`, `gin-workflow-cli-orchestrate`, `gin-workflow-cli-ship`, `gin-workflow-stage-brief` |
+| Install | A new member's machine is set up and joined with one script and one command, checked on the team's project | `gin-workflow-simpler-install`, `gin-workflow-team-onboarding` |
 | Cheaper turns | Main-session tokens per epic are halved | `gin-workflow-lean-plans`, `gin-workflow-stage-routes`, `gin-workflow-review-by-risk`, `gin-workflow-execute-workflow` |
 | Agent team | A shadow run reports how many questions the user still answers | `gin-workflow-agent-roles`, `gin-workflow-batch-discuss` |
-| Shorter path | | `gin-workflow-one-entry`, `gin-workflow-skill-audit`, `gin-workflow-simpler-install` |
+| Shorter path | | `gin-workflow-one-entry`, `gin-workflow-skill-audit` |
 
-With 1 lane the epics run in the listed order: cost-binding, upkeep, context-boundaries, cli-orchestrate, cli-ship, stage-brief, lean-plans, stage-routes, review-by-risk, execute-workflow, agent-roles, batch-discuss, one-entry, skill-audit, simpler-install. The 15 epics total 99 points and 24 working days at the measured pace of 0.17 days per point. The deadline leaves 12 working days from 2026-11-26, which covers the order through stage-routes.
+With 1 lane the epics run in the listed order: cost-binding, upkeep, context-boundaries, cli-orchestrate, cli-ship, stage-brief, simpler-install, team-onboarding, lean-plans, stage-routes, review-by-risk, execute-workflow, agent-roles, batch-discuss, one-entry, skill-audit. The 16 epics total 110 points. The 14 open epics hold 102 points and 29 working days at the pace of 0.21 days per point measured on 2026-11-27. The deadline leaves 11 working days from 2026-11-27, which covers the order through simpler-install.
 
 ## Unassigned
 
@@ -118,7 +120,7 @@ Risks: an older gin must still read the event log; no number is shown until gin-
 
 ### Upkeep for one maintainer
 Epic: gin-workflow-upkeep
-Points: 2 (one scheduled check and two docs pages)
+Points: 5 (one watch script with its surface list and tests, one new gin hooks action, a rewritten release section, one guide in two languages)
 Estimate: 1
 Kind: technical
 Complexity: low: scripts and docs, no change to the lifecycle
@@ -134,7 +136,7 @@ Risks: the scheduled check needs a Claude Code cloud task or a local cron (decid
 ### Fresh context per stage with a state card
 Epic: gin-workflow-context-boundaries
 Points: 5 (one command, two hooks, a handoff line in nine stage skills, one setup proposal; same size as gin-workflow-g2gx = 5)
-Estimate: 1
+Estimate: 2
 Kind: capability
 Complexity: medium: the card must hold what a fresh session needs in under 10,000 characters
 Goal: A stage starts in a small session and loses nothing, because the workflow state is shown again after every clear and every compaction.
@@ -191,10 +193,40 @@ Depends on:
 Evidence: brief "Where the time goes", "Where the friction is" (28% mode text), and epic 5; `workflow_core/lifecycle_cli.py:118,137,441` (three tracker calls in `gin state`); `tests/workflow_core/test_token_budget.py`; bead `gin-workflow-4sa5`.
 Risks: text that leaves a skill must lose no rule; an organization setting can disable inline shell lines, so the fallback call stays; gin-console reads the `gin state` JSON.
 
+### Marketplace install without extra steps
+Epic: gin-workflow-simpler-install
+Points: 5 (plugin layout, the YAML dependency, git hook paths, two installers)
+Estimate: 2
+Kind: technical
+Complexity: medium: two installers and Windows
+Goal: Installing the plugin from the marketplace is the whole install on Claude Code.
+Scope: the `gin` CLI ships in the plugin's `bin/`; the PyYAML requirement goes; `gin hooks install` writes the CLI's absolute path into the git hooks; `install.sh` and `install.ps1` stay for the other harnesses; getting started and troubleshooting are updated.
+Out of scope: the bundle layout for the other harnesses, which is deferred; gin-qa's Node requirement.
+Features: Simpler install
+Legacy: none
+Depends on:
+Evidence: brief epic 12; `README.md` (a marketplace install leaves `gin` off `PATH`); `workflow_core/hooks.py:34-36` (git hooks call `gin` from `PATH`); Claude Code plugin components docs (`bin/`).
+Risks: configs written by hand must still load; one machine may hold two copies of `gin` (launcher and plugin).
+
+### Team onboarding in one command
+Epic: gin-workflow-team-onboarding
+Points: 8 (one command, one generated settings file, one version check, one bootstrap script with its smoke test, three docs pages in two languages; same size as gin-workflow-ch2v = 8)
+Estimate: 2
+Kind: capability
+Complexity: medium: system packages on Windows, and a Claude Code install surface gin has not used
+Goal: A new team member gets from a fresh machine to a working team repository with one script and one command, and is told only what a person must do.
+Scope: `gin team join` runs the member steps in one call (identity against `team.members`, the commit-msg hook, the host CLI's login state, `bd init --remote` from `team.beads_sync.remote` when the repository has no Beads store, `gin team sync`, the team checks of the doctor) and prints only the steps left for a person; `/gin:team-setup` calls it for a member; `gin team init` writes the `.claude/settings.json` entry that registers the marketplace and enables the plugin; `gin setup doctor` checks the `bd` version against the minimum and that a Dolt server remote answers; one bootstrap script for the team's platform installs the prerequisites (Python, Git, `bd`, `dolt`, the host CLI) and the plugin at project scope; a docs section on managed settings for an organization that wants the plugin installed without a command; the team guide, getting started, and the Windows guide are updated in both languages.
+Out of scope: logins and credentials, which stay with the person; the lead's choices in `/gin:team-setup`; a bootstrap for every operating system; the packaging of the plugin (`gin-workflow-simpler-install`); gin-qa's Node requirement; the other harnesses.
+Features: Team onboarding (PM request, 2026-11-27; not in the brief)
+Legacy: none
+Depends on: gin-workflow-simpler-install
+Evidence: PM decision in `/roadmap` on 2026-11-27; `docs/guides/team.md#join-it-member` and `plugins/gin-workflow/src/skills/team-setup/SKILL.md` (five member steps); `install.sh`, `install.ps1` (no prerequisite is checked or installed); `docs/guides/windows.md` (`bd` and `dolt` placed on `PATH` by hand); `workflow_core/team_init.py` (`gin team init` writes no Claude Code settings; the doctor tests only a `git+` remote); Claude Code docs "Require plugins per repository" and "Pre-install and require plugins".
+Risks: the members' platform is not confirmed (Windows PowerShell or WSL; decided in discuss); a script that installs system software needs the member's consent and rights, and package names differ per platform; repository settings register the marketplace but do not install the plugin, so one install command stays in the script; the plugin's `bin/` is on `PATH` only inside Claude Code, so the join command runs from a session; checked on the team's project before release.
+
 ### Plans that record decisions
 Epic: gin-workflow-lean-plans
 Points: 5 (plan schema, plan skill, developer agent, and the checks that read plans; same size as gin-workflow-05e5 = 5)
-Estimate: 1
+Estimate: 2
 Kind: capability
 Complexity: medium: `check-plan` reads the plan format and tests pin it
 Goal: A plan states decisions, files, interfaces, and named tests, and the developer agent writes the code once.
@@ -224,7 +256,7 @@ Risks: the field reaches the other harness builds without a check; an effort set
 ### Review sized to risk
 Epic: gin-workflow-review-by-risk
 Points: 5 (reviewer brief, review skill, the reviewer route command, one ship step)
-Estimate: 1
+Estimate: 2
 Kind: capability
 Complexity: medium: a policy change on the safety path
 Goal: Review effort follows the risk of a track, and a second review cycle happens only for a real defect.
@@ -254,7 +286,7 @@ Risks: a run cannot ask a question, so a `needs_clarification` result must stop 
 ### Team roles run by agents
 Epic: gin-workflow-agent-roles
 Points: 5 (one guide in two languages, one JSON key, one contract page)
-Estimate: 1
+Estimate: 2
 Kind: technical
 Complexity: medium: the guide sets who may approve what, and identity on one host
 Goal: A team can give a role to an agent under the same gates and the same approval record as for a person.
@@ -310,18 +342,3 @@ Legacy: none
 Depends on: gin-workflow-stage-brief
 Evidence: brief epic 11 and "Where the friction is"; `.planning/knowledge/skill-authoring-limits.md` (three files within 25 characters of their cap); Claude Code plugin measurement docs; Anthropic's prompt audit guide.
 Risks: a removed sentence held a rule that no test covered; the Vietnamese docs quote skill text.
-
-### Marketplace install without extra steps
-Epic: gin-workflow-simpler-install
-Points: 5 (plugin layout, the YAML dependency, git hook paths, two installers)
-Estimate: 1
-Kind: technical
-Complexity: medium: two installers and Windows
-Goal: Installing the plugin from the marketplace is the whole install on Claude Code.
-Scope: the `gin` CLI ships in the plugin's `bin/`; the PyYAML requirement goes; `gin hooks install` writes the CLI's absolute path into the git hooks; `install.sh` and `install.ps1` stay for the other harnesses; getting started and troubleshooting are updated.
-Out of scope: the bundle layout for the other harnesses, which is deferred; gin-qa's Node requirement.
-Features: Simpler install
-Legacy: none
-Depends on:
-Evidence: brief epic 12; `README.md` (a marketplace install leaves `gin` off `PATH`); `workflow_core/hooks.py:34-36` (git hooks call `gin` from `PATH`); Claude Code plugin components docs (`bin/`).
-Risks: configs written by hand must still load; one machine may hold two copies of `gin` (launcher and plugin).
