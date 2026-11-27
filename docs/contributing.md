@@ -129,6 +129,10 @@ GitHub Pages needs the source "GitHub Actions" (see the section above). The `git
    ```
 
    When `bd` and `gin` share a directory, as in `~/.local/bin`, that command also hides `gin`; link `gin` into a temporary directory and put that directory on `PATH` instead.
+
+   Then run the installer smoke test, described under Tests above, because `release.yml` does not run it: `bash tests/install_smoke_test.sh`. Expected: it exits 0.
+
+   When the release changes `install.ps1`, start `test.yml` by hand, as the Tests section describes; its `windows` job runs `tests/install_smoke_test.ps1`.
 5. Merge to `master` with the maintainer's approval and push.
 6. Tag the merge commit and push the tag: `git tag vX.Y.Z && git push origin vX.Y.Z`. The `release` job fails unless the tag equals the version in `plugins/gin-workflow/plugin.meta.json`. It runs the full suite, takes the notes from the changelog section, and attaches `gin-workflow-vX.Y.Z.tar.gz` and `.zip` to the GitHub release. The `pages` job then deploys the site.
 7. Check both jobs with `gh run list --workflow release.yml --limit 2`. When the Pages upload fails with `Found 0 artifact(s)`, rerun it with `gh run rerun <id> --failed`. After `Deployment failed`, run `gh workflow run release.yml --ref master` instead; a run started by hand runs the tests and redeploys the site without creating a release.
