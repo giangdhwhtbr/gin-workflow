@@ -1030,7 +1030,7 @@ def _ids_in(text: str) -> set[str]:
     return set(_HEADING_LINE.findall(text))
 
 
-def _local_ids(tree: Path, cfg: Mapping[str, Any]) -> set[str]:
+def _local_ids(tree: Path, cfg: Mapping[str, Any], *, archived: bool = True) -> set[str]:
     ids: set[str] = set()
     patterns = (("*/spec.md", cfg["specs"]), ("**/spec-delta.md", cfg["changes"]),
                 (f"**/{CHANGE_FILES['spec-delta']}", cfg["changes"]))
@@ -1038,6 +1038,8 @@ def _local_ids(tree: Path, cfg: Mapping[str, Any]) -> set[str]:
         directory = Path(tree) / base
         if directory.is_dir():
             for path in directory.glob(pattern):
+                if not archived and base == cfg["changes"] and path.relative_to(directory).parts[0] == "archive":
+                    continue
                 ids |= _ids_in(path.read_text(encoding="utf-8"))
     return ids
 

@@ -54,6 +54,7 @@ WHEN a user fails to log in five times in ten minutes, the system SHALL lock the
 - Each block has one `SHALL` or `MUST` statement and at least one GIVEN/WHEN/THEN scenario. The EARS patterns (`WHEN`, `WHILE`, `IF ... THEN`, `WHERE`) are preferred.
 - A `MODIFIED` or `REMOVED` block puts `<!-- base: <hash> -->` on the line after its heading (`gin specs hash <REQ-ID>` prints it), so archive can tell whether the living block changed since the delta was written. A `REMOVED` block also needs `Reason: <why>`.
 - A `RETIRED` block keeps the number of a requirement the review dropped before it reached a living spec: its heading and `Reason: <why>`, nothing else. Lint refuses it for an id that a living spec holds (use `REMOVED`), that is already retired, or that an open change adds, and refuses `ADDED` of a retired id. `gin specs archive` writes each `RETIRED` block, and each `REMOVED` block without its base line, under `## Retired` at the end of `spec.md`; new `ADDED` blocks go before that section. Readers of the living spec leave retired ids out.
+- Gaps from before retired ids existed: `gin specs gaps <cap>` lists them, and `gin specs gaps <cap> --into <change>` drafts their `RETIRED` blocks in an open change, which then goes through review and archive like any change.
 - `gin specs template <name>` prints the templates (`spec.md`, `spec-delta.md`, `proposal.md`, `design.md`, `tests.md`, `adr.md`, `iteration.md`, `activity.md`, `state.md`, `use-case.md`, `specs-README.md`).
 
 ## Requirement types { #requirement-types }

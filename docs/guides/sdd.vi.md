@@ -54,6 +54,7 @@ WHEN a user fails to log in five times in ten minutes, the system SHALL lock the
 - Mỗi khối có một câu `SHALL` hoặc `MUST` và ít nhất một scenario GIVEN/WHEN/THEN. Các mẫu EARS (`WHEN`, `WHILE`, `IF ... THEN`, `WHERE`) được ưu tiên.
 - Một khối `MODIFIED` hoặc `REMOVED` đặt `<!-- base: <hash> -->` ở dòng sau heading của nó (`gin specs hash <REQ-ID>` in ra giá trị này), để archive biết living block có thay đổi kể từ lúc delta được viết hay không. Một khối `REMOVED` còn cần `Reason: <why>`.
 - Một khối `RETIRED` giữ lại số của một requirement mà buổi review đã bỏ trước khi nó vào living spec: chỉ gồm heading và `Reason: <why>`. Lint từ chối nó khi một living spec đang giữ id đó (hãy dùng `REMOVED`), khi id đó đã retired, hoặc khi một change đang mở thêm id đó, và từ chối `ADDED` của một id đã retired. `gin specs archive` ghi mỗi khối `RETIRED`, và mỗi khối `REMOVED` sau khi bỏ dòng base, vào `## Retired` ở cuối `spec.md`; các khối `ADDED` mới được đặt trước section đó. Các reader của living spec bỏ qua các id đã retired.
+- Các khoảng trống từ trước khi retired id tồn tại: `gin specs gaps <cap>` liệt kê chúng, và `gin specs gaps <cap> --into <change>` soạn sẵn các khối `RETIRED` của chúng trong một change đang mở, rồi change đó đi qua review và archive như mọi change khác.
 - `gin specs template <name>` in các template (`spec.md`, `spec-delta.md`, `proposal.md`, `design.md`, `tests.md`, `adr.md`, `iteration.md`, `activity.md`, `state.md`, `use-case.md`, `specs-README.md`).
 
 ## Loại requirement { #requirement-types }
