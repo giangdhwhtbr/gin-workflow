@@ -13,7 +13,7 @@ Epic `gin-workflow-ch2v` (2026-11-22, capability `req-signoff-trace`). Spec sign
 **Consequences**
 - `WorkflowEvent` freezes its payload: lists become tuples and dicts `mappingproxy`. Code that copies a read-back payload into JSON must `thaw` it (`models.thaw`); `_proof` failed this way at `orchestration-ready` until `3dcb85a5`.
 - `specs.delta_blocks` returns blocks under a non-delta `##` heading together with an error; callers that need `op` must filter to `DELTA_SECTIONS` (`signoff.change_requirements`, `specs_trace_all.trace_all`).
-- No skill text changed: `skills/sdd/SKILL.md` (5,990 of 6,000 characters) and `skills/team/SKILL.md` (5,991) have no room; sign-off moves into git at archive so no stage has to commit a new file.
+- No skill text changed: `skills/sdd/SKILL.md` (5,990 of 6,000 characters then; 5,952 after `gin-workflow-retired-req-ids`) and `skills/team/SKILL.md` (5,991) have no room; sign-off moves into git at archive so no stage has to commit a new file.
 - Tests patch `specs_trace_all._gin_qa` because an installed `gin-qa` on `PATH` would otherwise run against the temporary repository; `tests/gin_qa/test_trace_cases.py` runs the real CLI (POSIX only).
 - `tests/gin_qa/test_packaging.py::test_core_never_refers_to_gin_qa` forbids the string `gin-qa` in every core file under `plugins/gin-workflow/src` except an allowlist with a reason per entry; `specs_trace_all.py` joined it in `65f0b7f4`. The plan and three reviews missed this; only the full suite at ship caught it, so a plan that makes core call gin-qa must list that test.
 
