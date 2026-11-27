@@ -10,11 +10,13 @@ Epic `gin-workflow-qa-workspace` (2026-11-11), the last P1 of the process review
 - Defaults under the QA home: `cases`, `guidelines.md`, `e2e`, and `evidence` next to the e2e folder. Explicit `qa.cases`/`qa.e2e`/`qa.guidelines` are relative to the files root.
 - Playwright lives in `<QA home>/e2e` (`package_dir`): `package.json` (created by `e2e init` as `{"name": "<home>-e2e", "private": true}`), `playwright.config.ts` (`testDir: '.'`), `node_modules`, and the `npm`/`npx` cwd; spec arguments are relative to it and `--output` is absolute. `--install` takes the nearest lockfile from there up to the files root (since `gin-workflow-gdch`, see [monorepo-package-checks](monorepo-package-checks.md)). A repository with a root `playwright.config.*` or a `package.json` `e2e` script, no `qa.dir`, and no `qa_root` keeps the root (`_root_playwright`).
 - A `gin` whose payload lacks `root` is refused: "this gin is too old for gin-qa; reinstall gin-workflow".
+- `qa.e2e` inside a non-`qa` workspace child (`gin-workflow-5crd.8`, issue #33, 3.5.4): `gin specs reqs` adds `e2e_checkout` (`{repo, path}` of the linked worktree of that child the command runs from, else null; always null with `qa_root`), found by `workspace.e2e_checkout`, which shares `_top_in` with `qa_root`. `reqs.locate` moves `e2e_dir` and `package_dir` onto that worktree, relative to the files root, so the worktree must lie under it (`<parent>/.planning/worktrees/<track>`; outside it gin-qa exits 2). `Effective.e2e_home` keeps the configured folder so `e2e init` names the package after the child. A root Playwright setup (`package_dir == ""`) is not moved: from a lane every gin-qa command exits 2 naming the fix.
+- gin-qa prints paths relative to its files root, while `gin commit` resolves relative paths against its cwd (`scoped_commit._resolve_repo_for_path`) and refuses paths of two repositories. The e2e skill (step 10) and qa-track therefore run one `gin commit` per repository, from the repository that holds the QA home or with absolute paths; `.gitattributes` goes with the cases and `runs`, because `runs._union` writes it at the files root.
 
 **Consequences**
 - gin-qa needs the gin-workflow version that ships this (docs say 3.1 or later; `plugin.meta.json` was still 3.0.0 at merge, so the release bump is pending).
 - The user chose to follow spec R6 strictly, which changed 11 existing e2e tests: root scenarios gained a root config or `e2e` script (`root_setup()` writes `playwright.config.js`), new-setup scenarios expect `qa/e2e`.
-- In a linked worktree of the QA child, `e2e init` names the package after the worktree folder (for example `wt-e2e`); cosmetic, the package is private.
+- In a linked worktree of the QA child, `e2e init` names the package after the worktree folder (for example `wt-e2e`); cosmetic, the package is private. For `qa.e2e` in another child, 3.5.4 names it after the child (`app-e2e`).
 - The track 1 developer returned only a placeholder report; the commit and tests were verified directly before review. Always check the tree when a worker report lacks the result contract.
 
 **References**
@@ -22,7 +24,7 @@ Epic `gin-workflow-qa-workspace` (2026-11-11), the last P1 of the process review
 - Tests: `tests/workflow_core/test_workspace.py` (`QaRootTests`), `tests/workflow_core/test_specs_reqs.py`, `tests/gin_qa/test_workspace_root.py`, `tests/gin_qa/test_e2e_cli.py`
 - Docs: `docs/guides/qa.md` (The QA home), `docs/guides/workspace.md`, `docs/reference/config.md`, `docs/reference/cli.md`, and their `.vi.md` pairs
 - `.planning/specs/2026-11-11-qa-workspace-design.md`, `.planning/plans/2026-11-11-qa-workspace.md`
-- Beads: `gin-workflow-qa-workspace`, `.1` to `.3`
+- Beads: `gin-workflow-qa-workspace`, `.1` to `.3`; `gin-workflow-5crd.8` (e2e in a child worktree)
 - Related: [workspace](workspace.md), [process-review](process-review.md), [gin-qa-setup-and-types](gin-qa-setup-and-types.md)
 
 **Scope**

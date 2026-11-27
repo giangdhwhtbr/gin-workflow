@@ -2,6 +2,36 @@
 
 This page lists what changed in each release of gin-workflow and its add-ons (gin-qa, gin-ba), newest first. Releases before 3.1.0 are on the [GitHub releases page](https://github.com/giangdhwhtbr/gin-workflow/releases).
 
+## [3.5.4] - 2026-11-27
+
+### Upgrade notes
+
+- Update gin on each machine. No project step is needed, and `.ginrc` stays as it is.
+- A clone of the gin-workflow repository itself needs gin 3.5.4: its `.ginrc` moves to 3.5.4 for `verify.no_test_paths`, and an older gin refuses it.
+- Run `gin team hooks` in each repository, or `gin team hooks --all-repos` in a workspace, to install the new commit-msg shim.
+- An SDD epic whose lanes use `feat/04-plan-<lane>` branches: finish it on 3.5.3, or rename its lane branches to `feat/<change>-<lane>` before the next `gin team claim`.
+- In team mode, every member should upgrade. gin 3.5.3 reads a shared waiver on the epic bead as a real confirmation in `gin state`, the sign-off, and the milestone spec count.
+- A tool that runs `gin state` from inside a Claude Code session, such as a gin-console backend, binds that session to every workflow it reads. Drop `CLAUDE_CODE_SESSION_ID` from the environment it gives `gin`.
+
+### Added
+
+- `gin state`, `gin record`, `gin unblock`, and `gin routes dispatch` record which Claude Code session worked on a workflow, from `CLAUDE_CODE_SESSION_ID`, as one `session.bound` event per session and workflow. `gin state --format json` lists them under `sessions`.
+
+### Fixed
+
+- `gin team check-plan` and `gin record plan-approved` take `Repo: .` (or no `Repo:`) as the workspace parent. A file inside a child is reported with the `Repo:` it needs (#30).
+- The commit-msg shim lets a commit through on a branch without `.githooks/commit-msg`, and runs the hook with `sh`, so a hook without the executable bit works (#31).
+- `gin specs status` and the Gitea lane pull request lookups find a merged pull request whose head branch was deleted (#32).
+- gin-qa reads and writes `qa.e2e` in the worktree of the workspace child that holds it (#33).
+- `/gin-qa:e2e` saves with one `gin commit` per repository, run from the repository that holds the QA home (#33).
+- `gin reviewer --worktree <dir>` diffs a workspace child's lane worktree (#34).
+- An SDD plan's topic is its change folder, so lane branches are `feat/<change>-<lane>` and no longer `feat/04-plan-<lane>` for every epic (#35).
+- `gin specs lint --change --against` asks for an activity diagram only in the pull request that changes `02-spec-delta.md`, and diffs from the merge base (#36).
+- `gin specs trace --ref <repo>=<ref>` reads tests on an unmerged lane branch. A malformed `--ref`, an unknown or uncloned repo, or an unresolvable ref exits 2 (#37).
+- A child missing under a linked parent worktree is read through the parent's main checkout by `gin specs trace` (#37).
+- In team mode with Beads, a waiver of `requirement_confirmed` or `plan_approved` is shared through the epic bead, and teammates see it as `waived(<reason>)` (#38).
+- A shared waiver never replaces a pull request proof already on the epic bead, and sign-off prefers a proof over a waiver. The milestone spec count ignores a waiver (#38).
+
 ## [3.5.3] - 2026-11-25
 
 ### Upgrade notes

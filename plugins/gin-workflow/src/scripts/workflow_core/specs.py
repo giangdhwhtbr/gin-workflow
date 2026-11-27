@@ -720,7 +720,7 @@ def has_branch_flows(text: str) -> bool:
     return any(re.search(r"^### \S", body, re.MULTILINE) for body in _FLOW_SECTION.findall(_COMMENT.sub("", text)))
 
 
-def _feature_diagram_findings(root: Path, cfg: Mapping[str, Any], blocks: list[Block],
+def _feature_diagram_findings(root: Path, cfg: Mapping[str, Any], change: Path, blocks: list[Block],
                               against: str | None) -> list[str]:
     """Activity diagrams a change owes: one per capability it adds to, one per changed use case with branch flows,
     labelled decisions in changed diagrams. Without `against`, the per-capability rule of old."""
@@ -733,6 +733,9 @@ def _feature_diagram_findings(root: Path, cfg: Mapping[str, Any], blocks: list[B
                 for cap in caps if not any((base / cap / DIAGRAMS_DIR).glob("*-activity.md"))]
     caps = sorted({block.cap for block in blocks if block.section == "ADDED"})
     changed = changed_since(root, against, base)
+    # the PR that adds the ADDED blocks owes the diagram; later PRs of the change do not
+    if shown(root, change_file(change, "spec-delta")) not in changed_since(root, against, change):
+        caps = []
     errors = [f"{cap}: no activity diagram added or changed in {shown(root, base / cap / DIAGRAMS_DIR)}/ "
               f"since {against} (gin specs template activity.md)"
               for cap in caps
@@ -896,7 +899,7 @@ def lint_change(root: Path, cfg: Mapping[str, Any], change: Path, *, against: st
     kind, kind_errors = _lint_kind(root, change)
     errors += kind_errors
     if kind != "technical":
-        errors += _feature_diagram_findings(root, cfg, blocks, against)
+        errors += _feature_diagram_findings(root, cfg, change, blocks, against)
     design = change_file(change, "design")
     questions = technical_questions(design, shown(root, design))[1] if design.is_file() else []
 
@@ -948,11 +951,13 @@ def _git(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
 
 
 def changed_since(root: Path, ref: str, folder: Path) -> set[str]:
-    """Paths under `folder`, relative to `root`, added, modified, or renamed since `ref`, untracked files included."""
+    """Paths under `folder`, relative to `root`, added, modified, or renamed since the merge base of `ref` and HEAD, untracked files included."""
     if _git(root, "rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}").returncode != 0:
         raise SpecsError(f"cannot resolve {ref}")
+    merged = _git(root, "merge-base", ref, "HEAD")
+    since = merged.stdout.strip() if merged.returncode == 0 and merged.stdout.strip() else ref
     where = shown(root, folder)
-    diff = _git(root, "-c", "core.quotepath=off", "diff", "--name-only", "--relative", "--diff-filter=AMR", ref, "--", where)
+    diff = _git(root, "-c", "core.quotepath=off", "diff", "--name-only", "--relative", "--diff-filter=AMR", since, "--", where)
     untracked = _git(root, "-c", "core.quotepath=off", "ls-files", "--others", "--exclude-standard", "--", where)
     return set(diff.stdout.splitlines() + untracked.stdout.splitlines())
 

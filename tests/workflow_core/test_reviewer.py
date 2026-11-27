@@ -74,6 +74,31 @@ class RouteTests(unittest.TestCase):
         git(self.root, "add", path)
         git(self.root, "commit", "-q", "-m", path)
 
+    def test_diff_runs_in_the_worktree_when_given(self):
+        child = Path(self.tmp.name) / "child"
+        child.mkdir()
+        git(child, "init", "-q", "-b", "main")
+        git(child, "commit", "-q", "--allow-empty", "-m", "child base")
+        base = git(child, "rev-parse", "HEAD").strip()
+        write(child, "src/app.py", "x\n")
+        git(child, "add", ".")
+        git(child, "commit", "-q", "-m", "c")
+        out = route(self.root, base, model="haiku", effort="low", implementer="claude",
+                    config=config(self.root), worktree=child)
+        self.assertEqual("sonnet", out["model"])
+        self.assertEqual("non-docs files changed", out["reason"])
+        with self.assertRaisesRegex(ReviewerError, "git diff"):
+            route(self.root, base, model="haiku", effort="low", implementer="claude", config=config(self.root))
+
+    def test_a_worktree_that_is_not_a_directory_exits_2(self):
+        stderr = io.StringIO()
+        with mock.patch.object(reviewer, "load_effective_config", return_value=config(self.root)), \
+                mock.patch("sys.stderr", stderr):
+            code = reviewer.main(["--base", self.base, "--implementer", "claude", "--model", "sonnet",
+                                  "--repository", str(self.root), "--worktree", str(self.root / "nope")])
+        self.assertEqual(2, code)
+        self.assertIn("is not a directory", stderr.getvalue())
+
     def test_reviewer_runs_on_the_main_harness_in_a_fresh_session(self):
         out = route(self.root, self.base, model="sonnet", effort="medium", implementer="claude", config=config(self.root, harness="claude"))
         self.assertEqual(out["model"], "sonnet")

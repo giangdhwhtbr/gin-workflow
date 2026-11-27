@@ -87,7 +87,7 @@ Open: the parent checkout. Everything happens there; `/gin:roadmap` creates its 
 
 Who runs discuss for which kind of epic is in [who owns what](../roles.md#who-owns-what).
 
-Specs and plans are committed to the parent. Requirements and their REQ-IDs live only in the parent's specs; children reference them in tests, and `gin specs trace` scans every cloned child ([REQ-IDs](sdd.md#requirements)).
+Specs and plans are committed to the parent. Requirements and their REQ-IDs live only in the parent's specs; children reference them in tests, and `gin specs trace` scans every cloned child ([REQ-IDs](sdd.md#requirements)). From a linked worktree of the parent, a child that is not cloned there is read from the parent's main checkout. `gin specs trace --change <change> --ref <repo>=<branch>` reads an unmerged lane branch of that child.
 
 ## Tech lead
 
@@ -95,7 +95,7 @@ Open: the parent for setup, plan, orchestrate, and ship.
 
 | Stage | Command |
 |---|---|
-| Plan | `/gin:plan` writes tracks that each carry `Repo: <path>`; `gin record plan-approved` refuses a track with no `Repo:`, an unknown or frozen repository, the beads entry, or files outside its repository. A track may also carry `Reads: <paths>`, the repositories it reads and never edits. `gin team check-plan` and `gin record plan-approved` refuse a path that is not in `workspace.repos`, the beads entry, or the track's own `Repo:`. A `frozen` repository is accepted, and whether it is cloned is not checked there |
+| Plan | `/gin:plan` writes tracks that each carry `Repo: <path>`; `gin record plan-approved` refuses a track whose `Repo:` is unknown, frozen, or the beads repository, or whose files lie outside it. A track with `Repo: .` or no `Repo:` belongs to the parent and is refused only for a file inside a child. A track may also carry `Reads: <paths>`, the repositories it reads and never edits. `gin team check-plan` and `gin record plan-approved` refuse a path that is not in `workspace.repos`, the beads entry, or the track's own `Repo:`. A `frozen` repository is accepted, and whether it is cloned is not checked there |
 | Orchestrate | `/gin:orchestrate` creates one worktree per track inside the named child; a missing clone stops with the exact `gin workspace clone <path>` command. It puts `Reads: <paths>` in the track bead and, outside team mode, stops the same way when a `Reads:` repository is not cloned. In [team mode](team.md) it creates no child branch or worktree and pushes the parent's `feat/<topic>`; each member's `gin team claim` creates the worktree of their lane |
 | Ship | `/gin:ship` from the parent integrates one repository at a time, the parent last (in team mode, each lane and the parent's `feat/<topic>` go through pull requests, then an area lead runs `gin team complete <epic>`); `team check --gate ship` and `record shipped` accept a child's pull request, and `team check --gate ship` compares it with the HEAD of the child checkout or track worktree you run it from, else the child's main checkout; `gin team deps` finds a child's track pull request in the repository its `Repo:` names; the parent's integration carries the archive into the living spec, and by team convention the BA reviews that diff |
 

@@ -8,6 +8,7 @@ import subprocess
 from typing import Any, Sequence
 
 from . import tasks, team as team_core, team_host
+from .specs import CHANGE_FILES
 from .team import TeamConfig, TeamError, lead_plan, plan_lane, valid_lane
 from .team_host import HostUnavailable
 
@@ -38,8 +39,11 @@ def _beads(root: Path, argv: Sequence[str]) -> list[dict[str, Any]]:
 
 def topic_of(plan_path: str) -> str:
     """The plan file stem without a leading `YYYY-MM-DD-`; a lane plan `<stem>.lane-<lane>.md` has the topic of
-    its lead plan."""
-    return re.sub(r"^\d{4}-\d{2}-\d{2}-", "", Path(lead_plan(plan_path)).stem)
+    its lead plan; an SDD plan `<change>/04-plan.md` has the name of its change folder."""
+    lead = Path(lead_plan(plan_path))
+    if lead.name == CHANGE_FILES["plan"] and lead.parent.name:
+        return lead.parent.name
+    return re.sub(r"^\d{4}-\d{2}-\d{2}-", "", lead.stem)
 
 
 def track_lane(description: str) -> tuple[str, int, str, bool] | None:

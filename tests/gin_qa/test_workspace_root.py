@@ -234,6 +234,99 @@ class TestQaWorkspaceRoot(unittest.TestCase):
         self.assertEqual(["playwright", "test", "auth/tc-auth-002.spec.ts", "--output",
                           str(child / run / "playwright")], json.loads((child / "e2e/.npx-args").read_text()))
 
+    def app_workspace(self, e2e: str = "app/e2e") -> tuple[Path, Path]:
+        """(parent, app): `qa.e2e` points into the frontend child `app`, which has one commit."""
+        parent = make_repo(self.base / "ws", extra=f"qa:\n  e2e: {e2e}\nworkspace:\n  repos:\n"
+                           "    - path: app\n      url: git@example.com:org/app.git\n      shape: frontend\n")
+        write(parent, "docs/specs/auth/spec.md", AUTH_SPEC)
+        write(parent, "qa/cases/auth/TC-AUTH-001-sign-in.e2e.md",
+              case_file("TC-AUTH-001", "REQ: REQ-AUTH-001@00000000"))
+        app = parent / "app"
+        app.mkdir()
+        for args in (("init", "-q", "-b", "main"), ("config", "user.email", "t@example.com"),
+                     ("config", "user.name", "T")):
+            subprocess.run(["git", *args], cwd=app, check=True, capture_output=True)
+        write(app, "README.md", "app\n")
+        commit_all(app, "init")
+        return parent, app
+
+    def lane(self, parent: Path, app: Path) -> Path:
+        """A linked worktree of `app` at `<parent>/.planning/worktrees/t`."""
+        linked = parent / ".planning/worktrees/t"
+        subprocess.run(["git", "worktree", "add", "-q", "-b", "t", str(linked)], cwd=app, check=True,
+                       capture_output=True)
+        return linked
+
+    def e2e_plan(self, cwd: Path) -> dict:
+        result = qa(None, self.bin, "plan", "auth", "--format", "json", group="e2e", cwd=cwd)
+        self.assertEqual(0, result.returncode, result.stderr)
+        return json.loads(result.stdout)
+
+    def test_e2e_follows_the_worktree_of_the_child_that_holds_qa_e2e(self):
+        parent, app = self.app_workspace()
+        linked = self.lane(parent, app)
+        for cwd, e2e in ((app, "app/e2e"), (linked, ".planning/worktrees/t/e2e"), (parent, "app/e2e")):
+            with self.subTest(cwd=cwd):
+                plan = self.e2e_plan(cwd)
+                self.assertEqual((e2e, "qa/guidelines.md"), (plan["e2e"], plan["guidelines"]))
+                self.assertEqual([f"{e2e}/auth/tc-auth-001.spec.ts"], [row["spec"] for row in plan["missing"]])
+
+    def test_qa_e2e_equal_to_the_child_follows_the_worktree(self):
+        parent, app = self.app_workspace(e2e="app")
+        self.assertEqual(".planning/worktrees/t", self.e2e_plan(self.lane(parent, app))["e2e"])
+
+    def test_e2e_init_from_the_worktree_names_the_package_after_the_child(self):
+        parent, app = self.app_workspace()
+        linked = self.lane(parent, app)
+        result = qa(None, self.bin, "init", group="e2e", cwd=linked)
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual({"name": "app-e2e", "private": True}, json.loads((linked / "e2e/package.json").read_text()))
+
+    def test_e2e_run_from_the_worktree_runs_its_specs_and_keeps_evidence_in_the_qa_home(self):
+        parent, app = self.app_workspace()
+        linked = self.lane(parent, app)
+        self.assertEqual(0, qa(None, self.bin, "init", group="e2e", cwd=linked).returncode)
+        write(linked, "e2e/node_modules/@playwright/test/package.json", "{}")
+        case_path = parent / "qa/cases/auth/TC-AUTH-001-sign-in.e2e.md"
+        pinned = hash8(parse_case_file(case_path, "qa/cases/auth/TC-AUTH-001-sign-in.e2e.md")[0][0])
+        write(linked, "e2e/auth/tc-auth-001.spec.ts", spec_text("TC-AUTH-001", pinned))
+        npx = self.base / "npx-bin"
+        python_stub(npx, "npx", FAKE_NPX)
+        result = qa(None, self.bin, "run", "--format", "json", group="e2e", cwd=linked,
+                    path=os.pathsep.join([str(npx), TOOLS_PATH]))
+        self.assertEqual(0, result.returncode, result.stderr)
+        run = json.loads(result.stdout)["run"]
+        self.assertRegex(run, r"^qa/evidence/\d{4}-")
+        self.assertEqual(["playwright", "test", "auth/tc-auth-001.spec.ts", "--output", str(parent / run / "playwright")],
+                         json.loads((linked / "e2e/.npx-args").read_text()))
+
+    def test_a_root_playwright_setup_is_not_moved_to_the_worktree(self):
+        parent, app = self.app_workspace()
+        write(parent, "playwright.config.ts", "export default {};\n")
+        self.assertEqual("app/e2e", self.e2e_plan(app)["e2e"])
+        result = qa(None, self.bin, "plan", "auth", "--format", "json", group="e2e", cwd=self.lane(parent, app))
+        self.assertEqual(2, result.returncode, result.stderr)
+        self.assertIn(f"Playwright is set up at the root of {parent}", result.stderr)
+
+    def test_a_child_worktree_outside_the_parent_is_refused(self):
+        _, app = self.app_workspace()
+        outside = self.base / "linked"
+        subprocess.run(["git", "worktree", "add", "-q", "-b", "o", str(outside)], cwd=app, check=True,
+                       capture_output=True)
+        result = qa(None, self.bin, "plan", "auth", "--format", "json", group="e2e", cwd=outside)
+        self.assertEqual(2, result.returncode, result.stderr)
+        self.assertIn(f"{outside} is outside", result.stderr)
+        self.assertNotIn("Traceback", result.stderr)
+
+    def test_an_unexpected_e2e_checkout_is_refused(self):
+        payload = json.dumps({"layout": "sdd", "requirements": [], "qa": {"e2e": "app/e2e"},
+                              "root": self.base.as_posix(), "qa_root": None, "e2e_checkout": {"repo": 1}})
+        body = f"@echo {payload}\r\n" if os.name == "nt" else f"#!/bin/sh\necho '{payload}'\n"
+        result = qa(None, gin_workflow_bin(self.base / "odd", body), "plan", "--format", "json", group="e2e",
+                    cwd=self.base)
+        self.assertEqual(2, result.returncode, result.stderr)
+        self.assertIn("gin returned an unexpected e2e_checkout; update gin", result.stderr)
+
     def test_old_gin_is_refused(self):
         root = self.single()
         result = qa(root, gin_workflow_bin(self.base / "old", OLD_GIN), "next-id", "auth")

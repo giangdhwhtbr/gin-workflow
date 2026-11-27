@@ -132,12 +132,14 @@ def _pace(root: Path, config: dict[str, Any], beads: Mapping[str, Mapping[str, A
 
 
 def _confirmed(root: Path, beads: Mapping[str, Mapping[str, Any]]) -> frozenset[str] | None:
-    """Epic ids with a confirmed spec: `gates.requirement_confirmed` in the bead metadata, or a local
-    `requirement.confirmed` event. None, with a stderr warning, when the log is unreadable and no bead has the gate."""
+    """Epic ids with a confirmed spec: `gates.requirement_confirmed` in the bead metadata, unless it is a waiver, or a
+    local `requirement.confirmed` event. None, with a stderr warning, when the log is unreadable and no bead has the gate."""
     from .events import EventPersistenceError, WorkflowEventStore
     from .team_beads import gates_of
 
-    shared = {bead_id for bead_id, row in beads.items() if "requirement_confirmed" in gates_of(row)}
+    entries = {bead_id: gates_of(row) for bead_id, row in beads.items()}
+    shared = {bead_id for bead_id, gates in entries.items() if "requirement_confirmed" in gates
+              and not (isinstance(gates["requirement_confirmed"], Mapping) and gates["requirement_confirmed"].get("waived"))}
     path = main_checkout(root) / ".agent-workflow" / "runtime" / "events.jsonl"
     try:
         events = WorkflowEventStore(path).read_all()

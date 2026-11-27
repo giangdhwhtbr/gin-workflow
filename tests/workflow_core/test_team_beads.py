@@ -290,6 +290,15 @@ class TestTeamBeadsLocal(unittest.TestCase):
         self.assertIn("team.beads_sync.remote is not set", result.stderr)
 
 
+class TestParentTrackRepo(unittest.TestCase):
+    def test_a_dot_repo_line_is_the_parent(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = make_team_repo(Path(tmp) / "ws", extra="workspace:\n  repos:\n"
+                                  "    - {path: services/api, url: u1, shape: backend}\n")
+            issue = {"id": "b-1", "description": "Plan: .planning/plans/2026-11-14-x.md, Track 1\nRepo: .\n"}
+            self.assertEqual((root, None), team_beads._track_repo(root, team_beads.track_of(issue)[2]))
+
+
 @unittest.skipUnless(HAS_BD, "bd is not installed")
 class TestTeamHandoff(unittest.TestCase):
     """The origin, the claimed bead, and the committed track branch are built once per class; each test copies them

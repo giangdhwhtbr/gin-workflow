@@ -140,7 +140,7 @@ Activity diagram cho thấy ai làm gì theo từng lane. Viết mỗi lane thà
 `specs lint --change <epic>` kiểm tra các sơ đồ như sau:
 
 - Không có `--against`, mỗi capability có block `ADDED` hoặc `MODIFIED` cần một `*-activity.md`.
-- Với `--against <base>`, mỗi capability có block `ADDED` cần một activity diagram được thêm hoặc sửa kể từ base. Thay đổi chỉ có block `MODIFIED` không cần.
+- Với `--against <base>`, mỗi capability có block `ADDED` cần một activity diagram được thêm hoặc sửa kể từ base, nhưng chỉ khi `02-spec-delta.md` được thêm hoặc sửa kể từ merge base của base và HEAD. Thay đổi chỉ có block `MODIFIED` không cần.
 - Với `--against <base>`, mỗi use case đã đổi kể từ base và có alternative hoặc exception flow cần một activity diagram có dòng `Use case:` gọi tên nó.
 - Với `--against <base>`, mỗi activity diagram đã đổi kể từ base cần nhãn trên mọi edge đi ra từ một decision.
 

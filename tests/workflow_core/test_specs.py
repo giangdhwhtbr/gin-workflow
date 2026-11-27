@@ -401,6 +401,35 @@ class TestRepositoryCommands(unittest.TestCase):
         self.assertEqual(["docs/specs/auth/diagrams/new-activity.md:6: edge from decision 's' has no label"],
                          specs.lint_change(self.root, self.cfg, change, against="main"))
 
+    def test_lint_against_base_wants_no_new_diagram_once_the_delta_is_on_the_base(self):
+        make_change(self.root)
+        commit_all(self.root)  # the spec PR merged: delta and diagram are on main
+        git(self.root, "checkout", "-q", "-b", "feature")
+        write(self.root, "docs/changes/ep-1-lockout/04-plan.md", "# Plan\n")
+        change = self.root / "docs/changes/ep-1-lockout"
+
+        def findings():
+            return [e for e in specs.lint_change(self.root, self.cfg, change, against="main") if "activity diagram" in e]
+
+        self.assertEqual([], findings())
+        write(self.root, "docs/changes/ep-1-lockout/02-spec-delta.md", delta(added=ADDED_BLOCK + "\n"))
+        self.assertEqual(["auth: no activity diagram added or changed in docs/specs/auth/diagrams/ since main "
+                          "(gin specs template activity.md)"], findings())
+
+    def test_changed_since_diffs_against_the_merge_base(self):
+        commit_all(self.root)
+        git(self.root, "checkout", "-q", "-b", "feature")
+        change = make_change(self.root)
+        commit_all(self.root, "spec")
+        git(self.root, "checkout", "-q", "main")
+        write(self.root, "docs/specs/auth/diagrams/login-activity.md", ACTIVITY + "\nmore\n")
+        commit_all(self.root, "later base commit")
+        git(self.root, "checkout", "-q", "feature")
+        self.assertEqual(set(), specs.changed_since(self.root, "main", self.root / "docs/specs"))
+        self.assertIn("auth: no activity diagram added or changed in docs/specs/auth/diagrams/ since main "
+                      "(gin specs template activity.md)",
+                      specs.lint_change(self.root, self.cfg, change, against="main"))
+
     def test_lint_against_an_unknown_ref_is_a_usage_error(self):
         change = make_change(self.root)
         with self.assertRaisesRegex(specs.SpecsError, "cannot resolve nope"):

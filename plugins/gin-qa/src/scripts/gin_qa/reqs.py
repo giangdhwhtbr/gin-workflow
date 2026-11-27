@@ -32,6 +32,7 @@ class Effective:
     evidence_dir: str = DEFAULT_EVIDENCE
     project_root: Path = field(default_factory=Path)
     package_dir: str = ""
+    e2e_home: str = ""         # the configured `e2e_dir` when `locate` moved it onto a child worktree
     reqs: dict[str, dict[str, Any]] = field(default_factory=dict)
     removed: dict[str, str] = field(default_factory=dict)
     conflicts: list[str] = field(default_factory=list)
@@ -170,4 +171,24 @@ def locate(repository: Path | None, change: str | None = None) -> tuple[Path, Ef
     eff.workspace = bool(payload.get("qa_root"))
     if not payload.get("qa_root") and "dir" not in qa and _root_playwright(files_root):
         eff.package_dir = ""  # R6: an existing root setup keeps the root
+    moved = payload.get("e2e_checkout")
+    if moved and not payload.get("qa_root") and "e2e" in qa:
+        _follow(files_root, eff, moved)
     return files_root, eff
+
+
+def _follow(files_root: Path, eff: Effective, moved: Any) -> None:
+    """Moves `e2e_dir` and `package_dir` from the child at `moved["repo"]` onto its worktree at `moved["path"]`."""
+    if not isinstance(moved, dict) or not all(isinstance(moved.get(key), str) for key in ("repo", "path")):
+        raise QaError("gin returned an unexpected e2e_checkout; update gin")
+    if not eff.package_dir:
+        raise QaError(f"Playwright is set up at the root of {files_root}; run gin-qa from the main checkout of "
+                      f"{moved['repo']} or move the Playwright setup under {eff.e2e_dir}")
+    try:
+        lane = Path(moved["path"]).resolve().relative_to(files_root.resolve()).as_posix()
+    except ValueError:
+        raise QaError(f"{moved['path']} is outside {files_root}; run from "
+                      "<parent>/.planning/worktrees/<track>") from None
+    eff.e2e_home = eff.e2e_dir
+    eff.e2e_dir = eff.package_dir = posixpath.normpath(
+        posixpath.join(lane, posixpath.relpath(eff.e2e_dir, moved["repo"])))

@@ -78,10 +78,13 @@ def _requirements(value: Any) -> tuple[tuple[str, str, str], ...] | None:
 
 
 def from_gates(gates: Mapping[str, Any]) -> Signoff | None:
-    """The `requirement_confirmed` proof of an epic bead's `gates` metadata."""
+    """The `requirement_confirmed` proof of an epic bead's `gates` metadata; a shared waiver is a waived sign-off."""
     proof = gates.get("requirement_confirmed")
     if not isinstance(proof, Mapping):
         return None
+    if proof.get("waived"):
+        return Signoff(at=str(proof.get("at") or ""), actor=str(proof.get("waived_by") or ""),
+                       evidence=str(proof.get("reason") or ""), source="beads", requirements=None, waived=True)
     return Signoff(at=str(proof.get("at") or ""), actor=str(proof.get("actor") or ""),
                    evidence=str(proof.get("pr_url") or ""), source="beads",
                    requirements=_requirements(proof.get("requirements")))
@@ -106,8 +109,9 @@ def from_events(events: Sequence[WorkflowEvent], epic: str) -> Signoff | None:
 
 
 def epic_signoff(gates: Mapping[str, Any], events: Sequence[WorkflowEvent], epic: str) -> Signoff | None:
-    """An epic's sign-off: its bead's `gates`, then its newest local event, then its waiver."""
-    return from_gates(gates) or from_events(events, epic)
+    """An epic's sign-off: a proof (its bead's `gates`, then its newest local event) before a waiver (bead, then local)."""
+    shared, local = from_gates(gates), from_events(events, epic)
+    return next((found for found in (shared, local) if found and not found.waived), shared or local)
 
 
 def bead_gates(row: Mapping[str, Any] | None) -> dict[str, Any]:

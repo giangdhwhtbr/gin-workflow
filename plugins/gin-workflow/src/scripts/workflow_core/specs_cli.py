@@ -39,6 +39,7 @@ def _parser() -> argparse.ArgumentParser:
     scope = item.add_mutually_exclusive_group(required=True)
     scope.add_argument("--change")
     scope.add_argument("--all", action="store_true")
+    item.add_argument("--ref", action="append", default=[], metavar="REPO=REF")
     sub.add_parser("status", parents=[common]).add_argument("--change", required=True)
     sub.add_parser("reqs", parents=[common]).add_argument("--change")
     item = sub.add_parser("export", parents=[common])
@@ -112,11 +113,16 @@ def _run(args: argparse.Namespace) -> int:
             specs.require_layout(cfg, "sdd")
             change = specs.find_change(root, cfg, args.change)
         result = requirements(root, config, cfg, change)
-        result = {**result, "root": str(root), "qa_root": _qa_root(root)}
+        qa_root = _qa_root(root)
+        e2e = result["qa"].get("e2e")
+        moved = workspace.e2e_checkout(root, Path.cwd(), e2e) if qa_root is None and isinstance(e2e, str) else None
+        result = {**result, "root": str(root), "qa_root": qa_root, "e2e_checkout": moved}
         _emit(result, args.format, "\n".join(f"{row['id']} {row['section']} {row['hash'][:8]} {row['title']}"
                                              for row in result["requirements"]))
         return 0
     if args.command == "trace" and args.all:
+        if args.ref:
+            raise specs.SpecsError("--ref needs --change")
         from .specs_trace_all import text_line, trace_all
 
         result = trace_all(root, cfg)
@@ -215,7 +221,7 @@ def _run(args: argparse.Namespace) -> int:
     from .specs_trace import status, trace
 
     if args.command == "trace":
-        result = trace(root, cfg, change)
+        result = trace(root, cfg, change, _refs(args.ref))
         lines = [f"{row['id']}: {row['status']} {' '.join(row['sources'])}".rstrip() for row in result["requirements"]]
         lines += [f"skipped: {path}" for path in result["skipped"]]
         _emit(result, args.format, "\n".join(lines))
@@ -223,6 +229,16 @@ def _run(args: argparse.Namespace) -> int:
     result = status(root, change)
     _emit(result, args.format, " ".join(str(result.get(key, "")) for key in ("status", "url", "merge_commit")).strip())
     return 0
+
+
+def _refs(values: list[str]) -> dict[str, str]:
+    refs: dict[str, str] = {}
+    for value in values:
+        name, sep, ref = value.partition("=")
+        if not sep or not name.strip("/") or not ref:
+            raise specs.SpecsError(f"--ref {value!r}: expected <repo>=<ref>")
+        refs[name.strip("/")] = ref
+    return refs
 
 
 def main(arguments: Sequence[str]) -> int:

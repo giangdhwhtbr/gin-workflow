@@ -35,6 +35,8 @@ The QA home holds `cases/`, `guidelines.md`, `evidence/`, and `e2e/`. `evidence/
 
 Explicit `qa.cases`, `qa.e2e`, and `qa.guidelines` are relative to the repository that holds the QA home. An existing setup is not moved: a single repository with a `playwright.config.*` or a `package.json` `e2e` script at the root, and no `qa.dir`, keeps Playwright at the root.
 
+In a workspace with no `shape: qa` child, `qa.e2e` may point into a child. When gin-qa runs from a worktree of that child, it uses the `e2e` folder of that worktree. That worktree must lie inside the parent, such as `.planning/worktrees/<track>`; gin-qa refuses one outside it.
+
 Config, specs, and Beads stay in the project root, the parent of the workspace. gin-qa reads them through `gin specs reqs`. If the QA child is not cloned, run `gin workspace clone <path>`. If gin is older than this, gin-qa stops with "this gin is too old for gin-qa; reinstall gin-workflow". `qa.dir` and the QA home need gin-workflow 3.1 or later.
 
 ## Setup: `/gin-qa:setup`
@@ -224,7 +226,7 @@ Then run `/gin-qa:run`, which walks the case by hand. To go back, rename the fil
 
 ## Saving your work
 
-After you review the output, the skill asks whether to save the work. On a yes, it runs `gin commit` on the files and folders it wrote, and the commit holds only those paths. On `master` or `main`, or the workspace default branch, `gin commit` first creates a new branch. It never pushes. You or a developer push the branch and open the pull request. The options and exit codes are in the [`gin commit` reference](../reference/cli.md#gin-commit).
+After you review the output, the skill asks whether to save the work. On a yes, it runs `gin commit` on the files and folders it wrote, and the commit holds only those paths. When the paths lie in more than one repository, `/gin-qa:e2e` runs one `gin commit` per repository and reports each branch. It stops at the first exit 2 and reports the commits already made. On `master` or `main`, or the workspace default branch, `gin commit` first creates a new branch. It never pushes. You or a developer push the branch and open the pull request. The options and exit codes are in the [`gin commit` reference](../reference/cli.md#gin-commit).
 
 ## Prompts
 
