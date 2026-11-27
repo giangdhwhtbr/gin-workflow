@@ -361,8 +361,9 @@ def living_files(root: Path, cfg: Mapping[str, Any]) -> dict[str, Path]:
 
 
 def is_retired(block: Block) -> bool:
-    """A block under `## Retired` of a living spec or `## RETIRED` of a delta: a heading and a reason."""
-    return block.section in (RETIRED_SECTION, "RETIRED")
+    """A block under `## Retired` of a living spec: a heading and a reason. Only that exact heading counts, the one
+    archive writes; a delta's `## RETIRED` block is `block.section == "RETIRED"`."""
+    return block.section == RETIRED_SECTION
 
 
 def _living_spec_blocks(root: Path, cfg: Mapping[str, Any], retired: bool) -> dict[str, tuple[Path, Block]]:
@@ -394,6 +395,7 @@ def append_to_section(lines: list[str], heading: str, entries: Sequence[Sequence
     added at the end of the file when missing. No entries: `lines` unchanged."""
     if not entries:
         return lines
+    lines = list(lines)
     at = next((index for index, line in enumerate(lines) if line.strip() == f"## {heading}"), None)
     if at is None:
         while lines and not lines[-1].strip():
@@ -745,8 +747,11 @@ def lint_living(root: Path, cfg: Mapping[str, Any]) -> list[str]:
         name = shown(root, path)
         if not _CAP.match(cap):
             errors.append(f"{name}: capability folder must match [a-z][a-z0-9-]*")
-        blocks, malformed = parse_blocks(path.read_text(encoding="utf-8"))
+        text = path.read_text(encoding="utf-8")
+        blocks, malformed = parse_blocks(text)
         errors += [f"{name}:{line}: {message}" for line, message in malformed]
+        errors += [f"{name}:{number}: use '## {RETIRED_SECTION}' in a living spec, not '## RETIRED'"
+                   for number, line in enumerate(text.splitlines(), start=1) if line.strip() == "## RETIRED"]
         for block in blocks:
             where = f"{name}:{block.start + 1}"
             if block.cap != cap:

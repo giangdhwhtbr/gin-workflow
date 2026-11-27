@@ -43,6 +43,15 @@ def run_specs(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
 
 
 class TestBlocks(unittest.TestCase):
+    def test_append_to_section(self):
+        lines = ["# Auth", "", "## Requirements", "", "### REQ-AUTH-001: A", ""]
+        self.assertEqual([*lines[:-1], "", "## Retired", "", "### REQ-AUTH-002: B", "Reason: x"],
+                         specs.append_to_section(lines, "Retired", [["### REQ-AUTH-002: B", "Reason: x"]]))
+        self.assertEqual(["# Auth", "", "## Requirements", "", "### REQ-AUTH-001: A", ""], lines)  # input untouched
+        self.assertEqual(["## Retired", "", "x", "", "y", "", "## Notes"],
+                         specs.append_to_section(["## Retired", "", "x", "## Notes"], "Retired", [["y"]]))
+        self.assertIs(lines, specs.append_to_section(lines, "Retired", []))
+
     def test_block_type_category_measure(self):
         nfr = block(NFR)
         self.assertEqual(("non-functional", "performance", "p95 below 300 ms at 200 requests per second"),
@@ -363,6 +372,13 @@ class TestRepositoryCommands(unittest.TestCase):
               "# Sign in\n\nActor: User\nRequirements: REQ-AUTH-003\n\n## Main flow\n\n1. Sign in\n")
         self.assertIn("docs/specs/auth/use-cases/sign-in.md: REQ-AUTH-003 is retired",
                       specs.lint_use_cases(self.root, self.cfg))
+
+    def test_living_spec_with_a_delta_retired_heading(self):
+        write(self.root, "docs/specs/auth/spec.md", AUTH_SPEC + "\n## RETIRED\n\n" + RETIRED_003)
+        errors = specs.lint_living(self.root, self.cfg)
+        self.assertIn("docs/specs/auth/spec.md:25: use '## Retired' in a living spec, not '## RETIRED'", errors)
+        self.assertEqual({}, specs.retired_blocks(self.root, self.cfg))
+        self.assertIn("REQ-AUTH-003", specs.living_blocks(self.root, self.cfg))
 
     def test_lint_against_base_flags_id_taken_on_base_but_not_own_change(self):
         make_change(self.root)
