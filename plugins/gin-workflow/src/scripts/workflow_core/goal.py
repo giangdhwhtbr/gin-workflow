@@ -81,7 +81,9 @@ def goal_text(epic: str, tracks: Sequence[dict[str, Any]], workflow_id: str, rev
                 f"another lane to merge: {', '.join(covered)}.")
     text = f"/goal tracks {', '.join(runnable)} of epic {epic} are closed in Beads (`gin task show`)"
     if member is None:
-        text += f", `gin state --workflow-id {workflow_id} --format json` shows `implementation_complete` satisfied"
+        # implementation_complete needs every track closed, so it is left out while a held track stays open
+        if len(runnable) == len(covered):
+            text += f", `gin state --workflow-id {workflow_id} --format json` shows `implementation_complete` satisfied"
     else:
         text += ", and in each lane's worktree `git status -sb` shows the branch is not ahead of `origin`"
     if review_ledger:
