@@ -35,6 +35,7 @@ class Effective:
     e2e_home: str = ""         # the configured `e2e_dir` when `locate` moved it onto a child worktree
     reqs: dict[str, dict[str, Any]] = field(default_factory=dict)
     removed: dict[str, str] = field(default_factory=dict)
+    retired: dict[str, str] = field(default_factory=dict)  # REQ-ID -> reason
     conflicts: list[str] = field(default_factory=list)
     workspace: bool = False
 
@@ -123,7 +124,8 @@ def _root_playwright(root: Path) -> bool:
 
 
 def resolve(payload: dict[str, Any], qa_home: str = "qa") -> Effective:
-    """An open change's ADDED/MODIFIED block wins over the living block; its REMOVED block removes the REQ.
+    """An open change's ADDED/MODIFIED block wins over the living block; its REMOVED block removes the REQ;
+    a RETIRED row, living or in a change, retires the REQ.
 
     `qa_home` is the QA home relative to the files root (`.` for a QA repository); the default paths are under it and
     an explicit `qa.*` key is relative to the files root.
@@ -139,6 +141,10 @@ def resolve(payload: dict[str, Any], qa_home: str = "qa") -> Effective:
     owner: dict[str, str] = {}
     for row in payload["requirements"]:
         req, change = row["id"], row["change"]
+        if row["section"] == "RETIRED":
+            effective.reqs.pop(req, None)
+            effective.retired[req] = row.get("reason") or ""
+            continue
         if change is None:
             effective.reqs.setdefault(req, row)
             continue

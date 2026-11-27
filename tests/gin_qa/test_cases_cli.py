@@ -147,6 +147,23 @@ class TestPlanAndCheck(QaCase):
 
 
 class TestChanges(QaCase):
+    def test_retired_requirement_gets_no_case_and_its_case_is_obsolete(self):
+        write(self.root, "docs/specs/auth/spec.md",
+              AUTH_SPEC + "\n## Retired\n\n### REQ-AUTH-003: Lock out\nReason: dropped in review\n")
+        self.write_cases(case("TC-AUTH-001", self.ref("REQ-AUTH-001")), case("TC-AUTH-002", self.ref("REQ-AUTH-002")),
+                         case("TC-AUTH-003", "REQ: REQ-AUTH-003@00000000"))
+        work = self.run_json("plan", "auth")
+        self.assertEqual([], work["missing"])
+        self.assertEqual([("TC-AUTH-003", "retired: dropped in review")],
+                         [(row["tc"], row["reason"]) for row in work["obsolete"]])
+        self.assertIn("TC-AUTH-003: REQ-AUTH-003 retired: dropped in review", "\n".join(self.findings()))
+
+    def test_change_retiring_an_id_scopes_it_out(self):
+        make_change(self.root, spec_delta=delta(added=ADDED_BLOCK,
+                                                retired="### REQ-AUTH-004: Old lockout\nReason: replaced\n"))
+        work = self.run_json("plan", "--change", "ep-1")
+        self.assertEqual(["REQ-AUTH-003"], [row["req"] for row in work["missing"]])
+
     def test_case_for_unarchived_change_is_valid_before_and_after_archive(self):
         make_change(self.root)
         self.assertEqual(["REQ-AUTH-003"], [row["req"] for row in self.run_json("plan", "--change", "ep-1")["missing"]])
