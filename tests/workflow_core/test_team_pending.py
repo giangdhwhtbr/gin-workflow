@@ -45,6 +45,13 @@ class TestTopicOf(unittest.TestCase):
         self.assertEqual("docs/changes/c/04-plan.md", lead_plan("docs/changes/c/04-plan.lane-be.md"))
         self.assertEqual("p.md", lead_plan("p.md"))
 
+    def test_an_sdd_plan_has_the_name_of_its_change_folder(self):
+        self.assertEqual("e-1-login", team_pending.topic_of("docs/changes/e-1-login/04-plan.md"))
+        self.assertEqual("e-1-login", team_pending.topic_of("docs/changes/e-1-login/04-plan.lane-be.md"))
+        self.assertEqual("feat/e-1-login-be", team_pending.lane_branch(
+            "Plan: docs/changes/e-1-login/04-plan.md, Track 1\nLane: be\n"))
+        self.assertEqual("04-plan", team_pending.topic_of("04-plan.md"))  # no folder: unchanged
+
     def test_a_lane_bead_and_its_branch(self):
         lane = "Lane be: the API\n\nPlan: .planning/plans/2026-11-19-shop.md, Lane be\nLane: be\n"
         self.assertEqual((".planning/plans/2026-11-19-shop.md", "be"), team_pending.lane_bead(lane))

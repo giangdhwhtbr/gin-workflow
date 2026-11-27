@@ -140,7 +140,7 @@ An activity diagram shows who does what in lanes. Write each lane as a `subgraph
 `specs lint --change <epic>` checks the diagrams like this:
 
 - Without `--against`, each capability with an `ADDED` or `MODIFIED` block needs one `*-activity.md`.
-- With `--against <base>`, each capability with an `ADDED` block needs an activity diagram added or changed since the base. A change that only has `MODIFIED` blocks needs none.
+- With `--against <base>`, each capability with an `ADDED` block needs an activity diagram added or changed since the base, but only when `02-spec-delta.md` was added or changed since the merge base of the base and HEAD. A change that only has `MODIFIED` blocks needs none.
 - With `--against <base>`, each use case changed since the base that has an alternative or exception flow needs an activity diagram whose `Use case:` line names it.
 - With `--against <base>`, each activity diagram changed since the base needs a label on every edge that leaves a decision.
 

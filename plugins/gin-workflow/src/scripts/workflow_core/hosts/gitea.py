@@ -25,6 +25,14 @@ _SEARCH_LIMIT = 100
 _BRANCH_PAGES = "10"
 
 
+def _head_branch(pull: dict) -> str:
+    """The head branch of a pull; once the branch is deleted Gitea reports `refs/pull/<n>/head` and keeps the
+    name in `head.label` (`owner:branch` for a fork)."""
+    head = pull.get("head") or {}
+    ref = head.get("ref") or ""
+    return (head.get("label") or "").rpartition(":")[2] if ref.startswith("refs/pull/") else ref
+
+
 def _expect(data: Any, kind: type, what: str) -> Any:
     if not isinstance(data, kind):
         raise team_host.HostUnavailable(f"gt returned unexpected JSON for {what}")
@@ -147,7 +155,7 @@ class Gitea:
         host, instance = self._origin(cwd)
         pulls = self._pages("pull request list", ["api", *host, "repos/{owner}/{repo}/pulls", "-f", "state=all",
                                                   *_PAGES, "--max-pages", _BRANCH_PAGES], cwd, instance)
-        same = [pull for pull in pulls if (pull.get("head") or {}).get("ref") == branch]
+        same = [pull for pull in pulls if _head_branch(pull) == branch]
         if not same:
             return None
         newest = max(same, key=lambda pull: pull.get("number") or 0)

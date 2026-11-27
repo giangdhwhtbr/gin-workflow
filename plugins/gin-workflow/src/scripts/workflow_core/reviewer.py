@@ -47,10 +47,13 @@ def route(
     effort: str | None = None,
     implementer: str,
     config: EffectiveConfig,
+    worktree: Path | None = None,
 ) -> dict[str, Any]:
+    if worktree is not None and not worktree.is_dir():
+        raise ReviewerError(f"--worktree {worktree} is not a directory")
     diff = subprocess.run(
         ["git", "diff", "--name-only", "--no-renames", f"{base}...HEAD"],
-        cwd=root,
+        cwd=worktree or root,
         capture_output=True,
         text=True,
         check=False,
@@ -106,6 +109,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--model", required=True)
     parser.add_argument("--effort", default=None)
     parser.add_argument("--repository", type=Path, default=None)
+    parser.add_argument("--worktree", type=Path, default=None)
     parser.add_argument("--json", action="store_true")
 
     try:
@@ -128,6 +132,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             effort=args.effort,
             implementer=args.implementer,
             config=config,
+            worktree=args.worktree.resolve() if args.worktree else None,
         )
     except ReviewerError as error:
         print(f"error: {error}", file=sys.stderr)

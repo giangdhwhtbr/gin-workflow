@@ -42,4 +42,6 @@ setup_cli_version: '2.11'
 verify:
   checks:
     test: python3 -m pytest -n auto
+  no_test_paths:
+  - .planning
 workflow_version: '2.11'

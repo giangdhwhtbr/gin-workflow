@@ -1,6 +1,6 @@
 # Lanes
 
-Read this in team mode. A lane is the tracks of one plan that one member does in one repository. It has one branch `feat/<topic>-<lane>` (`<topic>` is the plan file name without its date and without `.lane-<lane>`), one worktree `.planning/worktrees/<epic>-<lane>`, and one pull request. A track bead without a `Lane:` line was orchestrated before lanes: it is its own lane `t<N>` and keeps `feat/<topic>-t<N>` and `.planning/worktrees/<bead>`. The lead's plan may declare a lane and leave its tracks to the lane's owner, who writes them in a lane plan.
+Read this in team mode. A lane is the tracks of one plan that one member does in one repository. It has one branch `feat/<topic>-<lane>` (`<topic>` is the plan file name without its date and without `.lane-<lane>`; an SDD plan `<change>/04-plan.md` gives its change folder name `<change>`), one worktree `.planning/worktrees/<epic>-<lane>`, and one pull request. A track bead without a `Lane:` line was orchestrated before lanes: it is its own lane `t<N>` and keeps `feat/<topic>-t<N>` and `.planning/worktrees/<bead>`. The lead's plan may declare a lane and leave its tracks to the lane's owner, who writes them in a lane plan.
 
 ## Plan
 

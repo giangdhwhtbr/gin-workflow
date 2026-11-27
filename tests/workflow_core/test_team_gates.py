@@ -561,17 +561,93 @@ class TestSharedGates(GateCase):
         self.assertEqual(0, result.returncode, result.stderr)
         self.assertEqual([], self.bd_updates())
 
+    def test_unblock_writes_the_waiver_into_the_epic_bead(self):
+        self.bd({"e-1": {"id": "e-1", "issue_type": "epic", "status": "open", "metadata": {}}})
+        result = run_cli(self.root, "unblock", "--gate", "plan_approved", "--reason", "lead absent",
+                         "--workflow-id", "e-1", env=self.env)
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        update = self.bd_updates()[-1]
+        self.assertEqual(["bd", "update", "e-1", "--set-metadata"], update[:4])
+        gate = json.loads(update[4].removeprefix("gates="))["plan_approved"]
+        self.assertEqual((True, "lead absent", "binh@corp.com"), (gate["waived"], gate["reason"], gate["waived_by"]))
+        self.assertRegex(gate["at"], r"^\d{4}-\d{2}-\d{2}T")
+
+    def test_unblock_without_an_epic_bead_stays_local_and_warns(self):
+        self.bd({})
+        result = run_cli(self.root, "unblock", "--gate", "requirement_confirmed", "--reason", "agreed in a call",
+                         "--workflow-id", "w", env=self.env)
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertIn("warning: gate requirement_confirmed waived locally; no epic bead to share it", result.stderr)
+        self.assertEqual([], self.bd_updates())
+
+    def test_state_shows_a_shared_waiver_as_waived(self):
+        waiver = {"waived": True, "reason": "lead absent", "waived_by": "binh@corp.com", "at": "2026-11-01T00:00:00Z"}
+        self.bd({"e-1": {"id": "e-1", "issue_type": "epic", "status": "open",
+                         "metadata": {"gates": json.dumps({"plan_approved": waiver})}}})
+        state = json.loads(run_cli_subprocess(self.root, "state", "--workflow-id", "e-1", "--format", "json",
+                                              env=self.env).stdout)
+        self.assertEqual("waived(lead absent)", state["gates"]["plan_approved"])
+        self.assertEqual("unmet", state["gates"]["requirement_confirmed"])
+
+    def test_orchestration_ready_mirrors_a_local_waiver(self):
+        self.bd({"e-2": {"id": "e-2", "issue_type": "epic", "status": "open", "metadata": {}}})
+        self.assertEqual(0, run_cli(self.root, "unblock", "--gate", "requirement_confirmed", "--reason", "agreed",
+                                    "--workflow-id", "w", env=self.env).returncode)
+        ready = run_cli(self.root, "record", "orchestration-ready", "--evidence", "w", "--workflow-id", "w",
+                        "--epic", "e-2", env=self.env)
+        self.assertEqual(0, ready.returncode, ready.stderr)
+        gates = next(json.loads(u[4].removeprefix("gates=")) for u in reversed(self.bd_updates())
+                     if u[2] == "e-2" and u[3] == "--set-metadata" and "requirement_confirmed" in u[4])
+        self.assertEqual((True, "agreed"),
+                         (gates["requirement_confirmed"]["waived"], gates["requirement_confirmed"]["reason"]))
+        waived_at = [e["timestamp"] for e in self.events() if e["event_type"] == "gate.waived"][-1]
+        self.assertEqual(waived_at, gates["requirement_confirmed"]["at"])
+
+    def test_unblock_keeps_a_proof_already_on_the_epic_bead(self):
+        proof = {"pr_url": PR, "merge_commit": "m" * 40, "approvers": ["chi@corp.com"], "actor": "chi@corp.com",
+                 "at": "2026-11-01T00:00:00Z"}
+        self.bd({"e-1": {"id": "e-1", "issue_type": "epic", "status": "open",
+                         "metadata": {"gates": json.dumps({"plan_approved": proof})}}})
+        result = run_cli(self.root, "unblock", "--gate", "plan_approved", "--reason", "lead absent",
+                         "--workflow-id", "e-1", env=self.env)
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertIn("warning: gate plan_approved waived locally; the epic bead already holds its proof", result.stderr)
+        self.assertEqual([], self.bd_updates())
+
+    def test_orchestration_ready_keeps_a_teammates_proof(self):
+        proof = {"pr_url": PR, "merge_commit": "m" * 40, "approvers": ["an@corp.com"], "actor": "an@corp.com",
+                 "at": "2026-11-01T00:00:00Z"}
+        self.bd({"e-2": {"id": "e-2", "issue_type": "epic", "status": "open",
+                         "metadata": {"gates": json.dumps({"requirement_confirmed": proof})}}})
+        self.assertEqual(0, run_cli(self.root, "unblock", "--gate", "requirement_confirmed", "--reason", "agreed",
+                                    "--workflow-id", "w", env=self.env).returncode)
+        ready = run_cli(self.root, "record", "orchestration-ready", "--evidence", "w", "--workflow-id", "w",
+                        "--epic", "e-2", env=self.env)
+        self.assertEqual(0, ready.returncode, ready.stderr)
+        writes = [json.loads(u[4].removeprefix("gates=")) for u in self.bd_updates()
+                  if u[2] == "e-2" and u[3] == "--set-metadata"]
+        self.assertTrue(writes)
+        self.assertEqual([proof] * len(writes), [gates["requirement_confirmed"] for gates in writes])
+
+    def test_state_reads_a_shared_waiver_with_a_blank_reason(self):
+        waiver = {"waived": True, "reason": " ", "waived_by": "", "at": "2026-11-01T00:00:00Z"}
+        self.bd({"e-1": {"id": "e-1", "issue_type": "epic", "status": "open",
+                         "metadata": {"gates": json.dumps({"plan_approved": waiver})}}})
+        result = run_cli(self.root, "state", "--workflow-id", "e-1", "--format", "json", env=self.env)
+        self.assertEqual("waived(waived)", json.loads(result.stdout)["gates"]["plan_approved"], result.stderr)
+
 
 class TestWaivers(GateCase):
     def test_waiver_needs_a_gate_role(self):
+        self.bd({})
         git(self.root, "config", "user.email", "em@corp.com")
-        denied = run_cli_subprocess(self.root, "unblock", "--gate", "plan_approved", "--reason", "r")
+        denied = run_cli_subprocess(self.root, "unblock", "--gate", "plan_approved", "--reason", "r", env=self.env)
         self.assertEqual(2, denied.returncode)
         self.assertIn("needs one of the roles be_lead, fe_lead", denied.stdout + denied.stderr)
         git(self.root, "config", "user.email", "chi@corp.com")
-        allowed = run_cli(self.root, "unblock", "--gate", "plan_approved", "--reason", "r")
+        allowed = run_cli(self.root, "unblock", "--gate", "plan_approved", "--reason", "r", env=self.env)
         self.assertEqual(0, allowed.returncode, allowed.stdout + allowed.stderr)
-        self.assertEqual(0, run_cli(self.root, "unblock", "--clear-blocker", "--reason", "r").returncode)
+        self.assertEqual(0, run_cli(self.root, "unblock", "--clear-blocker", "--reason", "r", env=self.env).returncode)
 
 
 ROADMAP_TEAM = TEAM.format(host="github").replace(
@@ -888,11 +964,26 @@ class TestPlanChecks(unittest.TestCase):
                 "### Track 6: Fine\n- **Repo**: `apps/web`\n- **Files**:\n  - Modify `apps/web/c.tsx`\n\n"
                 "## Integration\n")
         path = write(self.root, PLAN_PATH, plan)
-        self.assertEqual(["Track 1: missing Repo:",
+        self.assertEqual(["Track 1: `services/api/a.py` is in repo services/api; set Repo: services/api",
                           "Track 2: Repo: services/billing is not in workspace.repos",
                           "Track 3: Repo: legacy/portal is frozen",
                           "Track 4: `apps/web/b.tsx` is outside repo services/api",
                           "Track 5: Repo: .beads is the beads repository"], check_plan_repos(space, path))
+
+    def test_check_plan_repos_dot_and_no_repo_name_the_parent(self):
+        space = Workspace(self.root, repos_from(yaml.safe_load(WORKSPACE)))
+        plan = ("# Plan\n\n## Tasks\n\n"
+                "### Track 1: Docs\n- **Repo**: `.`\n- **Files**:\n  - Modify `docs/guide.md`\n\n"
+                "### Track 2: Implicit parent\n- **Files**:\n  - Modify `.planning/notes.md`\n\n"
+                "### Track 3: Child file under the parent\n- **Repo**: `.`\n- **Files**:\n"
+                "  - Modify `docs/a.md`, `services/api/a.py`\n\n"
+                "### Track 4: Child file, no Repo\n- **Files**:\n  - Modify `apps/web/c.tsx`\n\n"
+                "## Integration\n")
+        path = write(self.root, PLAN_PATH, plan)
+        self.assertEqual("", plan_tracks(path)[0].repo)
+        self.assertEqual(["Track 3: `services/api/a.py` is in repo services/api; set Repo: services/api",
+                          "Track 4: `apps/web/c.tsx` is in repo apps/web; set Repo: apps/web"],
+                         check_plan_repos(space, path))
 
     def test_plan_tracks_reads_paths(self):
         # R2: Reads: in both spellings, absent, and repeated
@@ -918,7 +1009,6 @@ class TestPlanChecks(unittest.TestCase):
         self.assertEqual(["Track 2: Reads: services/billing is not in workspace.repos",
                           "Track 2: Reads: .beads is the beads repository",
                           "Track 2: Reads: apps/web is the track's own Repo:",
-                          "Track 3: missing Repo:",
                           "Track 3: Reads: nope is not in workspace.repos"], check_plan_repos(space, path))
 
     def test_check_plan_cli_reports_reads_findings(self):
@@ -932,10 +1022,11 @@ class TestPlanChecks(unittest.TestCase):
 
     def test_check_plan_cli_adds_workspace_findings(self):
         root = make_team_repo(Path(self.tmp.name) / "ws", extra=WORKSPACE)
-        path = write(root, PLAN_PATH, PLAN)
+        path = write(root, PLAN_PATH, PLAN.replace("services/auth/login.py", "services/api/handler.py"))
         result = run_cli(root, "team", "check-plan", str(path), "--format", "json")
         self.assertEqual(1, result.returncode, result.stderr)
-        self.assertEqual(["Track 1: missing Repo:", "Track 2: missing Repo:"], json.loads(result.stdout)["findings"])
+        self.assertEqual(["Track 1: `services/api/handler.py` is in repo services/api; set Repo: services/api"],
+                         json.loads(result.stdout)["findings"])
 
     def test_a_file_in_two_tracks_is_rejected(self):
         plan = PLAN.replace("- Modify: `web/login.tsx:10-20`\n",

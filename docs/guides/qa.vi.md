@@ -35,6 +35,8 @@ QA home chứa `cases/`, `guidelines.md`, `evidence/` và `e2e/`. `evidence/` v�
 
 `qa.cases`, `qa.e2e` và `qa.guidelines` tường minh là tương đối so với repository chứa QA home. Một thiết lập cũ không bị di chuyển: repository đơn có `playwright.config.*` hoặc script `e2e` trong `package.json` ở gốc, và không có `qa.dir`, giữ Playwright ở gốc.
 
+Trong một workspace không có repository con `shape: qa`, `qa.e2e` có thể trỏ vào một repository con. Khi gin-qa chạy từ một worktree của repository con đó, nó dùng thư mục `e2e` của worktree đó. Worktree đó phải nằm trong repository cha, ví dụ `.planning/worktrees/<track>`; gin-qa từ chối một worktree nằm ngoài.
+
 Config, spec và Beads nằm ở gốc dự án, repository cha của workspace. gin-qa đọc chúng qua `gin specs reqs`. Nếu repository con QA chưa được clone, chạy `gin workspace clone <path>`. Nếu gin cũ hơn mức này, gin-qa dừng với "this gin is too old for gin-qa; reinstall gin-workflow". `qa.dir` và QA home cần gin-workflow 3.1 trở lên.
 
 ## Thiết lập: `/gin-qa:setup` { #setup-gin-qasetup }
@@ -186,7 +188,7 @@ Sau đó chạy `/gin-qa:run`, nó dẫn bạn đi qua case bằng tay. Để qu
 
 ## Lưu công việc của bạn { #saving-your-work }
 
-Sau khi bạn xem lại, skill hỏi có lưu công việc không. Khi bạn đồng ý, skill chạy `gin commit` trên các file và thư mục nó vừa ghi, và lệnh chỉ commit đúng những đường dẫn đó. Trên `master` hoặc `main`, hoặc nhánh mặc định của workspace, `gin commit` tạo trước một nhánh mới. Lệnh không bao giờ push. Bạn hoặc một developer sẽ push nhánh và mở pull request. Tùy chọn và mã thoát nằm trong [tham chiếu `gin commit`](../reference/cli.md#gin-commit).
+Sau khi bạn xem lại, skill hỏi có lưu công việc không. Khi bạn đồng ý, skill chạy `gin commit` trên các file và thư mục nó vừa ghi, và lệnh chỉ commit đúng những đường dẫn đó. Khi các đường dẫn nằm trong nhiều repository, `/gin-qa:e2e` chạy một `gin commit` cho mỗi repository và báo cáo từng nhánh. Nó dừng ở lần exit 2 đầu tiên và báo cáo các commit đã tạo. Trên `master` hoặc `main`, hoặc nhánh mặc định của workspace, `gin commit` tạo trước một nhánh mới. Lệnh không bao giờ push. Bạn hoặc một developer sẽ push nhánh và mở pull request. Tùy chọn và mã thoát nằm trong [tham chiếu `gin commit`](../reference/cli.md#gin-commit).
 
 ## Prompt { #prompts }
 

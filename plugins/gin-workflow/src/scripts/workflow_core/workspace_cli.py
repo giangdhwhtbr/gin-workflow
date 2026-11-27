@@ -101,7 +101,8 @@ def clone(
                         if state == "occupied" and notes is not None:
                             occupied_path = team_res.get("path")
                             notes.append(
-                                f'{repo.path}: add `exec "$(git rev-parse --show-toplevel)/.githooks/commit-msg" "$@"` '
+                                f'{repo.path}: add `hook="$(git rev-parse --show-toplevel)/.githooks/commit-msg"; '
+                                f'if [ -f "$hook" ]; then sh "$hook" "$@"; fi` '
                                 f'to {occupied_path} to chain it'
                             )
                     except (OSError, subprocess.CalledProcessError) as error:

@@ -174,7 +174,9 @@ def codeowners_drift(root: Path, team: TeamConfig, config: Mapping[str, Any]) ->
 
 SHIM = f"""#!/bin/sh
 # {MARKER}: commit-msg shim
-exec "$(git rev-parse --show-toplevel)/{HOOK}" "$@"
+hook="$(git rev-parse --show-toplevel)/{HOOK}"
+[ -f "$hook" ] || exit 0
+exec sh "$hook" "$@"
 """
 
 

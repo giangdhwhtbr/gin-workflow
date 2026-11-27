@@ -330,6 +330,57 @@ class TestTraceWorkspace(unittest.TestCase):
         self.assertEqual(0, run.returncode, run.stderr)
         self.assertIn("skipped: apps/web", run.stdout)
 
+    def test_ref_reads_a_child_branch_that_is_not_checked_out(self):
+        api = self.root / "services/api"
+        base = git(api, "rev-parse", "--abbrev-ref", "HEAD").strip()
+        git(api, "checkout", "-q", "-b", "lane")
+        write(api, "tests/test_lane.py", "def test_lane():  # REQ-AUTH-003\n    pass\n")
+        commit_all(api, "lane")
+        git(api, "checkout", "-q", base)
+        plain = specs_trace.trace(self.root, self.cfg, self.change)
+        self.assertEqual(["services/api/tests/test_lock.py"], plain["requirements"][0]["sources"])
+        laned = specs_trace.trace(self.root, self.cfg, self.change, {"services/api": "lane"})
+        self.assertEqual(["services/api/tests/test_lane.py", "services/api/tests/test_lock.py"],
+                         laned["requirements"][0]["sources"])
+
+    def test_a_child_is_found_through_the_main_checkout_from_a_parent_worktree(self):
+        wt = Path(self.tmp.name) / "wt"
+        git(self.root, "worktree", "add", "-q", "-b", "wt-branch", str(wt))
+        result = specs_trace.trace(wt, self.cfg, wt / "docs/changes/ep-1-lockout")
+        self.assertEqual(["services/api/tests/test_lock.py"], result["requirements"][0]["sources"])
+        self.assertEqual(["apps/web"], result["skipped"])
+
+    def run_trace(self, *args: str) -> subprocess.CompletedProcess[str]:
+        return subprocess.run([sys.executable, str(LAUNCHER), "specs", "trace", *args, "--repository", str(self.root)],
+                              text=True, capture_output=True, check=False)
+
+    def test_cli_ref_errors_exit_2_with_their_message(self):
+        workable = "is not a workable workspace repository"
+        for value, message in (("nope=main", workable), ("legacy/portal=main", workable),
+                               ("services/api=no-such-ref", "cannot resolve no-such-ref in services/api"),
+                               ("services/api", "expected <repo>=<ref>"),
+                               ("apps/web=main", "apps/web is not cloned; run gin workspace clone apps/web")):
+            with self.subTest(value=value):
+                run = self.run_trace("--change", "ep-1", "--ref", value)
+                self.assertEqual(2, run.returncode)
+                self.assertIn(message, run.stderr)
+                self.assertNotIn("Traceback", run.stderr)
+
+    def test_cli_trace_all_refuses_ref(self):
+        run = self.run_trace("--all", "--ref", "services/api=main")
+        self.assertEqual(2, run.returncode)
+        self.assertIn("--ref needs --change", run.stderr)
+
+    def test_a_non_utf8_file_on_the_ref_is_skipped(self):
+        api = self.root / "services/api"
+        base = git(api, "rev-parse", "--abbrev-ref", "HEAD").strip()
+        git(api, "checkout", "-q", "-b", "lane")
+        (api / "tests/test_bin.py").write_bytes(b"\xff\xfe REQ-AUTH-003\n")
+        commit_all(api, "lane")
+        git(api, "checkout", "-q", base)
+        result = specs_trace.trace(self.root, self.cfg, self.change, {"services/api": "lane"})
+        self.assertEqual(["services/api/tests/test_lock.py"], result["requirements"][0]["sources"])
+
 
 class TestEndToEnd(unittest.TestCase):
     def run_specs(self, root: Path, *args: str) -> subprocess.CompletedProcess[str]:

@@ -321,7 +321,8 @@ def plan_tracks(path: Path, text: str | None = None) -> list[Track]:
         indent = len(line) - len(line.lstrip())
         meta = _META.match(stripped)
         if meta:
-            current[meta.group(1).lower()] = meta.group(2)
+            value = meta.group(2)
+            current[meta.group(1).lower()] = "" if meta.group(1) == "Repo" and value == "." else value  # `.` is the parent
             files_indent = None
             continue
         reads = _READS.match(stripped)
@@ -552,7 +553,7 @@ def check_lane_plan(team: TeamConfig, path: Path, root: Path) -> list[str]:
 
 
 def check_plan_repos(space: Workspace, path: Path) -> list[str]:
-    """Workspace rules for a plan: every track names one workable `Repo:` and lists files inside it."""
+    """Workspace rules for a plan: a track names one workable `Repo:` (none or `.` for the parent) and lists files inside it."""
     errors: list[str] = []
     for track in plan_tracks(path):
         label = f"Track {track.number}"
@@ -569,8 +570,9 @@ def check_plan_repos(space: Workspace, path: Path) -> list[str]:
 
 
 def _repo_findings(space: Workspace, track: Track, label: str) -> list[str]:
-    if not track.repo:
-        return [f"{label}: missing Repo:"]
+    if not track.repo:  # no `Repo:` or `Repo: .`: the parent; a file inside a child belongs to that child
+        return [f"{label}: `{item}` is in repo {inside.path}; set Repo: {inside.path}"
+                for item in track.files if (inside := space.repo_of(item)) is not None]
     repo = space.repo(track.repo)
     if repo is None:
         return [f"{label}: Repo: {track.repo} is not in workspace.repos"]
