@@ -577,6 +577,24 @@ class TestRepositoryCommands(unittest.TestCase):
         self.assertTrue(any(w.startswith("shallow clone; history before ") and w.endswith(" not scanned")
                             for w in warnings), warnings)
 
+    def test_next_id_warns_when_git_log_fails(self):
+        commit_all(self.root)
+        real = specs._git
+
+        def fake(root, *args):
+            if args and args[0] == "log":
+                return subprocess.CompletedProcess(args, 128, "", "fatal: bad thing\n")
+            return real(root, *args)
+
+        with mock.patch.object(specs, "_git", fake):
+            req_id, warnings = specs.next_id(self.root, self.cfg, "auth")
+        self.assertEqual("REQ-AUTH-003", req_id)
+        self.assertIn("git log failed; history not scanned: fatal: bad thing", warnings)
+
+    def test_shallow_date_falls_back_without_a_shallow_file(self):
+        commit_all(self.root)
+        self.assertEqual("the clone depth", specs._shallow_date(self.root))
+
     def test_renumber_refuses_an_id_only_history_holds(self):
         commit_all(self.root)
         make_change(self.root, spec_delta=delta(added=ADDED_BLOCK.replace("003", "009")))
