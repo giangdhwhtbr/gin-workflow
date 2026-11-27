@@ -11,6 +11,7 @@ Epic `gin-workflow-b7ip` (2026-11-15), the preparation of release 3.1.0. Before 
 - `gin setup init` writes `.ginrc` with the installed version; `gin setup update` proposes raising it and writes it with `--approve`, also when no migration is due; `gin setup doctor` reports a missing pin, a pin of an older major version, and a gin-qa or gin-orchestrator whose version differs.
 - `gin version` reports the state; `gin version --hook` prints nothing when compatible, one line otherwise, always exits 0, loads no YAML, and starts no subprocess. The Claude Code hooks file that `install.sh` and `install.ps1` generate has a `SessionStart` entry that runs it.
 - `docs/changelog.md` is the one home of release changes; `python3 scripts/release_notes.py X.Y.Z` prints one section and `release.yml` publishes it as the GitHub release notes, failing without one. `docs/guides/upgrading.md` (with a Vietnamese twin) is the upgrade guide.
+- The release steps live in the Releasing section of docs/contributing.md; this record keeps the decisions behind them.
 
 **Consequences**
 - Upgrade order matters. gin 3.0 rejects a configuration at schema 2.10 and ignores `.ginrc`, so every member updates gin before the lead runs `gin setup update --approve`. Proven on a v3.0.0 project.

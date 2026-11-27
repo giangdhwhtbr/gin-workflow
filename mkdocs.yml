@@ -73,6 +73,7 @@ plugins:
             Team mode: Chế độ nhóm
             Team git agreement: Thoả thuận git của team
             Workspace: Không gian làm việc
+            Leaving gin: Rời gin
             Using AI effectively: Dùng AI hiệu quả
             Working with Claude Code: Làm việc với Claude Code
             SDD living specs: Living specs (SDD)
@@ -125,6 +126,7 @@ nav:
       - Recommended tools: guides/recommended-tools.md
       - Windows: guides/windows.md
       - Upgrading: guides/upgrading.md
+      - Leaving gin: guides/leaving-gin.md
   - Reference:
       - Skills: reference/skills.md
       - CLI: reference/cli.md

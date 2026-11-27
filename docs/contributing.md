@@ -111,13 +111,38 @@ Publishing needs GitHub Pages enabled once, in the repository settings under Pag
 
 ## Releasing
 
-1. Write the new version into every location with `python3 scripts/bump_version.py X.Y.Z`. The whole set (gin, gin-qa, gin-ba) shares one version, and `tests/test_version_pins.py` names any location that differs.
-2. Add a `## [X.Y.Z] - YYYY-MM-DD` section above the previous one in `docs/changelog.md`. Write it from the epics closed since the previous tag (`gin task list --status closed --type epic --json` gives `title`, `closed_at`, and `close_reason`), with an `### Upgrade notes` group for anything a member must do.
-3. When the release needs members to update, raise this repository's `.ginrc` with `gin setup update --approve`.
-4. Run the tests and the smoke test.
-5. Merge to `master` with approval and push.
-6. Tag the merge commit `vX.Y.Z` (the release version) and push the tag: `git tag vX.Y.Z && git push origin vX.Y.Z`. `.github/workflows/release.yml` fails unless the tag equals the version in `plugins/gin-workflow/plugin.meta.json`, runs the full test suite, takes the release notes from the changelog section of that version (and fails when there is none), creates the GitHub release with the installable source tree attached as `gin-workflow-vX.Y.Z.tar.gz` and `.zip`, then deploys the documentation site. Running the workflow by hand (`workflow_dispatch`) runs the tests and redeploys the site without creating a release.
-7. Reinstall on each machine (`./install.sh --platform all`); marketplace users update through their harness.
+A release is a tagged merge commit on `master`; the `release` and `pages` jobs of `.github/workflows/release.yml` publish it.
+
+### One-time setup
+
+GitHub Pages needs the source "GitHub Actions" (see the section above). The `github-pages` environment must also allow `v*` tags, under Settings, Environments, `github-pages`, deployment branches and tags. Without that rule, the `pages` job is rejected on a tag.
+
+### Steps
+
+1. Write the new version into every location: `python3 scripts/bump_version.py X.Y.Z`. The whole set (gin, gin-qa, gin-ba) shares one version, and `tests/test_version_pins.py` names any location that differs.
+2. Add a `## [X.Y.Z] - YYYY-MM-DD` section above the previous one in `docs/changelog.md`. Write it from the epics closed since the previous tag (`gin task list --status closed --type epic --json` gives `title`, `closed_at`, and `close_reason`), with an `### Upgrade notes` group for anything a member must do. `release.yml` fails without this section.
+3. When members must update gin, raise this repository's `.ginrc` with `gin setup update --approve`.
+4. Run the whole suite with `bd` off `PATH`, because the release runner has no `bd`. Expected: no failures.
+
+   ```bash
+   env PATH="$(printf '%s' "$PATH" | tr ':' '\n' | grep -v "$(dirname "$(command -v bd)")" | paste -sd:)" python3 -m pytest -n auto
+   ```
+
+   When `bd` and `gin` share a directory, as in `~/.local/bin`, that command also hides `gin`; link `gin` into a temporary directory and put that directory on `PATH` instead.
+5. Merge to `master` with the maintainer's approval and push.
+6. Tag the merge commit and push the tag: `git tag vX.Y.Z && git push origin vX.Y.Z`. The `release` job fails unless the tag equals the version in `plugins/gin-workflow/plugin.meta.json`. It runs the full suite, takes the notes from the changelog section, and attaches `gin-workflow-vX.Y.Z.tar.gz` and `.zip` to the GitHub release. The `pages` job then deploys the site.
+7. Check both jobs with `gh run list --workflow release.yml --limit 2`. When the Pages upload fails with `Found 0 artifact(s)`, rerun it with `gh run rerun <id> --failed`. After `Deployment failed`, run `gh workflow run release.yml --ref master` instead; a run started by hand runs the tests and redeploys the site without creating a release.
+8. Reinstall on each machine with `./install.sh --platform all`, after the push has finished. Marketplace users update through their harness.
+
+### Upstream check
+
+`scripts/upstream_watch.py` reads the Claude Code changelog and the Beads releases, and files one `upstream` bead that lists each new line naming a surface of `scripts/upstream_surfaces.json`. Edit that file to change what the check watches. The last versions read live in `.agent-workflow/runtime/upstream-watch.json` of the main checkout; the first run only records a baseline. Schedule it weekly, Monday 08:17, with this crontab line:
+
+```bash
+17 8 * * 1 cd "$HOME/gin-fam/gin-workflow" && python3 scripts/upstream_watch.py >> "$HOME/.local/state/gin/upstream-watch.log" 2>&1
+```
+
+Create `~/.local/state/gin` first. `--dry-run` prints what it would file and writes nothing. Exit 0 means every source was read, 1 means a source or the state file could not be read and a bead says so, and 2 means a bead could not be filed.
 
 ## Benchmarks
 
