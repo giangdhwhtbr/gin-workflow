@@ -24,7 +24,7 @@ docs/
   changes/                   proposed changes (artifacts.changes)
     <epic>-<slug>/
       01-proposal.md         why and what
-      02-spec-delta.md       ADDED / MODIFIED / REMOVED requirements
+      02-spec-delta.md       ADDED / MODIFIED / REMOVED / RETIRED requirements
       03-design.md           how
       04-plan.md             the implementation plan
       05-tests.md            manual or QE cases only
@@ -53,6 +53,7 @@ WHEN a user fails to log in five times in ten minutes, the system SHALL lock the
 - `gin specs lint --against <base>` báo một id `ADDED` mà nhánh gốc đã dùng, và `gin specs renumber` sửa nó. Skill `sdd` chạy lệnh lint đó trước pull request của spec và khi ship.
 - Mỗi khối có một câu `SHALL` hoặc `MUST` và ít nhất một scenario GIVEN/WHEN/THEN. Các mẫu EARS (`WHEN`, `WHILE`, `IF ... THEN`, `WHERE`) được ưu tiên.
 - Một khối `MODIFIED` hoặc `REMOVED` đặt `<!-- base: <hash> -->` ở dòng sau heading của nó (`gin specs hash <REQ-ID>` in ra giá trị này), để archive biết living block có thay đổi kể từ lúc delta được viết hay không. Một khối `REMOVED` còn cần `Reason: <why>`.
+- Một khối `RETIRED` giữ lại số của một requirement mà buổi review đã bỏ trước khi nó vào living spec: chỉ gồm heading và `Reason: <why>`. Lint từ chối nó khi một living spec đang giữ id đó (hãy dùng `REMOVED`), khi id đó đã retired, hoặc khi một change đang mở thêm id đó, và từ chối `ADDED` của một id đã retired. `gin specs archive` ghi mỗi khối `RETIRED`, và mỗi khối `REMOVED` sau khi bỏ dòng base, vào `## Retired` ở cuối `spec.md`; các khối `ADDED` mới được đặt trước section đó.
 - `gin specs template <name>` in các template (`spec.md`, `spec-delta.md`, `proposal.md`, `design.md`, `tests.md`, `adr.md`, `iteration.md`, `activity.md`, `state.md`, `use-case.md`, `specs-README.md`).
 
 ## Loại requirement { #requirement-types }

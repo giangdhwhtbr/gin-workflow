@@ -23,7 +23,9 @@ SDD_DEFAULTS: dict[str, Any] = {
     "layout": "legacy", "specs": "docs/specs", "changes": "docs/changes", "adr": "docs/adr",
     "codebase": "docs/codebase", "explain": ".agent-workflow/runtime/explain", "spec_review": "chat", "test_globs": list(DEFAULT_TEST_GLOBS),
 }
-DELTA_SECTIONS = ("ADDED", "MODIFIED", "REMOVED")
+DELTA_SECTIONS = ("ADDED", "MODIFIED", "REMOVED", "RETIRED")
+# The living spec's section for retired ids; a delta spells it RETIRED.
+RETIRED_SECTION = "Retired"
 # Change-folder files in reading order; the template for each is `<role>.md`.
 CHANGE_FILES = {"proposal": "01-proposal.md", "spec-delta": "02-spec-delta.md", "design": "03-design.md",
                 "plan": "04-plan.md", "tests": "05-tests.md"}
@@ -33,6 +35,7 @@ _FULL_ID = re.compile(r"^REQ-([A-Z][A-Z0-9-]*)-(\d{3,})$")
 _HEADING = re.compile(r"^### (REQ-[A-Z][A-Z0-9-]*-\d{3,}): (\S.*)$")
 _HEADING_LINE = re.compile(r"^### (REQ-[A-Z][A-Z0-9-]*-\d{3,}):", re.MULTILINE)
 _BASE = re.compile(r"^<!-- base: ([0-9a-f]{64}) -->$")
+_REASON = re.compile(r"^Reason: \S", re.MULTILINE)
 _STATEMENT = re.compile(r"\b(SHALL|MUST)\b")
 _CAP = re.compile(r"^[a-z][a-z0-9-]*$")
 REQ_TYPES = ("functional", "non-functional", "business-rule")
@@ -357,12 +360,53 @@ def living_files(root: Path, cfg: Mapping[str, Any]) -> dict[str, Path]:
     return {path.parent.name: path for path in sorted(base.glob("*/spec.md"))} if base.is_dir() else {}
 
 
-def living_blocks(root: Path, cfg: Mapping[str, Any]) -> dict[str, tuple[Path, Block]]:
+def is_retired(block: Block) -> bool:
+    """A block under `## Retired` of a living spec or `## RETIRED` of a delta: a heading and a reason."""
+    return block.section in (RETIRED_SECTION, "RETIRED")
+
+
+def _living_spec_blocks(root: Path, cfg: Mapping[str, Any], retired: bool) -> dict[str, tuple[Path, Block]]:
     found: dict[str, tuple[Path, Block]] = {}
     for path in living_files(root, cfg).values():
         for block in parse_blocks(path.read_text(encoding="utf-8"))[0]:
-            found.setdefault(block.id, (path, block))
+            if is_retired(block) == retired:
+                found.setdefault(block.id, (path, block))
     return found
+
+
+def living_blocks(root: Path, cfg: Mapping[str, Any]) -> dict[str, tuple[Path, Block]]:
+    """Current requirements of the living specs; retired ones are left out."""
+    return _living_spec_blocks(root, cfg, retired=False)
+
+
+def retired_blocks(root: Path, cfg: Mapping[str, Any]) -> dict[str, tuple[Path, Block]]:
+    """Entries under `## Retired` of the living specs: ids that are gone and stay taken."""
+    return _living_spec_blocks(root, cfg, retired=True)
+
+
+def lint_retired(block: Block) -> list[str]:
+    """A retired or removed block needs a `Reason:` line; no statement or scenario."""
+    return [] if _REASON.search(block.text) else [f"{block.id} needs a 'Reason: <why>' line"]
+
+
+def append_to_section(lines: list[str], heading: str, entries: Sequence[Sequence[str]]) -> list[str]:
+    """`lines` with each entry appended, after a blank line, at the end of the `## <heading>` section; the section is
+    added at the end of the file when missing. No entries: `lines` unchanged."""
+    if not entries:
+        return lines
+    at = next((index for index, line in enumerate(lines) if line.strip() == f"## {heading}"), None)
+    if at is None:
+        while lines and not lines[-1].strip():
+            lines.pop()
+        lines = [*lines, "", f"## {heading}"]
+        at = len(lines) - 1
+    end = next((index for index in range(at + 1, len(lines)) if lines[index].startswith("## ")), len(lines))
+    head, tail = lines[:end], lines[end:]
+    while head and not head[-1].strip():
+        head.pop()
+    for entry in entries:
+        head += ["", *entry]
+    return head + (["", *tail] if tail else [])
 
 
 def find_change(root: Path, cfg: Mapping[str, Any], change_id: str) -> Path:
@@ -419,7 +463,7 @@ def delta_blocks(root: Path, change: Path) -> tuple[list[Block], list[str]]:
     errors = [f"{shown(root, path)}:{line}: {message}" for line, message in malformed]
     for block in blocks:
         if block.section not in DELTA_SECTIONS:
-            errors.append(f"{shown(root, path)}:{block.start + 1}: {block.id} is outside ## ADDED/MODIFIED/REMOVED")
+            errors.append(f"{shown(root, path)}:{block.start + 1}: {block.id} is outside ## {'/'.join(DELTA_SECTIONS)}")
     return blocks, errors
 
 
@@ -661,6 +705,7 @@ def lint_use_cases(root: Path, cfg: Mapping[str, Any]) -> list[str]:
     """Every `<specs>/<cap>/use-cases/*.md` has a title, an actor, known REQ-IDs, and a numbered main flow."""
     paths = sorted(specs_dir(root, cfg).glob(f"*/{USE_CASES_DIR}/*.md"))
     known = _known_req_ids(root, cfg) if paths else set()
+    retired = set(retired_blocks(root, cfg)) if paths else set()
     raw = {path: path.read_text(encoding="utf-8") for path in paths}
     included = {ref for path, text in raw.items()
                 for ref in (use_case_ref(path.parent.parent.name, value) for value in line_values(text, "Includes")) if ref}
@@ -688,7 +733,8 @@ def lint_use_cases(root: Path, cfg: Mapping[str, Any]) -> list[str]:
         flow = _MAIN_FLOW.search(text)
         if not (flow and re.search(r"^\d+\.\s+\S", flow.group(1), re.MULTILINE)):
             errors.append(f"{name}: missing '## Main flow' with a numbered list")
-        errors += [f"{name}: {req} is not in a living spec or an open change" for req in ids if req not in known]
+        errors += [f"{name}: {req} is retired" if req in retired
+                   else f"{name}: {req} is not in a living spec or an open change" for req in ids if req not in known]
     return errors
 
 
@@ -708,7 +754,8 @@ def lint_living(root: Path, cfg: Mapping[str, Any]) -> list[str]:
             if block.id in seen:
                 errors.append(f"{where}: {block.id} duplicates {seen[block.id]}")
             seen.setdefault(block.id, name)
-            errors += [f"{where}: {message}" for message in lint_block(block)]
+            errors += [f"{where}: {message}" for message in (lint_retired(block) if is_retired(block)
+                                                             else lint_block(block))]
     return errors + lint_iterations(root, cfg) + lint_diagrams(root, cfg) + lint_use_cases(root, cfg) + lint_references(root, cfg) + lint_actors(root, cfg)
 
 
@@ -865,6 +912,7 @@ def lint_change(root: Path, cfg: Mapping[str, Any], change: Path, *, against: st
     path = shown(root, change_file(change, "spec-delta"))
     living = living_blocks(root, cfg)
     in_flight = in_flight_blocks(root, cfg, exclude=change)
+    retired = retired_blocks(root, cfg)
     seen: set[str] = set()
     for block in blocks:
         where = f"{path}:{block.start + 1}"
@@ -876,7 +924,18 @@ def lint_change(root: Path, cfg: Mapping[str, Any], change: Path, *, against: st
         if block.section == "ADDED":
             if block.id in living:
                 errors.append(f"{where}: {block.id} already exists in {shown(root, living[block.id][0])}")
+            elif block.id in retired:
+                errors.append(f"{where}: {block.id} is retired in {shown(root, retired[block.id][0])}; "
+                              "get a new id from gin specs next-id")
             errors += [f"{where}: {message}" for message in lint_block(block)]
+        elif block.section == "RETIRED":
+            if block.id in living:
+                errors.append(f"{where}: {block.id} is in {shown(root, living[block.id][0])}; remove it with ## REMOVED")
+            elif block.id in retired:
+                errors.append(f"{where}: {block.id} is already retired in {shown(root, retired[block.id][0])}")
+            elif block.id in in_flight:
+                errors.append(f"{where}: {block.id} is added by {' and '.join(c.name for c, _ in in_flight[block.id])}")
+            errors += [f"{where}: {message}" for message in lint_retired(block)]
         elif block.section in ("MODIFIED", "REMOVED"):
             if block.id not in living:
                 added = in_flight.get(block.id, [])
@@ -888,8 +947,8 @@ def lint_change(root: Path, cfg: Mapping[str, Any], change: Path, *, against: st
                 errors.append(f"{where}: {block.id} needs '<!-- base: <hash> -->' (gin specs hash {block.id})")
             if block.section == "MODIFIED":
                 errors += [f"{where}: {message}" for message in lint_block(block)]
-            elif not re.search(r"^Reason: \S", block.text, re.MULTILINE):
-                errors.append(f"{where}: {block.id} needs a 'Reason: <why>' line")
+            else:
+                errors += [f"{where}: {message}" for message in lint_retired(block)]
     if against:
         own = Path(cfg["changes"]) / change.name
         taken = ids_at_ref(root, cfg, against, exclude=own)

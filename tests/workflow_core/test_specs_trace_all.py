@@ -155,7 +155,7 @@ class TestTraceAll(unittest.TestCase):
         result = specs_trace_all.trace_all(self.root, self.cfg)
         row = next(row for row in result["requirements"] if row["id"] == "REQ-AUTH-001")
         self.assertEqual([], row["changes"])
-        self.assertTrue(any("outside ## ADDED/MODIFIED/REMOVED" in warning for warning in result["warnings"]))
+        self.assertTrue(any("outside ## ADDED/MODIFIED/REMOVED/RETIRED" in warning for warning in result["warnings"]))
 
     def test_an_open_modification_is_a_pending_change(self):
         base = specs.requirement_hash(self.root, self.cfg, "REQ-AUTH-002")[1]

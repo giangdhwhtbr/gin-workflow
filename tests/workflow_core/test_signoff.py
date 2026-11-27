@@ -45,6 +45,19 @@ class TestRequirements(unittest.TestCase):
                           {"id": "REQ-AUTH-002", "hash8": base[:8], "op": "removed"}],
                          signoff.requirements_of(self.root, "ep-1"))
 
+    def test_a_retired_block_is_listed_and_its_row_reads_back(self):
+        retired = "### REQ-AUTH-003: Lock out\nReason: x\n"
+        change = make_change(self.root, spec_delta=delta(retired=retired))
+        hash8 = specs.block_hash(specs.parse_blocks(retired)[0][0].text)[:8]
+        rows = signoff.change_requirements(self.root, change)
+        self.assertEqual([{"id": "REQ-AUTH-003", "hash8": hash8, "op": "retired"}], rows)
+        found = signoff.Signoff(at="2026-11-27T09:00:00Z", actor="ba", evidence="spec.md", source="events",
+                                requirements=None)
+        path = change / signoff.SIGNOFF_FILE
+        path.write_text(signoff.render(found, "ep-1", rows), encoding="utf-8")
+        self.assertIn(f"| REQ-AUTH-003 | {hash8} | retired |", path.read_text(encoding="utf-8"))
+        self.assertEqual((("REQ-AUTH-003", hash8, "retired"),), signoff.read_file(path).requirements)
+
     def test_no_list_without_a_change_or_with_the_legacy_layout(self):
         make_change(self.root)
         self.assertIsNone(signoff.requirements_of(self.root, "ep-2"))

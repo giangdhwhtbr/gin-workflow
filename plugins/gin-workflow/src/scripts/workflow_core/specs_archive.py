@@ -10,8 +10,9 @@ from typing import Any, Mapping
 
 from . import signoff
 from .atomic import atomic_write_many
-from .specs import (Block, SpecsError, block_hash, change_epic, delta_blocks, in_flight_blocks, lint_change,
-                    living_blocks, parse_blocks, render, shown, specs_dir, template_text, _BASE)
+from .specs import (RETIRED_SECTION, Block, SpecsError, append_to_section, block_hash, change_epic, delta_blocks,
+                    in_flight_blocks, lint_change, living_blocks, parse_blocks, render, shown, specs_dir,
+                    template_text, _BASE)
 
 
 class ArchiveConflict(ValueError):
@@ -37,11 +38,14 @@ def _apply(lines: list[str], edits: Mapping[str, Block | None]) -> list[str]:
 
 
 def _append(lines: list[str], added: list[Block]) -> list[str]:
-    while lines and not lines[-1].strip():
-        lines.pop()
+    """ADDED blocks at the end of the requirements: before `## Retired` when the spec has one."""
+    at = next((index for index, line in enumerate(lines) if line.strip() == f"## {RETIRED_SECTION}"), len(lines))
+    head, tail = lines[:at], lines[at:]
+    while head and not head[-1].strip():
+        head.pop()
     for block in added:
-        lines += ["", *_clean(block)]
-    return lines
+        head += ["", *_clean(block)]
+    return head + (["", *tail] if tail else [])
 
 
 def move(root: Path, source: Path, target: Path) -> None:
@@ -118,8 +122,10 @@ def archive(root: Path, cfg: Mapping[str, Any], change: Path, *, today: date | N
                 new_caps.append(block.cap)
     for cap, lines in texts.items():
         mine = [block for block in blocks if block.cap == cap]
-        edits = {b.id: (b if b.section == "MODIFIED" else None) for b in mine if b.section != "ADDED"}
-        texts[cap] = _append(_apply(lines, edits), [b for b in mine if b.section == "ADDED"])
+        edits = {b.id: (b if b.section == "MODIFIED" else None) for b in mine if b.section in ("MODIFIED", "REMOVED")}
+        texts[cap] = append_to_section(
+            _append(_apply(lines, edits), [b for b in mine if b.section == "ADDED"]), RETIRED_SECTION,
+            [_clean(b) for b in mine if b.section in ("REMOVED", "RETIRED")])
     writes = {base / cap / "spec.md": ("\n".join(lines).rstrip() + "\n").encode("utf-8") for cap, lines in texts.items()}
     if new_caps:
         readme = base / "README.md"
@@ -138,4 +144,5 @@ def archive(root: Path, cfg: Mapping[str, Any], change: Path, *, today: date | N
             "specs": sorted(str(path.relative_to(root)) for path in writes),
             "added": [b.id for b in blocks if b.section == "ADDED"],
             "modified": [b.id for b in blocks if b.section == "MODIFIED"],
-            "removed": [b.id for b in blocks if b.section == "REMOVED"]}
+            "removed": [b.id for b in blocks if b.section == "REMOVED"],
+            "retired": [b.id for b in blocks if b.section == "RETIRED"]}

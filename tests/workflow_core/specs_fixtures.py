@@ -125,8 +125,9 @@ def commit_all(root: Path, message: str = "c") -> None:
     git(root, "commit", "-q", "-m", message)
 
 
-def delta(*, added: str = "", modified: str = "", removed: str = "") -> str:
-    return f"# Spec Delta\n\n## ADDED\n\n{added}\n## MODIFIED\n\n{modified}\n## REMOVED\n\n{removed}"
+def delta(*, added: str = "", modified: str = "", removed: str = "", retired: str = "") -> str:
+    text = f"# Spec Delta\n\n## ADDED\n\n{added}\n## MODIFIED\n\n{modified}\n## REMOVED\n\n{removed}"
+    return text + (f"\n## RETIRED\n\n{retired}" if retired else "")
 
 
 def make_change(root: Path, name: str = "ep-1-lockout", *, epic: str = "ep-1", spec_delta: str = "") -> Path:

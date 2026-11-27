@@ -17,6 +17,7 @@ from specs_fixtures import (ADDED_BLOCK, AUTH_SPEC, LAUNCHER, commit_all, delta,
 from workflow_core import docs_check, specs, specs_reqs, specs_trace  # noqa: E402
 from workflow_core.specs import SpecsError  # noqa: E402
 
+RETIRED_003 = "### REQ-AUTH-003: Lock out\nReason: dropped in spec review\n"
 MODIFIED_003 = ("### REQ-AUTH-003: Lock account after failed logins\n<!-- base: {base} -->\n"
                 "The system SHALL lock an account for 30 minutes after 5 failed logins.\n\n"
                 "#### Scenario: fifth failure locks\n- GIVEN a user with 4 failed logins\n"
@@ -322,7 +323,46 @@ class TestRepositoryCommands(unittest.TestCase):
 
     def test_block_outside_delta_sections(self):
         change = make_change(self.root, spec_delta="# Delta\n\n## Other\n\n" + ADDED_BLOCK)
-        self.assertTrue(any("outside ## ADDED/MODIFIED/REMOVED" in e for e in specs.lint_change(self.root, self.cfg, change)))
+        self.assertTrue(any("outside ## ADDED/MODIFIED/REMOVED/RETIRED" in e for e in specs.lint_change(self.root, self.cfg, change)))
+
+    def test_retired_block_needs_only_a_reason(self):
+        change = make_change(self.root, spec_delta=delta(retired=RETIRED_003))
+        self.assertEqual([], specs.lint_change(self.root, self.cfg, change))
+        write(self.root, "docs/changes/ep-1-lockout/02-spec-delta.md", delta(retired="### REQ-AUTH-003: Lock out\n"))
+        errors = specs.lint_change(self.root, self.cfg, change)
+        self.assertTrue(any("REQ-AUTH-003 needs a 'Reason: <why>' line" in e for e in errors), errors)
+
+    def test_retired_block_refuses_a_living_or_added_id(self):
+        change = make_change(self.root, spec_delta=delta(retired="### REQ-AUTH-001: Sign in\nReason: x\n"))
+        errors = specs.lint_change(self.root, self.cfg, change)
+        self.assertTrue(any("REQ-AUTH-001 is in docs/specs/auth/spec.md; remove it with ## REMOVED" in e
+                            for e in errors), errors)
+        make_change(self.root, "ep-2-other", epic="ep-2")  # adds REQ-AUTH-003
+        write(self.root, "docs/changes/ep-1-lockout/02-spec-delta.md", delta(retired=RETIRED_003))
+        errors = specs.lint_change(self.root, self.cfg, change)
+        self.assertTrue(any("REQ-AUTH-003 is added by ep-2-other" in e for e in errors), errors)
+
+    def test_living_retired_section(self):
+        write(self.root, "docs/specs/auth/spec.md", AUTH_SPEC + "\n## Retired\n\n" + RETIRED_003)
+        self.assertEqual([], specs.lint_living(self.root, self.cfg))
+        self.assertEqual({"REQ-AUTH-001", "REQ-AUTH-002"}, set(specs.living_blocks(self.root, self.cfg)))
+        self.assertEqual({"REQ-AUTH-003"}, set(specs.retired_blocks(self.root, self.cfg)))
+        change = make_change(self.root)  # ADDED REQ-AUTH-003
+        errors = specs.lint_change(self.root, self.cfg, change)
+        self.assertTrue(any("REQ-AUTH-003 is retired in docs/specs/auth/spec.md" in e for e in errors), errors)
+        write(self.root, "docs/changes/ep-1-lockout/02-spec-delta.md", delta(retired=RETIRED_003))
+        errors = specs.lint_change(self.root, self.cfg, change)
+        self.assertTrue(any("REQ-AUTH-003 is already retired" in e for e in errors), errors)
+        write(self.root, "docs/specs/auth/spec.md", AUTH_SPEC + "\n## Retired\n\n### REQ-AUTH-003: Lock out\n")
+        self.assertTrue(any("REQ-AUTH-003 needs a 'Reason: <why>' line" in e
+                            for e in specs.lint_living(self.root, self.cfg)))
+
+    def test_use_case_citing_a_retired_id(self):
+        write(self.root, "docs/specs/auth/spec.md", AUTH_SPEC + "\n## Retired\n\n" + RETIRED_003)
+        write(self.root, "docs/specs/auth/use-cases/sign-in.md",
+              "# Sign in\n\nActor: User\nRequirements: REQ-AUTH-003\n\n## Main flow\n\n1. Sign in\n")
+        self.assertIn("docs/specs/auth/use-cases/sign-in.md: REQ-AUTH-003 is retired",
+                      specs.lint_use_cases(self.root, self.cfg))
 
     def test_lint_against_base_flags_id_taken_on_base_but_not_own_change(self):
         make_change(self.root)
