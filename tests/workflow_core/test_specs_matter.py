@@ -65,9 +65,9 @@ class TestSpecsMatter(unittest.TestCase):
         write(self.root, f"{archive}/notes/readme.md", "not a change\n")
         self.assertEqual([
             {"date": "2026-11-03", "epic": "ep-2", "title": "Faster login", "capabilities": [],
-             "added": [], "modified": [], "removed": []},
+             "added": [], "modified": [], "removed": [], "retired": []},
             {"date": "2026-11-01", "epic": "ep-1", "title": "Lock accounts", "capabilities": ["auth"],
-             "added": ["REQ-AUTH-003"], "modified": [], "removed": []},
+             "added": ["REQ-AUTH-003"], "modified": [], "removed": [], "retired": []},
         ], specs_matter.revisions(self.root, self.cfg))
         self.assertEqual(["2026-11-01"], [row["date"] for row in specs_matter.revisions(self.root, self.cfg, "auth")])
 
