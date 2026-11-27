@@ -174,12 +174,15 @@ def _run(args: argparse.Namespace) -> int:
     if args.command == "gaps":
         from .specs_gaps import gaps, text_line, write_into
 
+        into = specs.find_change(root, cfg, args.into) if args.into else None
         result = gaps(root, cfg, args.cap)
         for warning in result["warnings"]:
             print(f"warning: {warning}", file=sys.stderr)
-        if args.into:
-            result["written"] = write_into(root, specs.find_change(root, cfg, args.into), result["gaps"])
-        _emit(result, args.format, "\n".join(text_line(row) for row in result["gaps"]) or "no gaps")
+        lines = [text_line(row) for row in result["gaps"]] or ["no gaps"]
+        if into:
+            result["written"] = write_into(root, into, result["gaps"])
+            lines.append(f"wrote {len(result['written'])} RETIRED blocks to {into.name}")
+        _emit(result, args.format, "\n".join(lines))
         return 0
     if args.command == "lint":
         from .specs_assets import lint as lint_assets

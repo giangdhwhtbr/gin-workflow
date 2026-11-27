@@ -12,8 +12,8 @@ import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from specs_fixtures import (AUTH_SPEC, commit_all, delta, make_change, make_repo, write,  # noqa: E402
-                            write_activity)
+from specs_fixtures import (ADDED_BLOCK, AUTH_SPEC, commit_all, delta, git, make_change, make_repo,  # noqa: E402
+                            write, write_activity)
 from workflow_core import specs, specs_cli, specs_gaps  # noqa: E402
 
 REMOVED_REASON = "merged into REQ-AUTH-001"
@@ -93,6 +93,57 @@ class GapsTests(unittest.TestCase):
                                          r"drop REQ-AUTH-003: Lock account after failed logins$")
         with contextlib.redirect_stderr(io.StringIO()):
             self.assertEqual(2, specs_cli.main(["gaps", "--into", "ep-9", "--repository", str(self.root)]))
+
+    def test_unpushed_local_branch_that_adds_an_id_is_no_gap(self):
+        git(self.root, "checkout", "-q", "-b", "feat-lockout")
+        make_change(self.root)  # ADDED REQ-AUTH-003, on a branch no worktree has checked out
+        commit_all(self.root, "add REQ-AUTH-003")
+        git(self.root, "checkout", "-q", "main")
+        self.assertEqual([], specs_gaps.gaps(self.root, self.cfg)["gaps"])
+
+    def test_without_git_the_scan_warns(self):
+        plain = Path(self.tmp.name) / "plain"
+        write(plain, ".agent-workflow/config.yaml", "schema_version: '2.6'\nartifacts:\n  layout: sdd\n")
+        write(plain, "docs/specs/auth/spec.md", AUTH_SPEC)
+        result = specs_gaps.gaps(plain, specs.sdd_config(specs.load_config(plain)))
+        self.assertIn("not a git repository; scanned this tree only", result["warnings"])
+
+    def test_last_deletion_wins_over_a_newer_commit_that_only_adds(self):
+        self.drop_003_in_history()
+        write(self.root, "docs/changes/archive/2026-02-02-ep-1-lockout/02-spec-delta.md", delta(added=ADDED_BLOCK))
+        commit_all(self.root, "archive REQ-AUTH-003")
+        (row,) = specs_gaps.gaps(self.root, self.cfg)["gaps"]
+        self.assertEqual(("REQ-AUTH-003", "drop REQ-AUTH-003", "deleted"),
+                         (row["id"], row["commit"]["subject"], row["commit"]["action"]))
+
+    def test_an_id_that_history_only_added_reads_last_changed(self):
+        write(self.root, "docs/changes/archive/2026-02-02-ep-5-x/02-spec-delta.md", delta(added=ADDED_BLOCK))
+        commit_all(self.root, "archive REQ-AUTH-003")
+        (row,) = specs_gaps.gaps(self.root, self.cfg)["gaps"]
+        self.assertEqual("changed", row["commit"]["action"])
+        self.assertRegex(specs_gaps.text_line(row), r"^REQ-AUTH-003 last changed in [0-9a-f]+ \d{4}-\d{2}-\d{2} "
+                                                    r"archive REQ-AUTH-003: Lock account after failed logins$")
+
+    def test_title_comes_from_an_archived_block_when_no_commit_has_it(self):
+        write(self.root, "docs/changes/archive/2026-02-02-ep-5-x/02-spec-delta.md", delta(added=ADDED_BLOCK))
+        (row,) = specs_gaps.gaps(self.root, self.cfg)["gaps"]  # the archived folder is not committed
+        self.assertEqual((None, "Lock account after failed logins"), (row["commit"], row["title"]))
+
+    def test_into_appends_to_an_existing_retired_section(self):
+        self.drop_003_in_history()
+        change = make_change(self.root, "ep-3-gaps", epic="ep-3",
+                             spec_delta=delta(retired="### REQ-AUTH-010: Old idea\nReason: kept\n"))
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            self.assertEqual(0, specs_cli.main(["gaps", "--into", "ep-3", "--repository", str(self.root)]))
+        text = (change / "02-spec-delta.md").read_text(encoding="utf-8")
+        self.assertEqual(1, text.count("## RETIRED"))
+        self.assertLess(text.index("### REQ-AUTH-010: Old idea\nReason: kept"), text.index("### REQ-AUTH-003:"))
+        self.assertTrue(out.getvalue().endswith("wrote 1 RETIRED blocks to ep-3-gaps\n"), out.getvalue())
+
+    def test_a_bad_change_fails_before_the_scan(self):
+        with contextlib.redirect_stderr(io.StringIO()):
+            self.assertEqual(2, specs_cli.main(["gaps", "--into", "archive", "--repository", str(self.root)]))
 
 
 if __name__ == "__main__":
