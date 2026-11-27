@@ -43,5 +43,8 @@ verify:
   checks:
     test: python3 -m pytest -n auto
   no_test_paths:
-  - .planning
+  - .planning/plans
+  - .planning/knowledge
+  - .planning/reviews
+  - .planning/roadmap.md
 workflow_version: '2.11'
