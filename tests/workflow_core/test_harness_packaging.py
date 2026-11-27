@@ -225,6 +225,22 @@ class HarnessPackagingTests(unittest.TestCase):
         self.assertEqual(0, missing.returncode)
         self.assertIn("hook skipped", missing.stderr)
 
+    def test_marketplace_hook_finds_the_script_under_claude_code_and_codex(self):
+        # A marketplace install runs src/hooks/hooks.json as is: Claude Code sets CLAUDE_PLUGIN_ROOT, Codex
+        # PLUGIN_ROOT. A path that misses the script makes python exit 2, which blocks every Bash call.
+        hooks = json.loads((ROOT / "plugins/gin-workflow/src/hooks/hooks.json").read_text(encoding="utf-8"))["hooks"]
+        pre = hooks["PreToolUse"][0]["hooks"][0]["command"]
+        base = {k: v for k, v in os.environ.items() if k not in ("PLUGIN_ROOT", "CLAUDE_PLUGIN_ROOT")}
+        danger = {"tool_name": "Bash", "tool_input": {"command": "rm -rf " + "/"}, "cwd": "/tmp"}
+        safe = {"tool_name": "Bash", "tool_input": {"command": "ls"}, "cwd": "/tmp"}
+        for variable in ("CLAUDE_PLUGIN_ROOT", "PLUGIN_ROOT"):
+            env = {**base, variable: str(ROOT / "plugins/gin-workflow/src")}
+            with self.subTest(variable=variable):
+                for payload, code in ((safe, 0), (danger, 2)):
+                    result = subprocess.run(["bash", "-c", pre], input=json.dumps(payload), capture_output=True,
+                                            text=True, env=env)
+                    self.assertEqual(code, result.returncode, result.stderr)
+
     def test_every_skill_frontmatter_is_strict_yaml(self):
         # Copilot CLI skips a skill whose frontmatter is not valid YAML.
         for path in sorted(ROOT.glob("plugins/*/src/skills/*/SKILL.md")):
