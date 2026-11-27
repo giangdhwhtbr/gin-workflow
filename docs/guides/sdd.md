@@ -48,7 +48,7 @@ WHEN a user fails to log in five times in ten minutes, the system SHALL lock the
 - THEN the account is locked
 ```
 
-- IDs are `REQ-<CAP>-<NNN>`; get the next free one with `gin specs next-id <cap>`, which scans the working tree, the worktrees, and the remote branches.
+- IDs are `REQ-<CAP>-<NNN>`; get the next one with `gin specs next-id <cap>`, which scans the working tree, the worktrees, the remote branches, and git history. A number once used, retired, or dropped is never handed out again, so a gap in the numbers is normal.
 - In a [workspace](workspace.md), requirements and their REQ-IDs live only in the parent's specs, and the children only reference them.
 - `gin specs lint --against <base>` reports an `ADDED` id that the base already uses, and `gin specs renumber` fixes it. The `sdd` skill runs that lint before the spec pull request and at ship.
 - Each block has one `SHALL` or `MUST` statement and at least one GIVEN/WHEN/THEN scenario. The EARS patterns (`WHEN`, `WHILE`, `IF ... THEN`, `WHERE`) are preferred.

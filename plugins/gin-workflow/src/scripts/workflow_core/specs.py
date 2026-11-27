@@ -1054,8 +1054,36 @@ def ids_at_ref(root: Path, cfg: Mapping[str, Any], ref: str, *, exclude: Path | 
     return ids
 
 
+_HISTORY_HEADING = re.compile(r"^[+-]### (REQ-[A-Z][A-Z0-9-]*-\d{3,}):", re.MULTILINE)
+
+
+def _shallow_date(root: Path) -> str:
+    """The oldest commit date at the shallow boundary, `YYYY-MM-DD`, or `the clone depth` when git cannot tell."""
+    listed = _git(root, "rev-parse", "--git-path", "shallow").stdout.strip()
+    path = Path(root) / listed if listed else None
+    hashes = path.read_text(encoding="utf-8").split() if path and path.is_file() else []
+    dates = _git(root, "show", "-s", "--format=%cs", *hashes).stdout.split() if hashes else []
+    return min(dates) if dates else "the clone depth"
+
+
+def history_ids(root: Path, cfg: Mapping[str, Any]) -> tuple[set[str], list[str]]:
+    """Ids on a `### REQ-` heading that any commit of any ref added or deleted under the specs and changes folders."""
+    if (_git(root, "rev-parse", "--verify", "--quiet", "HEAD").returncode != 0
+            and not _git(root, "for-each-ref", "--count=1").stdout.strip()):
+        return set(), []  # no commit yet: no history
+    log = _git(root, "log", "--all", "--format=", "-p", "--unified=0", "-G", "^### REQ-",
+               "--", cfg["specs"], cfg["changes"])
+    if log.returncode != 0:
+        cause = next((line.strip() for line in log.stderr.splitlines() if line.strip()), f"exit {log.returncode}")
+        return set(), [f"git log failed; history not scanned: {cause}"]
+    warnings = []
+    if _git(root, "rev-parse", "--is-shallow-repository").stdout.strip() == "true":
+        warnings.append(f"shallow clone; history before {_shallow_date(root)} not scanned")
+    return set(_HISTORY_HEADING.findall(log.stdout)), warnings
+
+
 def scan_ids(root: Path, cfg: Mapping[str, Any]) -> tuple[set[str], list[str]]:
-    """Ids in this tree, every local worktree, and every remote-tracking branch."""
+    """Ids in this tree, every local worktree, every remote-tracking branch, and git history."""
     ids = _local_ids(root, cfg)
     warnings: list[str] = []
     listed = _git(root, "worktree", "list", "--porcelain")
@@ -1066,14 +1094,15 @@ def scan_ids(root: Path, cfg: Mapping[str, Any]) -> tuple[set[str], list[str]]:
             ids |= _local_ids(Path(line[len("worktree "):]), cfg)
     if not _git(root, "remote").stdout.strip():
         warnings.append("no git remote; scanned local worktrees only")
-        return ids, warnings
-    if _git(root, "fetch", "--quiet").returncode != 0:
-        warnings.append("git fetch failed; remote branches may be stale")
-    refs = _git(root, "for-each-ref", "--format=%(refname)", "refs/remotes").stdout.split()
-    for ref in refs:
-        if not ref.endswith("/HEAD"):
-            ids |= ids_at_ref(root, cfg, ref)
-    return ids, warnings
+    else:
+        if _git(root, "fetch", "--quiet").returncode != 0:
+            warnings.append("git fetch failed; remote branches may be stale")
+        refs = _git(root, "for-each-ref", "--format=%(refname)", "refs/remotes").stdout.split()
+        for ref in refs:
+            if not ref.endswith("/HEAD"):
+                ids |= ids_at_ref(root, cfg, ref)
+    found, more = history_ids(root, cfg)
+    return ids | found, warnings + more
 
 
 def next_id(root: Path, cfg: Mapping[str, Any], cap: str) -> tuple[str, list[str]]:

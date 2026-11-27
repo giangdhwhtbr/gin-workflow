@@ -48,7 +48,7 @@ WHEN a user fails to log in five times in ten minutes, the system SHALL lock the
 - THEN the account is locked
 ```
 
-- ID có dạng `REQ-<CAP>-<NNN>`; lấy ID trống kế tiếp bằng `gin specs next-id <cap>`, lệnh này quét cây làm việc, các worktree và các nhánh remote.
+- ID có dạng `REQ-<CAP>-<NNN>`; lấy ID kế tiếp bằng `gin specs next-id <cap>`, lệnh này quét cây làm việc, các worktree, các nhánh remote và lịch sử git. Một số đã dùng, đã retire hoặc đã bỏ sẽ không bao giờ được cấp lại, nên số bị hở là bình thường.
 - Trong một [workspace](workspace.md), requirement và REQ-ID của chúng chỉ nằm trong spec của repository cha, còn các repository con chỉ tham chiếu tới chúng.
 - `gin specs lint --against <base>` báo một id `ADDED` mà nhánh gốc đã dùng, và `gin specs renumber` sửa nó. Skill `sdd` chạy lệnh lint đó trước pull request của spec và khi ship.
 - Mỗi khối có một câu `SHALL` hoặc `MUST` và ít nhất một scenario GIVEN/WHEN/THEN. Các mẫu EARS (`WHEN`, `WHILE`, `IF ... THEN`, `WHERE`) được ưu tiên.

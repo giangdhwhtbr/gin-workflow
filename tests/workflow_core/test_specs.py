@@ -553,6 +553,39 @@ class TestRepositoryCommands(unittest.TestCase):
     def test_next_id_warns_without_remote(self):
         self.assertEqual(["no git remote; scanned local worktrees only"], specs.next_id(self.root, self.cfg, "auth")[1])
 
+    def test_next_id_skips_an_id_deleted_in_history(self):
+        commit_all(self.root)
+        make_change(self.root)  # ADDED REQ-AUTH-003
+        commit_all(self.root, "add REQ-AUTH-003")
+        write(self.root, "docs/changes/ep-1-lockout/02-spec-delta.md", delta())
+        commit_all(self.root, "drop REQ-AUTH-003")
+        self.assertEqual(("REQ-AUTH-004", ["no git remote; scanned local worktrees only"]),
+                         specs.next_id(self.root, self.cfg, "auth"))
+
+    def test_next_id_counts_a_retired_only_id(self):
+        write(self.root, "docs/specs/auth/spec.md", AUTH_SPEC + "\n## Retired\n\n### REQ-AUTH-005: Old\nReason: x\n")
+        self.assertEqual("REQ-AUTH-006", specs.next_id(self.root, self.cfg, "auth")[0])
+
+    def test_next_id_warns_in_a_shallow_clone(self):
+        commit_all(self.root, "one")
+        write(self.root, "docs/specs/auth/notes.md", "x\n")
+        commit_all(self.root, "two")
+        clone = Path(self.tmp.name) / "clone"
+        git(Path(self.tmp.name), "clone", "-q", "--depth", "1", f"file://{self.root}", str(clone))
+        req_id, warnings = specs.next_id(clone, self.cfg, "auth")
+        self.assertEqual("REQ-AUTH-003", req_id)
+        self.assertTrue(any(w.startswith("shallow clone; history before ") and w.endswith(" not scanned")
+                            for w in warnings), warnings)
+
+    def test_renumber_refuses_an_id_only_history_holds(self):
+        commit_all(self.root)
+        make_change(self.root, spec_delta=delta(added=ADDED_BLOCK.replace("003", "009")))
+        commit_all(self.root, "add 009")
+        change = make_change(self.root)  # rewrites the delta: ADDED REQ-AUTH-003 only
+        commit_all(self.root, "drop 009")
+        with self.assertRaisesRegex(SpecsError, "REQ-AUTH-009 is already used"):
+            specs.renumber(self.root, self.cfg, change, "REQ-AUTH-003", "REQ-AUTH-009")
+
     def test_new_change_renders_templates_and_refuses_existing(self):
         change = specs.new_change(self.root, self.cfg, "lockout", "ep-1", "Account lockout")
         self.assertEqual(["01-proposal.md", "02-spec-delta.md", "03-design.md", "05-tests.md"],
