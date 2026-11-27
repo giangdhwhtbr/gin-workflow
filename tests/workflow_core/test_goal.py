@@ -54,6 +54,11 @@ class TestGoalText(unittest.TestCase):
         self.assertIn("e.1, e.2 of epic epic", text)
         self.assertIn("Do not start e.3, e.4, e.5", text)
         self.assertNotIn("turns", text)
+        # implementation_complete needs every track closed, so it cannot hold while a held track stays open.
+        self.assertNotIn("implementation_complete", text)
+        self.assertIn("`python3 review-ledger.py status --bead-id <id>`", text)
+        self.assertIn("are closed in Beads (`gin task show`). Do not start",
+                      goal_text("epic", tracks, "wf", False))
 
     def test_tracks_listed_in_dependency_order(self):
         text = goal_text("epic", [track("e.3", blocked_by=["e.2"]), track("e.2", blocked_by=["e.1"]), track("e.1")], "wf", True)
