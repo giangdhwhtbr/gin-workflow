@@ -2,7 +2,7 @@
 
 This page lists what changed in each release of gin-workflow and its add-ons (gin-qa, gin-ba), newest first. Releases before 3.1.0 are on the [GitHub releases page](https://github.com/giangdhwhtbr/gin-workflow/releases).
 
-## [3.5.4] - 2026-11-26
+## [3.5.4] - 2026-11-27
 
 ### Upgrade notes
 
@@ -11,6 +11,11 @@ This page lists what changed in each release of gin-workflow and its add-ons (gi
 - Run `gin team hooks` in each repository, or `gin team hooks --all-repos` in a workspace, to install the new commit-msg shim.
 - An SDD epic whose lanes use `feat/04-plan-<lane>` branches: finish it on 3.5.3, or rename its lane branches to `feat/<change>-<lane>` before the next `gin team claim`.
 - In team mode, every member should upgrade. gin 3.5.3 reads a shared waiver on the epic bead as a real confirmation in `gin state`, the sign-off, and the milestone spec count.
+- A tool that runs `gin state` from inside a Claude Code session, such as a gin-console backend, binds that session to every workflow it reads. Drop `CLAUDE_CODE_SESSION_ID` from the environment it gives `gin`.
+
+### Added
+
+- `gin state`, `gin record`, `gin unblock`, and `gin routes dispatch` record which Claude Code session worked on a workflow, from `CLAUDE_CODE_SESSION_ID`, as one `session.bound` event per session and workflow. `gin state --format json` lists them under `sessions`.
 
 ### Fixed
 
