@@ -1,0 +1,18 @@
+{
+  "claude-code": {
+    "skills": ["SKILL.md", "skill", "frontmatter"],
+    "agents": ["subagent", "agent frontmatter", "Agent tool", "agents/"],
+    "hooks": ["hook", "PreToolUse", "SessionStart", "PreCompact"],
+    "plugins": ["plugin", "marketplace", "CLAUDE_PLUGIN_ROOT", "PLUGIN_ROOT"],
+    "commands": ["reserved", "/plan", "/review", "/ship", "/setup", "/goal", "/workflow", "/quick", "/execute", "/discuss", "/progress"],
+    "environment": ["CLAUDE_CODE_SESSION_ID", "environment variable"],
+    "instructions": ["CLAUDE.md", "AGENTS.md"],
+    "worktrees": ["worktree"],
+    "permissions": ["permission mode", "auto mode", "allowed-tools"]
+  },
+  "beads": {
+    "commands": ["bd show", "bd list", "bd update", "bd close", "bd create", "bd ready", "bd blocked", "bd comments", "bd dolt", "bd config", "bd dep", "bd init"],
+    "flags": ["--json", "--parent", "--assignee", "--force", "--set-metadata", "--unset-metadata", "--add-label", "--remove-label", "--append-notes", "--claim", "--explain", "--exclude-type", "--no-inherit-labels"],
+    "data": ["schema", "migration", "metadata", "external_projects", "BD_ACTOR", "issue_type", "dependencies"]
+  }
+}
