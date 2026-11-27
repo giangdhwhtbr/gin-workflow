@@ -329,11 +329,14 @@ Exit codes: 0 ok; 1 at least one file refused; 2 usage, a missing bead or tracke
 
 ```
 gin hooks install [--all-repos]
+gin hooks uninstall [--all-repos]
 gin hooks status [--all-repos]
 gin hooks run pre-commit|pre-push
 ```
 
 `install` writes marker-tagged `pre-commit` and `pre-push` shims into the active hooks directory (it honors `core.hooksPath`, so a husky repository's hooks live in `.husky`). It is idempotent and does not create a missing hooks directory. It never overwrites a hook it did not write (`occupied`: add `exec gin hooks run <hook> "$@"` to your hook to chain it); a hook that already runs it is reported as `chained`. It also sets a repo-local `core.sshCommand` of `ssh -o ServerAliveInterval=30` (`ssh_keepalive: set`), so the SSH connection git opens before `pre-push` survives a long test run. An existing `core.sshCommand`, `GIT_SSH` or `GIT_SSH_COMMAND` is left alone (`kept`); a write that fails is reported as `failed` and does not fail the install. `/setup` runs it once `verify.checks` is configured; `setup doctor` reports hooks that are missing or occupied.
+
+`uninstall` removes the `pre-commit` and `pre-push` hooks that `install` wrote, recognised by their marker line. A hook that runs `gin hooks run` among other commands stays, and `uninstall` prints the line to remove from it; any other hook stays unchanged. It leaves `core.sshCommand` and the team `commit-msg` hook as they are. It prints each hook as `removed`, `chained`, `foreign`, or `absent`, and exits 0 when no hook still runs `gin`, 1 when a chained one does, and 2 when the hooks directory does not exist. `--all-repos` does the same in each cloned repository of a workspace. [Leaving gin](../guides/leaving-gin.md) lists what else gin leaves in a project.
 
 `status` prints `{"hooks": {...}, "verify_commands": [...], "run_at": ..., "ok": ...}`: each hook's state (`ok`, `missing`, `occupied`), the configured check names, including `<package>:<name>` for packages, and `verify.run_at`. Under `host` only the `pre-commit` checks are listed, and an empty list is still `ok`. It exits 1 when a hook is not `ok`, or when no verify command is configured and `run_at` is not `host`; `ship` warns on that and continues.
 

@@ -63,6 +63,25 @@ def install(root: Path) -> dict:
             "path": str(active), "hooks": result, "ssh_keepalive": _keep_ssh_alive(Path(root))}
 
 
+def uninstall(root: Path) -> dict:
+    """Remove the hooks `install` wrote; a hook that chains `gin hooks run` or is someone else's stays."""
+    active = active_hooks_dir(Path(root))
+    if not active.is_dir():
+        return {"status": "missing", "path": str(active), "hooks": {}}
+    result: dict[str, str] = {}
+    for hook in HOOKS:
+        target = active / hook
+        current = target.read_text(encoding="utf-8", errors="replace") if target.is_file() else None
+        if current is None:
+            result[hook] = "absent"
+        elif _ours(current):
+            target.unlink()
+            result[hook] = "removed"
+        else:
+            result[hook] = "chained" if _RUN in current or _LEGACY_RUN in current else "foreign"
+    return {"status": "chained" if "chained" in result.values() else "removed", "path": str(active), "hooks": result}
+
+
 def _keep_ssh_alive(root: Path) -> str:
     """Set a repo-local core.sshCommand with a keepalive unless the user already chose one."""
     configured = subprocess.run(["git", "config", "core.sshCommand"], cwd=root, capture_output=True).stdout.strip()
@@ -297,6 +316,30 @@ def _install_all(space: workspace.Workspace) -> int:
     return worst
 
 
+_UNINSTALL_EXIT = {"removed": 0, "chained": 1, "missing": 2}
+
+
+def _report_uninstall(result: dict, prefix: str = "") -> int:
+    for hook, state in result["hooks"].items():
+        print(f"{prefix}{hook}: {state}")
+        if state == "chained":
+            print(f"{prefix}remove `exec gin hooks run {hook}` from {Path(result['path']) / hook}", file=sys.stderr)
+    if result["status"] == "missing":
+        print(f"{prefix}hooks directory {result['path']} does not exist", file=sys.stderr)
+    return _UNINSTALL_EXIT[result["status"]]
+
+
+def _uninstall_all(space: workspace.Workspace) -> int:
+    """Uninstall in every workable clone; the exit code is the worst single-repository result."""
+    worst = 0
+    for repo in space.repos:
+        if (reason := workspace.skip_reason(space, repo)) is not None:
+            print(f"{repo.path}: skipped ({reason})")
+            continue
+        worst = max(worst, _report_uninstall(uninstall(space.checkout(repo)), f"{repo.path}: "))
+    return worst
+
+
 def _status_all(space: workspace.Workspace) -> int:
     """Children without `verify.checks` have nothing for the hooks to run and are left out, as in `setup doctor`."""
     reports = {repo.path: status_report(space.checkout(repo)) for repo in space.repos
@@ -308,24 +351,26 @@ def _status_all(space: workspace.Workspace) -> int:
 
 def main(argv: Sequence[str]) -> int:
     parser = argparse.ArgumentParser(prog="gin hooks")
-    parser.add_argument("action", choices=("install", "run", "status"))
+    parser.add_argument("action", choices=("install", "uninstall", "run", "status"))
     parser.add_argument("hook", nargs="?", choices=HOOKS)
     parser.add_argument("git_args", nargs="*", help="arguments git passes to the hook (pre-push: remote name and URL); ignored")
     parser.add_argument("--repository", type=Path, default=None)
     parser.add_argument("--all-repos", action="store_true",
-                        help="install, status: every cloned repository of the workspace except frozen and beads entries")
+                        help="install, uninstall, status: every cloned repository of the workspace except frozen and beads entries")
     args = parser.parse_args(list(argv))
     root = args.repository.resolve() if args.repository else Path.cwd().resolve()
-    if args.all_repos and args.action in ("install", "status"):
+    if args.all_repos and args.action in ("install", "uninstall", "status"):
         space = workspace.locate(root).workspace
         if space is None:
             print("error: not in a workspace", file=sys.stderr)
             return 1
-        return _install_all(space) if args.action == "install" else _status_all(space)
+        return {"install": _install_all, "uninstall": _uninstall_all, "status": _status_all}[args.action](space)
     if args.action == "status":
         report = status_report(root)
         print(json.dumps(report, indent=2, sort_keys=True))
         return 0 if report["ok"] else 1
+    if args.action == "uninstall":
+        return _report_uninstall(uninstall(root))
     if args.action == "install":
         result = install(root)
         for hook, state in result["hooks"].items():

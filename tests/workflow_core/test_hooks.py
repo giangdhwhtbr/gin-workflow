@@ -214,6 +214,38 @@ class TestHooksInstall(unittest.TestCase):
         self.assertIn("hooks: pre-push still calls gin-workflow; run gin hooks install, "
                       "or in a hook you wrote replace gin-workflow hooks run with gin hooks run", actions)
 
+    def test_uninstall_removes_the_hooks_install_wrote(self):
+        hooks.install(self.root)
+        result = hooks.uninstall(self.root)
+        self.assertEqual(("removed", {"pre-commit": "removed", "pre-push": "removed"}),
+                         (result["status"], result["hooks"]))
+        active = Path(result["path"])
+        self.assertFalse((active / "pre-commit").exists() or (active / "pre-push").exists())
+
+    def test_uninstall_leaves_a_chained_and_a_foreign_hook(self):
+        active = Path(hooks.install(self.root)["path"])
+        (active / "pre-commit").write_text('#!/bin/sh\nnpx lint-staged\nexec gin hooks run pre-commit "$@"\n')
+        (active / "pre-push").write_text("#!/bin/sh\necho mine\n")
+        result = hooks.uninstall(self.root)
+        self.assertEqual(("chained", {"pre-commit": "chained", "pre-push": "foreign"}),
+                         (result["status"], result["hooks"]))
+        self.assertIn("npx lint-staged", (active / "pre-commit").read_text())
+        self.assertEqual("#!/bin/sh\necho mine\n", (active / "pre-push").read_text())
+
+    def test_uninstall_reports_absent_hooks_and_exits_zero(self):
+        self.assertEqual({"pre-commit": "absent", "pre-push": "absent"}, hooks.uninstall(self.root)["hooks"])
+        with contextlib.redirect_stdout(io.StringIO()) as out:
+            self.assertEqual(0, hooks.main(["uninstall", "--repository", str(self.root)]))
+        self.assertIn("pre-commit: absent", out.getvalue())
+
+    def test_uninstall_exits_one_while_a_chained_hook_still_calls_gin(self):
+        active = Path(hooks.install(self.root)["path"])
+        (active / "pre-push").write_text('#!/bin/sh\nexec gin hooks run pre-push "$@"\n')
+        err = io.StringIO()
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(err):
+            self.assertEqual(1, hooks.main(["uninstall", "--repository", str(self.root)]))
+        self.assertIn(f"remove `exec gin hooks run pre-push` from {active / 'pre-push'}", err.getvalue())
+
 
 class TestHooksRun(unittest.TestCase):
     def setUp(self):
@@ -845,6 +877,13 @@ class WorkspaceHookTests(unittest.TestCase):
         self.assertIn("services/api: pre-push: installed", out)
         self.assertEqual("#!/bin/sh\nnpx lint-staged\n", hook.read_text(encoding="utf-8"))
         self.assertIn(f'services/api: add `exec gin hooks run pre-commit "$@"` to {hook} to chain it', err)
+
+    def test_uninstall_all_repos_removes_the_hooks_of_each_clone(self):
+        self.assertEqual(0, self.hook("install", "--all-repos", "--repository", str(self.root))[0])
+        code, out, _ = self.hook("uninstall", "--all-repos", "--repository", str(self.root))
+        self.assertEqual(0, code)
+        self.assertIn("services/api: pre-commit: removed", out)
+        self.assertEqual({"pre-commit": "missing", "pre-push": "missing"}, hooks.status(self.child))
 
 
 class WorkspaceEvidenceTests(unittest.TestCase):
