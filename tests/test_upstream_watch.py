@@ -124,11 +124,46 @@ class UpstreamWatchTests(unittest.TestCase):
         self.assertIn("Upstream changes: Claude Code 2.1.11 to 2.1.12", out)
         self.assertEqual("2.1.10", json.loads(self.state.read_text(encoding="utf-8"))["claude-code"])
 
+    def test_a_source_that_failed_the_first_time_records_only_its_baseline_later(self):
+        def fetch(url):
+            if url == upstream_watch.RELEASES_URL:
+                raise OSError("HTTP Error 403: rate limit exceeded")
+            return CHANGELOG
+
+        self.assertEqual(1, self.run_watch(fetch=fetch)[0])
+        self.assertEqual({"claude-code": "2.1.12"}, json.loads(self.state.read_text(encoding="utf-8")))
+        self.filed.clear()
+        code, out = self.run_watch()
+        self.assertEqual(0, code)
+        self.assertEqual([], self.filed)
+        self.assertEqual("2026-11-20T00:00:00Z", json.loads(self.state.read_text(encoding="utf-8"))["beads"])
+        self.assertEqual(1, out.count("baseline recorded"))
+
+    def test_releases_without_a_date_are_a_failed_read_not_an_empty_baseline(self):
+        undated = [{"tag_name": "v1.0.0", "body": "- schema change"}]
+        code, _ = self.run_watch(fetch=lambda url: CHANGELOG if "CHANGELOG" in url else json.dumps(undated))
+        self.assertEqual(1, code)
+        self.assertEqual(["Upstream check could not read Beads releases"], [title for title, _ in self.filed])
+        self.assertEqual({"claude-code": "2.1.12"}, json.loads(self.state.read_text(encoding="utf-8")))
+
+    def test_an_invalid_state_file_files_a_bead_and_is_replaced_by_a_baseline(self):
+        for broken in ('{"claude-code": "2.1.1', '["2.1.10"]', '{"claude-code": 5}', '{"claude-code": "latest"}'):
+            with self.subTest(broken=broken):
+                self.filed.clear()
+                self.state.parent.mkdir(parents=True, exist_ok=True)
+                self.state.write_text(broken, encoding="utf-8")
+                self.assertEqual(1, self.run_watch()[0])
+                [(title, text)] = self.filed
+                self.assertEqual("Upstream check could not read its state file", title)
+                self.assertIn(str(self.state), text)
+                self.assertEqual({"claude-code": "2.1.12", "beads": "2026-11-20T00:00:00Z"},
+                                 json.loads(self.state.read_text(encoding="utf-8")))
+
     def test_the_surface_list_names_every_bd_subcommand_gin_calls(self):
         surfaces = json.loads((ROOT / "scripts/upstream_surfaces.json").read_text(encoding="utf-8"))
         keywords = {keyword for words in surfaces["beads"].values() for keyword in words}
         called = upstream_watch.bd_subcommands(ROOT / "plugins/gin-workflow/src/scripts")
-        self.assertTrue({"show", "list", "update"} <= called, called)
+        self.assertTrue({"show", "list", "update", "ready", "config", "dolt"} <= called, called)
         self.assertEqual([], sorted(name for name in called if f"bd {name}" not in keywords))
 
 

@@ -23,8 +23,14 @@ CHANGELOG_URL = "https://raw.githubusercontent.com/anthropics/claude-code/main/C
 RELEASES_URL = "https://api.github.com/repos/gastownhall/beads/releases?per_page=30"
 STATE = Path(".agent-workflow/runtime/upstream-watch.json")
 _HEADING = re.compile(r"^## +(\d+(?:\.\d+)+)\s*$", re.MULTILINE)
-_BD_CALL = re.compile(r'(?:_bd|_beads_json)\s*\([^\[\n]*\[\s*"([a-z][a-z-]*)"|\["bd"\s*,\s*"([a-z][a-z-]*)"')
-_NOT_BD = {"gh"}  # `("bd", "gh")` in executables.py names two tools, not a bd subcommand
+_BD_NAMES = r"(?:bd|bd_bin|executable)"
+_BD_CALL = re.compile(r'(?:_bd|_bd_json|_beads_json)\s*\([^\[\n]*\[\s*"([a-z][a-z-]*)"'
+                      r'|\[\s*(?:"bd"|' + _BD_NAMES + r')\s*,\s*"([a-z][a-z-]*)"')
+# `[executable, "<word>"` also starts a call of another tool: `cases` runs the specs tool
+# (specs_trace_all.py:62), `auth` and `api` run tea or gh (hosts/gitea.py:55, :194, :198), and
+# `("bd", "gh")` in executables.py names two tools.
+_NOT_BD = {"gh", "cases", "auth", "api"}
+_VERSION = re.compile(r"\d+(?:\.\d+)*")
 
 
 def _version(text: str) -> tuple[int, ...]:
@@ -101,18 +107,36 @@ def _digest(sources: list[tuple[str, list[tuple[str, list[str]]], Mapping[str, l
     return f"Upstream changes: {'; '.join(spans)}", text
 
 
+def _read_state(path: Path) -> tuple[dict[str, str], str | None]:
+    """(state, None) from the state file; ({}, cause) when it is unreadable or invalid; ({}, None) when absent."""
+    if not path.is_file():
+        return {}, None
+    try:
+        state = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as error:
+        return {}, f"{error}"
+    if not isinstance(state, dict) or not all(isinstance(value, str) for value in state.values()):
+        return {}, "it is not a JSON object of strings"
+    if "claude-code" in state and not _VERSION.fullmatch(state["claude-code"]):
+        return {}, f"claude-code is not a dotted version: {state['claude-code']!r}"
+    return state, None
+
+
 def run(state_path: Path, *, fetch: Callable[[str], str], file_bead: Callable[[str, str], None],
         surfaces: Mapping[str, Mapping[str, list[str]]], dry_run: bool = False, out: TextIO = sys.stdout) -> int:
-    """0 when every source was read, 1 when a source failed (its bead filed), 2 when a bead could not be filed."""
-    state: dict[str, str] = json.loads(state_path.read_text(encoding="utf-8")) if state_path.is_file() else {}
-    first = not state_path.is_file()
-    newest, sources, failures = dict(state), [], []
+    """0 when every source was read, 1 when a source or the state file failed (its bead filed), 2 when a bead could not be filed."""
+    state, bad_state = _read_state(state_path)
+    newest, sources, failures = dict(state), [], []  # a failed source never reaches `newest[key] =`, so its old value stays
+    if bad_state:
+        failures.append(("Upstream check could not read its state file",
+                         f"{state_path} is invalid: {bad_state}. Each source records a new baseline."))
     readers = (("claude-code", "Claude Code", "Claude Code changelog", CHANGELOG_URL,
                 lambda text, last: claude_entries(text, last),
                 lambda text: _HEADING.search(text).group(1)),
                ("beads", "Beads", "Beads releases", RELEASES_URL,
                 lambda text, last: beads_entries(json.loads(text), last),
-                lambda text: max(str(row.get("published_at") or "") for row in json.loads(text))))
+                lambda text: max(str(row.get("published_at") or "") for row in json.loads(text)) or _no_date()))
+    baselines = []
     for key, name, label, url, entries_of, newest_of in readers:
         try:
             text = fetch(url)
@@ -122,8 +146,11 @@ def run(state_path: Path, *, fetch: Callable[[str], str], file_bead: Callable[[s
             failures.append((f"Upstream check could not read {label}",
                              f"{url} failed: {error}. The next run reads the same range again."))
             continue
-        sources.append((name, [] if first else entries, surfaces[key]))
-    beads = failures + ([] if first or (digest := _digest(sources)) is None else [digest])
+        if key in state:
+            sources.append((name, entries, surfaces[key]))
+        else:
+            baselines.append(name)
+    beads = failures + ([] if (digest := _digest(sources)) is None else [digest])
     for title, text in beads:
         print(title, file=out)
         if dry_run:
@@ -135,15 +162,15 @@ def run(state_path: Path, *, fetch: Callable[[str], str], file_bead: Callable[[s
             print(f"could not file the bead: {error}", file=sys.stderr)
             return 2
     if not dry_run:
-        failed = {title.removeprefix("Upstream check could not read ") for title, _ in failures}
-        kept = {key: (state[key] if label in failed and key in state else newest.get(key, state.get(key)))
-                for key, _, label, *_ in readers}
         state_path.parent.mkdir(parents=True, exist_ok=True)
-        state_path.write_text(json.dumps({key: value for key, value in kept.items() if value}, indent=2) + "\n",
-                              encoding="utf-8")
-    if first:
-        print("baseline recorded; the next run reports what changes after it", file=out)
+        state_path.write_text(json.dumps(newest, indent=2) + "\n", encoding="utf-8")
+    for name in baselines:
+        print(f"baseline recorded for {name}; the next run reports what changes after it", file=out)
     return 1 if failures else 0
+
+
+def _no_date() -> str:
+    raise ValueError("no release has a published_at date")
 
 
 def _fetch(url: str) -> str:
