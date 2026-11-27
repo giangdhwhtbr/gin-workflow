@@ -110,12 +110,14 @@ def _scope(root: Path, eff: Effective, capability: str | None, change: str | Non
     """REQ-IDs to cover and REQ-IDs removed, for a capability, a change, or everything."""
     if change:
         rows = specs_reqs(eff.project_root, change)["requirements"]
-        return ({row["id"] for row in rows if row["section"] != "REMOVED"},
-                {row["id"] for row in rows if row["section"] == "REMOVED"})
+        gone = ("REMOVED", "RETIRED")
+        return ({row["id"] for row in rows if row["section"] not in gone},
+                {row["id"] for row in rows if row["section"] in gone})
     if capability:
         return ({req for req, row in eff.reqs.items() if row["capability"] == capability},
-                {req for req in eff.removed if req.split("-")[1:-1] == capability.upper().split("-")})
-    return set(eff.reqs), set(eff.removed)
+                {req for req in [*eff.removed, *eff.retired]
+                 if req.split("-")[1:-1] == capability.upper().split("-")})
+    return set(eff.reqs), set(eff.removed) | set(eff.retired)
 
 
 def _work(root: Path, eff: Effective, cases: list[tc.Case], capability: str | None,
@@ -138,7 +140,8 @@ def _work(root: Path, eff: Effective, cases: list[tc.Case], capability: str | No
                 if pinned != current:
                     stale.append({**where, "pinned": pinned, "current": current, "source": eff.reqs[req]["source"]})
             else:
-                reason = f"removed by {eff.removed[req]}" if req in eff.removed else "does not exist"
+                reason = (f"retired: {eff.retired[req]}" if req in eff.retired
+                          else f"removed by {eff.removed[req]}" if req in eff.removed else "does not exist")
                 obsolete.append({**where, "reason": reason})
     return {"missing": missing, "stale": stale, "obsolete": obsolete}
 
@@ -217,6 +220,9 @@ def _reference(eff: Effective, reqs: list[str], source: str | None) -> tuple[str
     if source or not reqs:
         raise ValueError("the SDD layout takes --req, not --source")
     reqs = list(dict.fromkeys(reqs))
+    retired = [f"{req} is retired: {eff.retired[req]}" for req in reqs if req in eff.retired]
+    if retired:
+        raise ValueError("; ".join(retired))
     unknown = [req for req in reqs if req not in eff.reqs]
     if unknown:
         raise ValueError(f"{', '.join(unknown)}: no such requirement")

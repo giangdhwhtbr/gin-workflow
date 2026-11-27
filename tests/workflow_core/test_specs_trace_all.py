@@ -91,6 +91,19 @@ class TestTraceAll(unittest.TestCase):
         self.assertEqual(["docs/changes/archive/2026-10-03-ep-1-lockout/05-tests.md#TC-AUTH-003"],
                          rows["REQ-AUTH-003"]["tests"])
 
+    def test_removed_rows_carry_the_reason_and_living_rows_none(self):
+        self.build()
+        rows = self.rows()
+        self.assertEqual("folded into REQ-AUTH-001", rows["REQ-AUTH-002"]["reason"])
+        self.assertIsNone(rows["REQ-AUTH-001"]["reason"])
+
+    def test_a_living_retired_entry_is_a_removed_row(self):
+        write(self.root, "docs/specs/auth/spec.md",
+              AUTH_SPEC + "\n## Retired\n\n### REQ-AUTH-003: Lock out\nReason: dropped in review\n")
+        row = self.rows()["REQ-AUTH-003"]
+        self.assertEqual(("removed", None, None, "dropped in review"),
+                         (row["state"], row["hash8"], row["source"], row["reason"]))
+
     def test_a_requirement_edited_after_signoff_is_stale(self):
         self.build()
         spec = self.root / "docs/specs/auth/spec.md"
@@ -155,7 +168,7 @@ class TestTraceAll(unittest.TestCase):
         result = specs_trace_all.trace_all(self.root, self.cfg)
         row = next(row for row in result["requirements"] if row["id"] == "REQ-AUTH-001")
         self.assertEqual([], row["changes"])
-        self.assertTrue(any("outside ## ADDED/MODIFIED/REMOVED" in warning for warning in result["warnings"]))
+        self.assertTrue(any("outside ## ADDED/MODIFIED/REMOVED/RETIRED" in warning for warning in result["warnings"]))
 
     def test_an_open_modification_is_a_pending_change(self):
         base = specs.requirement_hash(self.root, self.cfg, "REQ-AUTH-002")[1]

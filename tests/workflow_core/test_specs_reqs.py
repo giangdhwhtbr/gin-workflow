@@ -49,11 +49,24 @@ class TestSpecsReqs(unittest.TestCase):
         self.assertEqual(
             {"id": "REQ-AUTH-001", "title": "Sign in with password", "capability": "auth", "section": "LIVING",
              "change": None, "epic": None, "type": "functional", "category": "", "source": "docs/specs/auth/spec.md:9",
+             "reason": None,
              "scenarios": [{"title": "valid password", "given": ["a registered user"],
                             "when": ["they submit the right password"], "then": ["they are signed in"]}]},
             {key: value for key, value in first.items() if key != "hash"})
         self.assertRegex(first["hash"], "^[0-9a-f]{64}$")
         self.assertEqual(["REQ-AUTH-001", "REQ-AUTH-002"], [row["id"] for row in payload["requirements"]])
+
+    def test_retired_entries_are_rows_with_a_reason(self):
+        write(self.root, "docs/specs/auth/spec.md", AUTH_SPEC + "\n## Retired\n\n### REQ-AUTH-003: Lock out\nReason: dropped in review\n")
+        rows = self.payload()["requirements"]
+        retired = [row for row in rows if row["id"] == "REQ-AUTH-003"]
+        self.assertEqual([{"id": "REQ-AUTH-003", "section": "RETIRED", "reason": "dropped in review"}],
+                         [{key: row[key] for key in ("id", "section", "reason")} for row in retired])
+        self.assertEqual([None, None], [row["reason"] for row in rows if row["section"] == "LIVING"])
+        make_change(self.root, spec_delta=delta(retired="### REQ-AUTH-004: X\nReason: y\n"))
+        rows = self.payload("--change", "ep-1-lockout")["requirements"]
+        self.assertEqual([("REQ-AUTH-004", "RETIRED", "y")],
+                         [(row["id"], row["section"], row["reason"]) for row in rows if row["section"] == "RETIRED"])
 
     def test_rows_carry_type_and_category(self):
         nfr = ("### REQ-AUTH-004: Sign-in response time\nType: non-functional\nCategory: performance\n"

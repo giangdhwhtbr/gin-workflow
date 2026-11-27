@@ -151,6 +151,20 @@ class TestExport(unittest.TestCase):
     def read(self, relative: str) -> str:
         return (self.root / relative).read_text(encoding="utf-8")
 
+    def test_retired_requirements_table_and_no_toc_link(self):
+        write(self.root, "docs/specs/auth/spec.md",
+              AUTH_SPEC + "\n## Retired\n\n### REQ-AUTH-003: Lock out\nReason: dropped in review\n")
+        write(self.root, "docs/changes/archive/2026-11-01-ep-1-x/01-proposal.md", "# Lock accounts\n\nEpic: ep-1\n")
+        write(self.root, "docs/changes/archive/2026-11-01-ep-1-x/02-spec-delta.md",
+              "# Spec Delta\n\n## RETIRED\n\n### REQ-AUTH-003: Lock out\nReason: dropped in review\n")
+        self.assertEqual(0, run_specs(self.root, "export", "--all").returncode)
+        html = self.read("srs.html")
+        self.assertIn("Retired requirements", html)
+        self.assertIn("<tr><td>REQ-AUTH-003</td><td>Lock out</td><td>dropped in review</td></tr>", html)
+        self.assertNotIn('href="#REQ-AUTH-003"', html)
+        self.assertIn("<th>Retired</th>", html)
+        self.assertIn("<td>REQ-AUTH-003</td></tr>", html)
+
     def test_chapter_holds_use_cases_between_purpose_and_diagrams(self):
         write(self.root, "docs/specs/auth/use-cases/a-reset.md", USE_CASE.replace("# Sign in", "# Reset password"))
         self.assertEqual(0, run_specs(self.root, "export", "auth").returncode)

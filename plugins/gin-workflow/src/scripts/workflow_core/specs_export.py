@@ -343,8 +343,10 @@ def _chapter(cap: str, spec: Path, root: Path, cfg: Mapping[str, Any], embed: Em
         f'<section class="diagram" id="{escape(cap)}-{escape(path.stem)}">'
         f'{markdown_html(path.read_text(encoding="utf-8"), path.parent, _shown(path, root), embed)}</section>'
         for path in sorted((folder / "diagrams").glob("*.md")))
-    blocks = specs.parse_blocks(text)[0]
-    requirements = _requirements(blocks, folder, _shown(spec, root), embed)
+    parsed = specs.parse_blocks(text)[0]
+    blocks = [block for block in parsed if not specs.is_retired(block)]
+    requirements = (_requirements(blocks, folder, _shown(spec, root), embed)
+                    + _retired([block for block in parsed if specs.is_retired(block)]))
     chapter = fill(template, {"cap": escape(cap), "capability": escape(title), "purpose": purpose,
                               "use_cases": use_cases,
                               "diagrams": diagrams, "requirements": requirements,
@@ -386,6 +388,16 @@ def _requirement(block: specs.Block, folder: Path, origin: str, embed: Embed) ->
     if fields:
         html = re.sub(r"(</h[1-6]>)", lambda found: found.group(1) + fields, html, count=1)
     return f'<section class="requirement" id="{escape(block.id)}">{html}</section>'
+
+
+def _retired(blocks: list[specs.Block]) -> str:
+    """The retired ids of a capability with their reasons, so a gap in the numbers explains itself."""
+    if not blocks:
+        return ""
+    rows = "".join(f"<tr><td>{escape(b.id)}</td><td>{escape(b.title)}</td>"
+                   f"<td>{escape(specs.line_value(b.text, 'Reason'))}</td></tr>" for b in blocks)
+    return ('\n<section class="retired-requirements"><h3>Retired requirements</h3><table>'
+            f"<tr><th>Requirement</th><th>Title</th><th>Reason</th></tr>{rows}</table></section>")
 
 
 def _requirements(blocks: list[specs.Block], folder: Path, origin: str, embed: Embed) -> str:
@@ -446,7 +458,7 @@ def _matter(root: Path, cfg: Mapping[str, Any], cap: str | None, caps: list[str]
             title: str) -> dict[str, str]:
     """The HTML of the document-level sections for `export`."""
     revisions = [[escape(r["date"]), escape(r["epic"]), escape(r["title"]), _joined(r["capabilities"]),
-                  _joined(r["added"]), _joined(r["modified"]), _joined(r["removed"])]
+                  _joined(r["added"]), _joined(r["modified"]), _joined(r["removed"]), _joined(r["retired"])]
                  for r in specs_matter.revisions(root, cfg, cap)]
     glossary = [[escape(g["english"]), escape(f"{g['term']} ({g['lang']})" if g["lang"] else g["term"]),
                  escape(g["meaning"])] for g in specs_matter.glossary(root, cfg)]
@@ -469,7 +481,7 @@ def _matter(root: Path, cfg: Mapping[str, Any], cap: str | None, caps: list[str]
               escape(r["statement"]), ", ".join(_use_case_link(ref, caps) for ref in r["use_cases"])]
              for r in specs_matter.business_rules(root, cfg, cap)]
     return {
-        "revisions": _table(["Date", "Epic", "Title", "Capabilities", "Added", "Modified", "Removed"],
+        "revisions": _table(["Date", "Epic", "Title", "Capabilities", "Added", "Modified", "Removed", "Retired"],
                             revisions, "No revisions yet."),
         "glossary": _table(["English", "Term", "Meaning"], glossary, "No glossary."),
         "actors": context_html + _table(["Actor", "Is a", "Description", "Use cases"], actors, "No actors."),

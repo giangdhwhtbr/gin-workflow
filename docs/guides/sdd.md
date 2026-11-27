@@ -24,7 +24,7 @@ docs/
   changes/                   proposed changes (artifacts.changes)
     <epic>-<slug>/
       01-proposal.md         why and what
-      02-spec-delta.md       ADDED / MODIFIED / REMOVED requirements
+      02-spec-delta.md       ADDED / MODIFIED / REMOVED / RETIRED requirements
       03-design.md           how
       04-plan.md             the implementation plan
       05-tests.md            manual or QE cases only
@@ -48,11 +48,13 @@ WHEN a user fails to log in five times in ten minutes, the system SHALL lock the
 - THEN the account is locked
 ```
 
-- IDs are `REQ-<CAP>-<NNN>`; get the next free one with `gin specs next-id <cap>`, which scans the working tree, the worktrees, and the remote branches.
+- IDs are `REQ-<CAP>-<NNN>`; get the next one with `gin specs next-id <cap>`, which scans the working tree, the worktrees, the remote branches, and git history. A number once used, retired, or dropped is never handed out again, so a gap in the numbers is normal.
 - In a [workspace](workspace.md), requirements and their REQ-IDs live only in the parent's specs, and the children only reference them.
 - `gin specs lint --against <base>` reports an `ADDED` id that the base already uses, and `gin specs renumber` fixes it. The `sdd` skill runs that lint before the spec pull request and at ship.
 - Each block has one `SHALL` or `MUST` statement and at least one GIVEN/WHEN/THEN scenario. The EARS patterns (`WHEN`, `WHILE`, `IF ... THEN`, `WHERE`) are preferred.
 - A `MODIFIED` or `REMOVED` block puts `<!-- base: <hash> -->` on the line after its heading (`gin specs hash <REQ-ID>` prints it), so archive can tell whether the living block changed since the delta was written. A `REMOVED` block also needs `Reason: <why>`.
+- A `RETIRED` block keeps the number of a requirement the review dropped before it reached a living spec: its heading and `Reason: <why>`, nothing else. Lint refuses it for an id that a living spec holds (use `REMOVED`), that is already retired, or that an open change adds, and refuses `ADDED` of a retired id. `gin specs archive` writes each `RETIRED` block, and each `REMOVED` block without its base line, under `## Retired` at the end of `spec.md`; new `ADDED` blocks go before that section. Readers of the living spec leave retired ids out.
+- Gaps from before retired ids existed: `gin specs gaps <cap>` lists them, and `gin specs gaps <cap> --into <change>` drafts their `RETIRED` blocks in an open change, which then goes through review and archive like any change.
 - `gin specs template <name>` prints the templates (`spec.md`, `spec-delta.md`, `proposal.md`, `design.md`, `tests.md`, `adr.md`, `iteration.md`, `activity.md`, `state.md`, `use-case.md`, `specs-README.md`).
 
 ## Requirement types { #requirement-types }
@@ -161,13 +163,13 @@ The file name without `.md` is the use case's slug and its ID. Its `Requirements
 
 ## Exporting an SRS
 
-`gin specs export <capability>` writes the capability's living spec into one HTML file, `srs-<capability>.html` at the repository root. `specs export --all` writes every capability into `srs.html`, one chapter each, sorted by name. `--out <file>` writes elsewhere in the repository. The file is generated, so each run overwrites it.
+`gin specs export <capability>` writes the capability's living spec into one HTML file, `srs-<capability>.html` at the repository root. `specs export --all` writes every capability into `srs.html`, one chapter each, sorted by name. `--out <file>` writes elsewhere in the repository. Each chapter ends with a Retired requirements table (requirement, title, reason) when its `spec.md` has a `## Retired` section; retired ids stay out of the contents and the traceability matrix. The file is generated, so each run overwrites it.
 
 Each chapter holds the capability's `## Purpose`, its use cases, its diagrams, its requirement blocks with their scenarios, and its assets: each dated folder, oldest first (its `description.md`, then the images and file names it does not show), then the flat files. Images are embedded, so the file can be sent alone. The use cases part opens with a use case diagram generated from the use cases. Actors sit outside the capability's box (names match without regard to case). There is an edge from `Actor:` to the use case and from the use case to each `Secondary actors:` entry, plus dotted `«include»` and `«extend»` edges. A use case of another capability that this one references appears in a dashed box titled with that capability. `Specializes:` draws a bold `is a` edge. When `actors.md` has an `Is a` column, the diagram also draws a bold `is a` edge from each actor to its parent, and on up the chain. A use case without `Actor:` has no actor edge. Open it in a browser and print it to PDF; each chapter starts on a new page.
 
 Around the chapters the file carries document sections, in this order: Revision history, Sign-off, Contents, Glossary, Actors, Non-functional requirements, Business rules, the chapters, and the Traceability matrix.
 
-- Revision history has one row per archived change folder named `<date>-<name>`, newest first, with the date, the `Epic:` line of its `01-proposal.md`, its title, the capabilities its `02-spec-delta.md` touches, and the REQ-IDs added, modified, and removed. Without changes it shows `No revisions yet.`
+- Revision history has one row per archived change folder named `<date>-<name>`, newest first, with the date, the `Epic:` line of its `01-proposal.md`, its title, the capabilities its `02-spec-delta.md` touches, and the REQ-IDs added, modified, removed, and retired. Without changes it shows `No revisions yet.`
 - Sign-off is a blank table of Prepared by, Reviewed by, and Approved by, with Name, Role, Signature, and Date columns to fill in by hand.
 - Glossary lists the rows of `## Terms` in `<codebase>/11-GLOSSARY.md` whose `Status` is `confirmed`, sorted by English. Without them it shows `No glossary.`
 - Actors lists each actor named by `Actor:` or `Secondary actors:` in the use cases, once per name (matched without regard to case), with the use cases it appears in and the description from the optional `<specs>/actors.md`. The section opens with a context diagram: the capabilities in the export inside one box, each actor outside it, a solid edge from an actor to each capability where it is the primary actor, a dotted edge where it is only a secondary actor, and the same `is a` edges. The table has the columns Actor, Is a, Description, and Use cases. Without actors it shows `No actors.` and no diagram.
@@ -198,7 +200,7 @@ The page has one tab per section with content:
 
 A `Source:` path under `assets/<date>/` on a requirement opens that file on the page. A path with `#<screen-id>` also opens that screen of the mockup, and the screen picker follows the jump. This needs a mockup that switches screens on a URL hash change; its own `#screen` links also work inside the frame.
 
-`gin specs explain <change>` does the same for an active change, named as `--change` takes it. The overview shows the proposal's `## Why` and `## What Changes`, and the requirements are grouped under ADDED, MODIFIED, and REMOVED. The diagrams start with `03-design.md`, and only the dated folders its `Source:` lines cite are shown. An archived change is not found; explain its capability instead.
+`gin specs explain <change>` does the same for an active change, named as `--change` takes it. The overview shows the proposal's `## Why` and `## What Changes`, and the requirements are grouped under ADDED, MODIFIED, REMOVED, and RETIRED. The diagrams start with `03-design.md`, and only the dated folders its `Source:` lines cite are shown. An archived change is not found; explain its capability instead.
 
 Like the SRS, the page is one file with its images embedded, and it embeds the vendored Mermaid library only when it holds a diagram. An image or mockup it cannot embed is listed, and the command exits 1. The layout comes from the template `explain.html`; see [Explain page template](customizing-templates.md#explain-page-template).
 

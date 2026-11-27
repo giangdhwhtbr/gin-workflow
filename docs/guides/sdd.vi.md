@@ -24,7 +24,7 @@ docs/
   changes/                   proposed changes (artifacts.changes)
     <epic>-<slug>/
       01-proposal.md         why and what
-      02-spec-delta.md       ADDED / MODIFIED / REMOVED requirements
+      02-spec-delta.md       ADDED / MODIFIED / REMOVED / RETIRED requirements
       03-design.md           how
       04-plan.md             the implementation plan
       05-tests.md            manual or QE cases only
@@ -48,11 +48,13 @@ WHEN a user fails to log in five times in ten minutes, the system SHALL lock the
 - THEN the account is locked
 ```
 
-- ID có dạng `REQ-<CAP>-<NNN>`; lấy ID trống kế tiếp bằng `gin specs next-id <cap>`, lệnh này quét cây làm việc, các worktree và các nhánh remote.
+- ID có dạng `REQ-<CAP>-<NNN>`; lấy ID kế tiếp bằng `gin specs next-id <cap>`, lệnh này quét cây làm việc, các worktree, các nhánh remote và lịch sử git. Một số đã dùng, đã retire hoặc đã bỏ sẽ không bao giờ được cấp lại, nên số bị hở là bình thường.
 - Trong một [workspace](workspace.md), requirement và REQ-ID của chúng chỉ nằm trong spec của repository cha, còn các repository con chỉ tham chiếu tới chúng.
 - `gin specs lint --against <base>` báo một id `ADDED` mà nhánh gốc đã dùng, và `gin specs renumber` sửa nó. Skill `sdd` chạy lệnh lint đó trước pull request của spec và khi ship.
 - Mỗi khối có một câu `SHALL` hoặc `MUST` và ít nhất một scenario GIVEN/WHEN/THEN. Các mẫu EARS (`WHEN`, `WHILE`, `IF ... THEN`, `WHERE`) được ưu tiên.
 - Một khối `MODIFIED` hoặc `REMOVED` đặt `<!-- base: <hash> -->` ở dòng sau heading của nó (`gin specs hash <REQ-ID>` in ra giá trị này), để archive biết living block có thay đổi kể từ lúc delta được viết hay không. Một khối `REMOVED` còn cần `Reason: <why>`.
+- Một khối `RETIRED` giữ lại số của một requirement mà buổi review đã bỏ trước khi nó vào living spec: chỉ gồm heading và `Reason: <why>`. Lint từ chối nó khi một living spec đang giữ id đó (hãy dùng `REMOVED`), khi id đó đã retired, hoặc khi một change đang mở thêm id đó, và từ chối `ADDED` của một id đã retired. `gin specs archive` ghi mỗi khối `RETIRED`, và mỗi khối `REMOVED` sau khi bỏ dòng base, vào `## Retired` ở cuối `spec.md`; các khối `ADDED` mới được đặt trước section đó. Các reader của living spec bỏ qua các id đã retired.
+- Các khoảng trống từ trước khi retired id tồn tại: `gin specs gaps <cap>` liệt kê chúng, và `gin specs gaps <cap> --into <change>` soạn sẵn các khối `RETIRED` của chúng trong một change đang mở, rồi change đó đi qua review và archive như mọi change khác.
 - `gin specs template <name>` in các template (`spec.md`, `spec-delta.md`, `proposal.md`, `design.md`, `tests.md`, `adr.md`, `iteration.md`, `activity.md`, `state.md`, `use-case.md`, `specs-README.md`).
 
 ## Loại requirement { #requirement-types }
@@ -161,13 +163,13 @@ Tên file bỏ `.md` là slug và cũng là ID của use case. Dòng `Requiremen
 
 ## Xuất SRS { #exporting-an-srs }
 
-`gin specs export <capability>` ghi living spec của capability vào một file HTML, `srs-<capability>.html` ở gốc repository. `specs export --all` ghi mọi capability vào `srs.html`, mỗi capability một chương, sắp theo tên. `--out <file>` ghi ra chỗ khác trong repository. File là file sinh ra, nên mỗi lần chạy sẽ ghi đè nó.
+`gin specs export <capability>` ghi living spec của capability vào một file HTML, `srs-<capability>.html` ở gốc repository. `specs export --all` ghi mọi capability vào `srs.html`, mỗi capability một chương, sắp theo tên. `--out <file>` ghi ra chỗ khác trong repository. Mỗi chương kết thúc bằng bảng Retired requirements (requirement, tiêu đề, lý do) khi `spec.md` của nó có section `## Retired`; các id đã retired không nằm trong contents và traceability matrix. File là file sinh ra, nên mỗi lần chạy sẽ ghi đè nó.
 
 Mỗi chương gồm `## Purpose` của capability, các use case, các sơ đồ, các requirement block cùng scenario, và các asset: từng thư mục theo ngày, cũ nhất trước (`description.md` của nó, rồi các ảnh và tên file nó chưa hiển thị), rồi các file phẳng. Ảnh được nhúng vào file, nên có thể gửi riêng file đó. Phần use case mở đầu bằng một use case diagram được sinh từ các use case. Actor nằm ngoài hộp của capability (tên khớp không phân biệt hoa thường). Có một edge từ `Actor:` tới use case và từ use case tới từng mục của `Secondary actors:`, cùng các edge nét đứt `«include»` và `«extend»`. Use case của capability khác mà use case này tham chiếu hiện trong một hộp nét đứt mang tên capability đó. `Specializes:` vẽ một edge `is a` đậm. Khi `actors.md` có cột `Is a`, sơ đồ cũng vẽ edge `is a` đậm từ mỗi actor tới actor cha, và tiếp lên theo chuỗi. Use case không có `Actor:` thì không có edge actor. Mở file trong trình duyệt và in ra PDF; mỗi chương bắt đầu ở một trang mới.
 
 Quanh các chương, file có thêm các phần tài liệu, theo thứ tự: Revision history, Sign-off, Contents, Glossary, Actors, Non-functional requirements, Business rules, các chương, và Traceability matrix.
 
-- Revision history có một dòng cho mỗi change folder đã archive tên `<date>-<name>`, mới nhất trước, gồm ngày, dòng `Epic:` của `01-proposal.md`, tiêu đề, các capability mà `02-spec-delta.md` chạm tới, và các REQ-ID đã thêm, sửa, xóa. Khi chưa có change nào, nó hiện `No revisions yet.`
+- Revision history có một dòng cho mỗi change folder đã archive tên `<date>-<name>`, mới nhất trước, gồm ngày, dòng `Epic:` của `01-proposal.md`, tiêu đề, các capability mà `02-spec-delta.md` chạm tới, và các REQ-ID đã thêm, sửa, xóa, và retired. Khi chưa có change nào, nó hiện `No revisions yet.`
 - Sign-off là một bảng trống gồm Prepared by, Reviewed by, và Approved by, với các cột Name, Role, Signature, và Date để điền tay.
 - Glossary liệt kê các dòng của `## Terms` trong `<codebase>/11-GLOSSARY.md` có `Status` là `confirmed`, sắp theo English. Khi không có, nó hiện `No glossary.`
 - Actors liệt kê mỗi actor được nêu ở `Actor:` hoặc `Secondary actors:` trong các use case, mỗi tên một lần (khớp không phân biệt hoa thường), cùng các use case nó xuất hiện và phần mô tả từ `<specs>/actors.md` (tùy chọn). Phần này mở đầu bằng một context diagram: các capability của file xuất nằm trong một hộp, mỗi actor nằm ngoài, một edge liền từ actor tới mỗi capability mà nó là actor chính, một edge nét đứt khi nó chỉ là actor phụ, cùng các edge `is a`. Bảng có các cột Actor, Is a, Description và Use cases. Khi không có actor, nó hiện `No actors.` và không có sơ đồ.
@@ -198,7 +200,7 @@ Trang có một tab cho mỗi phần có nội dung:
 
 Một đường dẫn `Source:` dưới `assets/<date>/` trên requirement mở file đó trên trang. Đường dẫn có `#<screen-id>` còn mở đúng màn hình đó của mockup, và ô chọn màn hình đổi theo. Việc này cần mockup đổi màn hình theo thay đổi của URL hash; các link `#screen` của chính mockup cũng chạy trong khung.
 
-`gin specs explain <change>` làm tương tự cho một change đang mở, gọi theo tên như `--change` nhận. Phần overview hiển thị `## Why` và `## What Changes` của proposal, và các requirement được nhóm dưới ADDED, MODIFIED, và REMOVED. Phần sơ đồ bắt đầu bằng `03-design.md`, và chỉ hiển thị các thư mục theo ngày mà dòng `Source:` của nó trích. Change đã archive thì không tìm thấy; hãy giải thích capability của nó.
+`gin specs explain <change>` làm tương tự cho một change đang mở, gọi theo tên như `--change` nhận. Phần overview hiển thị `## Why` và `## What Changes` của proposal, và các requirement được nhóm dưới ADDED, MODIFIED, REMOVED, và RETIRED. Phần sơ đồ bắt đầu bằng `03-design.md`, và chỉ hiển thị các thư mục theo ngày mà dòng `Source:` của nó trích. Change đã archive thì không tìm thấy; hãy giải thích capability của nó.
 
 Giống SRS, trang là một file có ảnh nhúng sẵn, và chỉ nhúng thư viện Mermaid đóng gói sẵn trong plugin khi trang có sơ đồ. Ảnh hoặc mockup không nhúng được sẽ được liệt kê, và lệnh thoát với mã 1. Bố cục lấy từ template `explain.html`; xem [Template trang explain](customizing-templates.md#explain-page-template).
 

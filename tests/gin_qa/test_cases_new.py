@@ -33,6 +33,14 @@ class NewCase(unittest.TestCase):
         self.assertEqual([], list((self.root / "qa/cases").glob("**/*.md")) if (self.root / "qa/cases").exists() else [])
         self.assertFalse((self.root / "qa/cases/auth").exists())
 
+    def test_new_refuses_a_retired_requirement(self):
+        write(self.root, "docs/specs/auth/spec.md",
+              AUTH_SPEC + "\n## Retired\n\n### REQ-AUTH-003: Lock out\nReason: dropped\n")
+        result = self.new("--req", "REQ-AUTH-003")
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn("REQ-AUTH-003 is retired: dropped", result.stderr + result.stdout)
+        self.nothing_written()
+
     def test_writes_a_named_pinned_file_with_the_next_id(self):
         result = self.new("--req", "REQ-AUTH-001", "--format", "json")
         self.assertEqual(0, result.returncode, result.stderr)

@@ -15,7 +15,7 @@ from .specs import (DELTA_SECTIONS, Block, SpecsError, block_hash, change_epic, 
 from .waivers import WAIVER_EVENT_TYPE
 
 SIGNOFF_FILE = "06-signoff.md"
-_ROW = re.compile(r"^\|\s*(REQ-[A-Z][A-Z0-9-]*-\d{3,})\s*\|\s*([0-9a-f]{8})\s*\|\s*(added|modified|removed)\s*\|\s*$")
+_ROW = re.compile(r"^\|\s*(REQ-[A-Z][A-Z0-9-]*-\d{3,})\s*\|\s*([0-9a-f]{8})\s*\|\s*(added|modified|removed|retired)\s*\|\s*$")
 
 
 @dataclass(frozen=True)

@@ -89,11 +89,13 @@ class TestArchive(unittest.TestCase):
         commit_all(self.root)
         result = archive(self.root, self.cfg, change, today=TODAY)
         auth = (self.root / "docs/specs/auth/spec.md").read_text(encoding="utf-8")
-        self.assertNotIn("REQ-AUTH-001", auth)
+        requirements, retired = auth.split("\n## Retired\n", 1)
+        self.assertNotIn("REQ-AUTH-001", requirements)
+        self.assertIn("### REQ-AUTH-001: Sign in with password\nReason: replaced by SSO", retired)
         self.assertIn("and count the failure.", auth)
         self.assertNotIn("<!-- base:", auth)
-        self.assertTrue(auth.rstrip().endswith("- THEN the account is locked"))
-        self.assertEqual(["REQ-AUTH-002", "REQ-AUTH-003"], [b.id for b in specs.parse_blocks(auth)[0]])
+        self.assertTrue(requirements.rstrip().endswith("- THEN the account is locked"))
+        self.assertEqual(["REQ-AUTH-002", "REQ-AUTH-003"], [b.id for b in specs.parse_blocks(requirements)[0]])
         billing_spec = (self.root / "docs/specs/billing/spec.md").read_text(encoding="utf-8")
         self.assertTrue(billing_spec.startswith("# Billing\n"))
         self.assertIn("### REQ-BILLING-001", billing_spec)
@@ -150,6 +152,32 @@ class TestArchive(unittest.TestCase):
         after = living.read_text(encoding="utf-8")
         self.assertIn("30 minutes", after)
         self.assertNotIn("15 minutes", after)
+
+    def test_archive_writes_retired_entries(self):
+        removed = f"### REQ-AUTH-002: Reject wrong password\n<!-- base: {self.base2} -->\nReason: merged into REQ-AUTH-001\n"
+        change = make_change(self.root, spec_delta=delta(added=ADDED_BLOCK.replace("003", "004"), removed=removed,
+                                                         retired="### REQ-AUTH-003: Lock out\nReason: dropped\n"))
+        commit_all(self.root)
+        result = archive(self.root, self.cfg, change, today=TODAY)
+        self.assertEqual(["REQ-AUTH-003"], result["retired"])
+        self.assertEqual(["REQ-AUTH-002"], result["removed"])
+        text = (self.root / "docs/specs/auth/spec.md").read_text(encoding="utf-8")
+        head, retired = text.split("\n## Retired\n", 1)
+        self.assertIn("### REQ-AUTH-004:", head)
+        self.assertNotIn("REQ-AUTH-002", head)
+        self.assertIn("### REQ-AUTH-002: Reject wrong password\nReason: merged into REQ-AUTH-001", retired)
+        self.assertIn("### REQ-AUTH-003: Lock out\nReason: dropped", retired)
+        self.assertNotIn("base:", retired)
+        self.assertEqual([], specs.lint_living(self.root, self.cfg))
+
+    def test_archive_adds_before_an_existing_retired_section(self):
+        write(self.root, "docs/specs/auth/spec.md", AUTH_SPEC + "\n## Retired\n\n### REQ-AUTH-009: Old\nReason: x\n")
+        change = make_change(self.root)
+        commit_all(self.root)
+        archive(self.root, self.cfg, change, today=TODAY)
+        text = (self.root / "docs/specs/auth/spec.md").read_text(encoding="utf-8")
+        self.assertLess(text.index("### REQ-AUTH-003:"), text.index("## Retired"))
+        self.assertTrue(text.rstrip().endswith("Reason: x"))
 
 
 class TestArchiveSignoff(unittest.TestCase):
@@ -261,6 +289,19 @@ class TestTraceAndStatus(unittest.TestCase):
         result = specs_trace.trace(self.root, self.cfg, self.change)
         self.assertEqual([], result["missing"])
         self.assertEqual(["docs/changes/ep-1-lockout/05-tests.md#TC-1"], result["requirements"][1]["sources"])
+
+    def test_trace_lists_tests_naming_a_retired_id_without_failing(self):
+        write(self.root, "docs/specs/auth/spec.md",
+              AUTH_SPEC + "\n## Retired\n\n### REQ-AUTH-009: Old\nReason: dropped\n")
+        write(self.root, "tests/test_lock.py", "# REQ-AUTH-009\n")
+        write(self.root, "tests/test_lockout.py", "# REQ-AUTH-003\n# REQ-AUTH-002\n")
+        commit_all(self.root)
+        result = specs_trace.trace(self.root, self.cfg, self.change)
+        self.assertEqual([{"id": "REQ-AUTH-009", "sources": ["tests/test_lock.py"]}], result["retired"])
+        cli = subprocess.run([sys.executable, str(LAUNCHER), "specs", "trace", "--change", "ep-1-lockout",
+                              "--repository", str(self.root)], capture_output=True, text=True)
+        self.assertEqual(0, cli.returncode, cli.stdout + cli.stderr)
+        self.assertIn("retired: REQ-AUTH-009 tests/test_lock.py", cli.stdout)
 
     def _gh(self, stdout: str, returncode: int = 0):
         return subprocess.CompletedProcess([], returncode, stdout=stdout, stderr="boom")

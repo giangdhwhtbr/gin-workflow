@@ -17,6 +17,7 @@ from specs_fixtures import (ADDED_BLOCK, AUTH_SPEC, LAUNCHER, commit_all, delta,
 from workflow_core import docs_check, specs, specs_reqs, specs_trace  # noqa: E402
 from workflow_core.specs import SpecsError  # noqa: E402
 
+RETIRED_003 = "### REQ-AUTH-003: Lock out\nReason: dropped in spec review\n"
 MODIFIED_003 = ("### REQ-AUTH-003: Lock account after failed logins\n<!-- base: {base} -->\n"
                 "The system SHALL lock an account for 30 minutes after 5 failed logins.\n\n"
                 "#### Scenario: fifth failure locks\n- GIVEN a user with 4 failed logins\n"
@@ -42,6 +43,15 @@ def run_specs(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
 
 
 class TestBlocks(unittest.TestCase):
+    def test_append_to_section(self):
+        lines = ["# Auth", "", "## Requirements", "", "### REQ-AUTH-001: A", ""]
+        self.assertEqual([*lines[:-1], "", "## Retired", "", "### REQ-AUTH-002: B", "Reason: x"],
+                         specs.append_to_section(lines, "Retired", [["### REQ-AUTH-002: B", "Reason: x"]]))
+        self.assertEqual(["# Auth", "", "## Requirements", "", "### REQ-AUTH-001: A", ""], lines)  # input untouched
+        self.assertEqual(["## Retired", "", "x", "", "y", "", "## Notes"],
+                         specs.append_to_section(["## Retired", "", "x", "## Notes"], "Retired", [["y"]]))
+        self.assertIs(lines, specs.append_to_section(lines, "Retired", []))
+
     def test_block_type_category_measure(self):
         nfr = block(NFR)
         self.assertEqual(("non-functional", "performance", "p95 below 300 ms at 200 requests per second"),
@@ -322,7 +332,53 @@ class TestRepositoryCommands(unittest.TestCase):
 
     def test_block_outside_delta_sections(self):
         change = make_change(self.root, spec_delta="# Delta\n\n## Other\n\n" + ADDED_BLOCK)
-        self.assertTrue(any("outside ## ADDED/MODIFIED/REMOVED" in e for e in specs.lint_change(self.root, self.cfg, change)))
+        self.assertTrue(any("outside ## ADDED/MODIFIED/REMOVED/RETIRED" in e for e in specs.lint_change(self.root, self.cfg, change)))
+
+    def test_retired_block_needs_only_a_reason(self):
+        change = make_change(self.root, spec_delta=delta(retired=RETIRED_003))
+        self.assertEqual([], specs.lint_change(self.root, self.cfg, change))
+        write(self.root, "docs/changes/ep-1-lockout/02-spec-delta.md", delta(retired="### REQ-AUTH-003: Lock out\n"))
+        errors = specs.lint_change(self.root, self.cfg, change)
+        self.assertTrue(any("REQ-AUTH-003 needs a 'Reason: <why>' line" in e for e in errors), errors)
+
+    def test_retired_block_refuses_a_living_or_added_id(self):
+        change = make_change(self.root, spec_delta=delta(retired="### REQ-AUTH-001: Sign in\nReason: x\n"))
+        errors = specs.lint_change(self.root, self.cfg, change)
+        self.assertTrue(any("REQ-AUTH-001 is in docs/specs/auth/spec.md; remove it with ## REMOVED" in e
+                            for e in errors), errors)
+        make_change(self.root, "ep-2-other", epic="ep-2")  # adds REQ-AUTH-003
+        write(self.root, "docs/changes/ep-1-lockout/02-spec-delta.md", delta(retired=RETIRED_003))
+        errors = specs.lint_change(self.root, self.cfg, change)
+        self.assertTrue(any("REQ-AUTH-003 is added by ep-2-other" in e for e in errors), errors)
+
+    def test_living_retired_section(self):
+        write(self.root, "docs/specs/auth/spec.md", AUTH_SPEC + "\n## Retired\n\n" + RETIRED_003)
+        self.assertEqual([], specs.lint_living(self.root, self.cfg))
+        self.assertEqual({"REQ-AUTH-001", "REQ-AUTH-002"}, set(specs.living_blocks(self.root, self.cfg)))
+        self.assertEqual({"REQ-AUTH-003"}, set(specs.retired_blocks(self.root, self.cfg)))
+        change = make_change(self.root)  # ADDED REQ-AUTH-003
+        errors = specs.lint_change(self.root, self.cfg, change)
+        self.assertTrue(any("REQ-AUTH-003 is retired in docs/specs/auth/spec.md" in e for e in errors), errors)
+        write(self.root, "docs/changes/ep-1-lockout/02-spec-delta.md", delta(retired=RETIRED_003))
+        errors = specs.lint_change(self.root, self.cfg, change)
+        self.assertTrue(any("REQ-AUTH-003 is already retired" in e for e in errors), errors)
+        write(self.root, "docs/specs/auth/spec.md", AUTH_SPEC + "\n## Retired\n\n### REQ-AUTH-003: Lock out\n")
+        self.assertTrue(any("REQ-AUTH-003 needs a 'Reason: <why>' line" in e
+                            for e in specs.lint_living(self.root, self.cfg)))
+
+    def test_use_case_citing_a_retired_id(self):
+        write(self.root, "docs/specs/auth/spec.md", AUTH_SPEC + "\n## Retired\n\n" + RETIRED_003)
+        write(self.root, "docs/specs/auth/use-cases/sign-in.md",
+              "# Sign in\n\nActor: User\nRequirements: REQ-AUTH-003\n\n## Main flow\n\n1. Sign in\n")
+        self.assertIn("docs/specs/auth/use-cases/sign-in.md: REQ-AUTH-003 is retired",
+                      specs.lint_use_cases(self.root, self.cfg))
+
+    def test_living_spec_with_a_delta_retired_heading(self):
+        write(self.root, "docs/specs/auth/spec.md", AUTH_SPEC + "\n## RETIRED\n\n" + RETIRED_003)
+        errors = specs.lint_living(self.root, self.cfg)
+        self.assertIn("docs/specs/auth/spec.md:25: use '## Retired' in a living spec, not '## RETIRED'", errors)
+        self.assertEqual({}, specs.retired_blocks(self.root, self.cfg))
+        self.assertIn("REQ-AUTH-003", specs.living_blocks(self.root, self.cfg))
 
     def test_lint_against_base_flags_id_taken_on_base_but_not_own_change(self):
         make_change(self.root)
@@ -496,6 +552,57 @@ class TestRepositoryCommands(unittest.TestCase):
 
     def test_next_id_warns_without_remote(self):
         self.assertEqual(["no git remote; scanned local worktrees only"], specs.next_id(self.root, self.cfg, "auth")[1])
+
+    def test_next_id_skips_an_id_deleted_in_history(self):
+        commit_all(self.root)
+        make_change(self.root)  # ADDED REQ-AUTH-003
+        commit_all(self.root, "add REQ-AUTH-003")
+        write(self.root, "docs/changes/ep-1-lockout/02-spec-delta.md", delta())
+        commit_all(self.root, "drop REQ-AUTH-003")
+        self.assertEqual(("REQ-AUTH-004", ["no git remote; scanned local worktrees only"]),
+                         specs.next_id(self.root, self.cfg, "auth"))
+
+    def test_next_id_counts_a_retired_only_id(self):
+        write(self.root, "docs/specs/auth/spec.md", AUTH_SPEC + "\n## Retired\n\n### REQ-AUTH-005: Old\nReason: x\n")
+        self.assertEqual("REQ-AUTH-006", specs.next_id(self.root, self.cfg, "auth")[0])
+
+    def test_next_id_warns_in_a_shallow_clone(self):
+        commit_all(self.root, "one")
+        write(self.root, "docs/specs/auth/notes.md", "x\n")
+        commit_all(self.root, "two")
+        clone = Path(self.tmp.name) / "clone"
+        git(Path(self.tmp.name), "clone", "-q", "--depth", "1", f"file://{self.root}", str(clone))
+        req_id, warnings = specs.next_id(clone, self.cfg, "auth")
+        self.assertEqual("REQ-AUTH-003", req_id)
+        self.assertTrue(any(w.startswith("shallow clone; history before ") and w.endswith(" not scanned")
+                            for w in warnings), warnings)
+
+    def test_next_id_warns_when_git_log_fails(self):
+        commit_all(self.root)
+        real = specs._git
+
+        def fake(root, *args):
+            if args and args[0] == "log":
+                return subprocess.CompletedProcess(args, 128, "", "fatal: bad thing\n")
+            return real(root, *args)
+
+        with mock.patch.object(specs, "_git", fake):
+            req_id, warnings = specs.next_id(self.root, self.cfg, "auth")
+        self.assertEqual("REQ-AUTH-003", req_id)
+        self.assertIn("git log failed; history not scanned: fatal: bad thing", warnings)
+
+    def test_shallow_date_falls_back_without_a_shallow_file(self):
+        commit_all(self.root)
+        self.assertEqual("the clone depth", specs._shallow_date(self.root))
+
+    def test_renumber_refuses_an_id_only_history_holds(self):
+        commit_all(self.root)
+        make_change(self.root, spec_delta=delta(added=ADDED_BLOCK.replace("003", "009")))
+        commit_all(self.root, "add 009")
+        change = make_change(self.root)  # rewrites the delta: ADDED REQ-AUTH-003 only
+        commit_all(self.root, "drop 009")
+        with self.assertRaisesRegex(SpecsError, "REQ-AUTH-009 is already used"):
+            specs.renumber(self.root, self.cfg, change, "REQ-AUTH-003", "REQ-AUTH-009")
 
     def test_new_change_renders_templates_and_refuses_existing(self):
         change = specs.new_change(self.root, self.cfg, "lockout", "ep-1", "Account lockout")

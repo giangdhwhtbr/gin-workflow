@@ -5,8 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Mapping
 
-from .specs import (Block, SpecsError, block_hash, change_epic, change_file, changes_dir, delta_blocks, living_files,
-                    parse_blocks, shown)
+from .specs import (Block, SpecsError, block_hash, change_epic, change_file, changes_dir, delta_blocks, is_retired,
+                    line_value, living_files, parse_blocks, shown)
 
 _STEPS = ("GIVEN", "WHEN", "THEN")
 
@@ -29,10 +29,12 @@ def scenarios(block: Block) -> list[dict[str, Any]]:
 
 
 def _row(root: Path, path: Path, block: Block, change: str | None, epic: str | None = None) -> dict[str, Any]:
+    section = "RETIRED" if is_retired(block) or block.section == "RETIRED" else "LIVING" if change is None else block.section
     return {"id": block.id, "title": block.title, "capability": block.cap,
-            "section": "LIVING" if change is None else block.section, "change": change, "epic": epic,
+            "section": section, "change": change, "epic": epic,
             "type": block.type, "category": block.category,
             "hash": block_hash(block.text), "source": f"{shown(root, path)}:{block.start + 1}",
+            "reason": line_value(block.text, "Reason") if section in ("RETIRED", "REMOVED") else None,
             "scenarios": scenarios(block)}
 
 

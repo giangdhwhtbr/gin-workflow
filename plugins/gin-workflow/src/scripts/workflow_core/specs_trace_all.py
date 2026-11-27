@@ -12,7 +12,7 @@ from typing import Any, Mapping, Sequence
 from . import signoff
 from .events import WorkflowEvent
 from .specs import (DELTA_SECTIONS, SpecsError, block_hash, cap_of, change_epic, change_file, changes_dir,
-                    delta_blocks, living_blocks, open_changes, shown)
+                    delta_blocks, line_value, living_blocks, open_changes, retired_blocks, shown)
 from .specs_trace import _tests_md_rows, req_sources
 from .tasks import backend, query_result
 
@@ -99,9 +99,10 @@ def _signoff(root: Path, folder: Path, archived: str | None, epic: str | None,
     return signoff.epic_signoff(signoff.bead_gates(beads_by_id.get(epic)), events, epic)
 
 
-def _row(req_id: str, title: str, state: str, digest: str | None, source: str | None) -> dict[str, Any]:
+def _row(req_id: str, title: str, state: str, digest: str | None, source: str | None,
+         reason: str | None = None) -> dict[str, Any]:
     return {"id": req_id, "title": title, "capability": cap_of(req_id), "state": state, "hash8": digest,
-            "source": source, "changes": []}
+            "source": source, "reason": reason, "changes": []}
 
 
 def _current(signed: str | None, now: str | None) -> bool | None:
@@ -138,10 +139,14 @@ def trace_all(root: Path, cfg: Mapping[str, Any]) -> dict[str, Any]:
             if archived is None and block.section == "ADDED" and block.id not in rows:
                 rows[block.id] = _row(block.id, block.title, "proposed", block_hash(block.text)[:8],
                                       f"{shown(root, change_file(folder, 'spec-delta'))}:{block.start + 1}")
+    for req_id, (_, block) in retired_blocks(root, cfg).items():
+        if req_id not in rows:
+            rows[req_id] = _row(req_id, block.title, "removed", None, None, line_value(block.text, "Reason") or None)
     for _, _, archived, _, blocks, _ in changes:
         for block in blocks:
             if archived is not None and block.section == "REMOVED" and block.id not in rows:
-                rows[block.id] = _row(block.id, block.title, "removed", None, None)
+                rows[block.id] = _row(block.id, block.title, "removed", None, None,
+                                      line_value(block.text, "Reason") or None)
     for _, name, archived, epic, blocks, found in changes:
         for block in blocks:
             if block.id in rows:

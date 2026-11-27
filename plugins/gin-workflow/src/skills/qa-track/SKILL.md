@@ -26,7 +26,7 @@ With gin-qa installed, the reviewer treats `missing` or `stale` rows of `gin-qa 
 With `gin-qa` on PATH and `project.layout: sdd`, run from the QA home, for each epic of the report:
 
 1. `gin-qa cases plan --change <epic> --format json` gives the `missing` and `stale` counts.
-2. `gin specs reqs --change <epic> --format json` gives the REQ-IDs of the change (skip `section: REMOVED`). `gin-qa cases export --format json` gives the `failed` and `blocked` counts of the cases whose `reqs` ids belong to that set.
+2. `gin specs reqs --change <epic> --format json` gives the REQ-IDs of the change (skip `section: REMOVED` and `section: RETIRED`). `gin-qa cases export --format json` gives the `failed` and `blocked` counts of the cases whose `reqs` ids belong to that set.
 3. Show the newest non-empty `run` folder of those cases, only when gin-qa returns one.
 
 Without gin-qa or the SDD layout, or when any command exits non-zero (exit 2 is a usage or environment error; another exit, such as an unknown change, also counts), report `QA state skipped: <reason>` with the command's error.

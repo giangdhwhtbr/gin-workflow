@@ -42,6 +42,9 @@ def _parser() -> argparse.ArgumentParser:
     item.add_argument("--ref", action="append", default=[], metavar="REPO=REF")
     sub.add_parser("status", parents=[common]).add_argument("--change", required=True)
     sub.add_parser("reqs", parents=[common]).add_argument("--change")
+    item = sub.add_parser("gaps", parents=[common])
+    item.add_argument("cap", nargs="?")
+    item.add_argument("--into")
     item = sub.add_parser("export", parents=[common])
     item.add_argument("cap", nargs="?")
     item.add_argument("--all", action="store_true")
@@ -168,6 +171,19 @@ def _run(args: argparse.Namespace) -> int:
             print(f"warning: {warning}", file=sys.stderr)
         _emit({"id": req_id, "warnings": warnings}, args.format, req_id)
         return 0
+    if args.command == "gaps":
+        from .specs_gaps import gaps, text_line, write_into
+
+        into = specs.find_change(root, cfg, args.into) if args.into else None
+        result = gaps(root, cfg, args.cap)
+        for warning in result["warnings"]:
+            print(f"warning: {warning}", file=sys.stderr)
+        lines = [text_line(row) for row in result["gaps"]] or ["no gaps"]
+        if into:
+            result["written"] = write_into(root, into, result["gaps"])
+            lines.append(f"wrote {len(result['written'])} RETIRED blocks to {into.name}")
+        _emit(result, args.format, "\n".join(lines))
+        return 0
     if args.command == "lint":
         from .specs_assets import lint as lint_assets
 
@@ -223,6 +239,7 @@ def _run(args: argparse.Namespace) -> int:
     if args.command == "trace":
         result = trace(root, cfg, change, _refs(args.ref))
         lines = [f"{row['id']}: {row['status']} {' '.join(row['sources'])}".rstrip() for row in result["requirements"]]
+        lines += [f"retired: {row['id']} {' '.join(row['sources'])}" for row in result["retired"]]
         lines += [f"skipped: {path}" for path in result["skipped"]]
         _emit(result, args.format, "\n".join(lines))
         return 1 if result["missing"] else 0
