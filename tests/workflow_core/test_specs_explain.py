@@ -111,6 +111,18 @@ class TestCapability(unittest.TestCase):
             self.assertNotIn("ep-2-billing", html)
             self.assertIn('<a href="#REQ-AUTH-001">REQ-AUTH-001</a>', html)
 
+    def test_retired_entries_stay_off_the_capability_page_and_group_in_a_change(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = auth_repo(tmp, AUTH_SPEC + "\n## Retired\n\n### REQ-AUTH-003: Lock out\nReason: dropped\n")
+            make_change(root, "ep-1-lockout", spec_delta=delta(
+                retired="### REQ-AUTH-004: Old\nReason: dropped in review\n"))
+            self.assertEqual(0, run_specs(root, "explain", "auth").returncode)
+            self.assertNotIn("REQ-AUTH-003", page(root, "auth"))
+            self.assertEqual(0, run_specs(root, "explain", "ep-1").returncode)
+            html = page(root, "ep-1-lockout")
+            self.assertIn("<h3>RETIRED</h3>", html)
+            self.assertIn('id="REQ-AUTH-004"', html)
+
     def test_dated_folders_oldest_first_with_images_and_a_sandboxed_mockup(self):
         with tempfile.TemporaryDirectory() as tmp:
             spec = AUTH_SPEC.replace("with a valid password.\n", "with a valid password.\n" + SOURCE)

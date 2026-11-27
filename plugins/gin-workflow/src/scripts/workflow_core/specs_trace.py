@@ -7,7 +7,7 @@ import subprocess
 from typing import Any, Callable, Iterable, Mapping
 
 from .checkout import main_checkout
-from .specs import REQ_ID, SpecsError, change_file, delta_blocks, test_files
+from .specs import REQ_ID, SpecsError, change_file, delta_blocks, retired_blocks, test_files
 from .workspace import Repo, Workspace, load
 
 
@@ -111,7 +111,9 @@ def trace(root: Path, cfg: Mapping[str, Any], change: Path, refs: Mapping[str, s
     if errors:
         raise SpecsError("; ".join(errors))
     wanted = [block.id for block in blocks if block.section in ("ADDED", "MODIFIED")]
-    sources, skipped = req_sources(root, cfg, wanted, refs)
+    gone = sorted((set(retired_blocks(root, cfg)) | {block.id for block in blocks
+                                                     if block.section in ("REMOVED", "RETIRED")}) - set(wanted))
+    sources, skipped = req_sources(root, cfg, wanted + gone, refs)
     tests_md = change_file(change, "tests")
     for case, ids, evidence in _tests_md_rows(tests_md):
         if evidence and evidence != "-":
@@ -120,7 +122,9 @@ def trace(root: Path, cfg: Mapping[str, Any], change: Path, refs: Mapping[str, s
     requirements = [{"id": req, "status": "covered" if sources[req] else "missing", "sources": sorted(sources[req])}
                     for req in wanted]
     return {"change": change.name, "requirements": requirements,
-            "missing": [row["id"] for row in requirements if row["status"] == "missing"], "skipped": skipped}
+            "missing": [row["id"] for row in requirements if row["status"] == "missing"],
+            "retired": [{"id": req, "sources": sorted(sources[req])} for req in gone if sources[req]],
+            "skipped": skipped}
 
 
 def status(root: Path, change: Path) -> dict[str, Any]:

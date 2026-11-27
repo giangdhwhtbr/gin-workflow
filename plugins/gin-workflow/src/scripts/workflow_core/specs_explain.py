@@ -190,7 +190,7 @@ def _capability(root: Path, cfg: Mapping[str, Any], cap: str, spec: Path,
                 embed: Embed) -> tuple[str, dict[str, str]]:
     text = spec.read_text(encoding="utf-8") if spec.is_file() else ""  # a legacy page may come before the spec
     folder, origin = spec.parent, specs.shown(root, spec)
-    blocks = specs.parse_blocks(text)[0]
+    blocks = [block for block in specs.parse_blocks(text)[0] if not specs.is_retired(block)]
     ids = {block.id for block in blocks}
     return _title(text, cap), {
         "overview": _titled("Purpose", markdown_html(_section(text, "Purpose"), folder, origin, embed, top=4)),
