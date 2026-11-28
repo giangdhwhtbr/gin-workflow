@@ -335,7 +335,128 @@ class RoundTests(unittest.TestCase):
         self.assertEqual((None, "timed out after 0.2s"), got["kind"])
 
 
+def beads(**answers):
+    """Patches for a Beads project whose bd answers each subcommand from `answers` (default: an empty list)."""
+    def answer(root, argv, timeout=30):
+        value = answers.get(argv[0], [])
+        return (None, value[1]) if isinstance(value, tuple) else (value, None)
+
+    return (mock.patch("workflow_core.tasks.backend", return_value="beads"),
+            mock.patch("workflow_core.tasks.query_result", side_effect=answer))
+
+
+class BeadsLinesTests(PrimeCase):
+    def run_with(self, *argv, **answers):
+        backend, query = beads(**answers)
+        with backend, query:
+            return self.prime(*argv)[1]
+
+    def test_open_questions_without_a_newer_answer(self):
+        comments = [
+            {"text": "[gin question] t-1: which port?", "created_at": "2026-11-01T00:00:00Z"},
+            {"text": "[gin answer] t-1: 8080", "created_at": "2026-11-02T00:00:00Z"},
+            {"text": "[gin question] t-2: keep the old flag?", "created_at": "2026-11-03T00:00:00Z"},
+            {"text": "[gin learn] something", "created_at": "2026-11-04T00:00:00Z"},
+        ]
+        self.assertEqual(["t-2: keep the old flag?"], prime.open_questions(comments))
+
+    def test_a_workflow_id_that_is_no_bead_has_no_comments(self):
+        with mock.patch("workflow_core.tasks.query_result", return_value=(None, "issue not found: wf-1")):
+            self.assertEqual([], prime.epic_comments(self.root, "wf-1"))
+        with mock.patch("workflow_core.tasks.query_result", return_value=(None, "bd not found")):
+            with self.assertRaises(prime.SourceError):
+                prime.epic_comments(self.root, "wf-1")
+
+    def test_the_card_lists_bead_questions_and_open_design_questions(self):
+        with mock.patch("workflow_core.lifecycle_cli._open_questions",
+                        return_value=[(".planning/specs/x-design.md:40: TQ-1", "")]):
+            out = self.run_with("--workflow-id", "wf-1",
+                                comments=[{"text": "[gin question] t-2: keep it?", "created_at": "2026-11-03T00:00:00Z"}])
+        self.assertIn("Open questions:\n  - .planning/specs/x-design.md:40: TQ-1\n  - t-2: keep it?", out)
+
+    def test_memories_that_fit_are_all_shown_and_the_reference_ends_the_card(self):
+        out = self.run_with("--workflow-id", "wf-1", memories={"a": "first", "b": "second\nline"})
+        self.assertIn("Beads memories\n- a: first\n- b: second line\n", out)
+        self.assertNotIn("more: bd memories", out)
+        self.assertTrue(out.rstrip("\n").endswith(prime.REFERENCE))
+
+    def test_memories_that_do_not_fit_end_with_more(self):
+        many = {f"m{index:03d}": "x" * 100 for index in range(200)}
+        out = self.run_with("--workflow-id", "wf-1", memories=many)
+        self.assertLessEqual(len(out.rstrip("\n")), prime.CARD_CAP)
+        self.assertRegex(out, r"\+\d+ more: bd memories\n")
+        self.assertTrue(out.rstrip("\n").endswith(prime.REFERENCE))
+
+    def test_failed_memories_mark_only_their_line(self):
+        out = self.run_with("--workflow-id", "wf-1", memories=(None, "bd timed out after 4s"))
+        self.assertIn("Beads memories: unknown (bd timed out after 4s)", out)
+        self.assertIn("Workflow: wf-1", out)
+
+    def test_a_slow_memories_job_leaves_the_earlier_lines_intact(self):
+        def answer(root, argv, timeout=30):
+            if argv[0] == "memories":
+                time.sleep(1)
+            return [], None
+
+        with mock.patch.object(prime, "ROUND_TIMEOUT", 0.3), mock.patch("workflow_core.tasks.backend", return_value="beads"), \
+                mock.patch("workflow_core.tasks.query_result", side_effect=answer):
+            out = self.prime("--workflow-id", "wf-1")[1]
+        self.assertIn("Beads memories: unknown (timed out after 0.3s)", out)
+        self.assertIn("Stage:", out)
+        self.assertIn("Next: /gin:discuss wf-1", out)
+        self.assertTrue(out.rstrip("\n").endswith(prime.REFERENCE))
+
+    def test_the_card_without_a_workflow_ends_with_the_memories(self):
+        out = self.run_with("--hook", memories={"a": "first"})
+        self.assertIn("no workflow is bound", out)
+        self.assertIn("Beads memories\n- a: first\n", out)
+        self.assertTrue(out.rstrip("\n").endswith(prime.REFERENCE))
+
+    def test_memories_are_the_last_beads_call_of_the_round(self):
+        self.add("orchestration.ready", "wf-1", {"epic": "ep-1", "evidence": "plan.md"})
+        (self.root / ".agent-workflow/config.yaml").write_text(
+            "schema_version: '2.3'\nproject:\n  review_ledger: true\n", encoding="utf-8")
+        calls = []
+
+        def answer(root, argv, timeout=30):
+            calls.append(argv[0])
+            return [], None
+
+        with mock.patch("workflow_core.tasks.backend", return_value="beads"), \
+                mock.patch("workflow_core.tasks.query_result", side_effect=answer):
+            self.prime("--workflow-id", "wf-1")
+        self.assertEqual(["comments", "list", "memories"], calls[-3:])
+
+    def test_review_cycles_only_with_the_review_ledger(self):
+        self.add("orchestration.ready", "wf-1", {"epic": "ep-1", "evidence": "plan.md"})
+        with mock.patch.object(prime, "review_cycles", return_value=["t-1 1/2"]):
+            self.assertNotIn("Review cycles:", self.run_with("--workflow-id", "wf-1"))
+            (self.root / ".agent-workflow/config.yaml").write_text(
+                "schema_version: '2.3'\nproject:\n  review_ledger: true\n", encoding="utf-8")
+            self.assertIn("Review cycles: t-1 1/2", self.run_with("--workflow-id", "wf-1"))
+
+    def test_a_markdown_project_has_no_memories_section(self):
+        out = self.prime("--workflow-id", "wf-1")[1]
+        self.assertNotIn("Beads memories", out)
+        self.assertNotIn(prime.REFERENCE, out)
+
+
 class HookModeTests(PrimeCase):
+    def test_a_terminal_is_not_read_in_hook_mode(self):
+        class Terminal:
+            def isatty(self):
+                return True
+
+            def read(self):
+                raise AssertionError("a terminal must not be read")
+
+        self.bind("wf-1", SESSION)
+        out, err = io.StringIO(), io.StringIO()
+        with mock.patch("sys.stdin", Terminal()), contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            code = prime.main(["--repository", str(self.root), "--hook"])
+        self.assertEqual((0, ""), (code, err.getvalue()))
+        self.assertIn("gin state card", out.getvalue())
+
     def test_pre_compact_takes_the_session_from_the_hook_input(self):
         self.bind("wf-folder", OTHER)
         self.bind("wf-session", SESSION, cwd="/elsewhere")
