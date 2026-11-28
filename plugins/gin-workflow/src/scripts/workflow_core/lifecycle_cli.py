@@ -571,11 +571,14 @@ def state_payload(repo_path: Path, workflow_id: str, *, start: Path | None = Non
     team = load_team(config.to_dict())
     unshared: list[str] = []
 
-    event_store = _get_event_store(repo_path)
+    if bind:
+        event_store = _get_event_store(repo_path)
+    else:  # read only: no runtime directory is created, and a missing one holds no event
+        event_store = WorkflowEventStore(main_checkout(repo_path) / ".agent-workflow" / "runtime" / "events.jsonl")
     scope_hash = scope_hash or _resolve_scope_hash(repo_path)
 
     warn_epic: str | None = None
-    events, log_error = _read_events(event_store)
+    events, log_error = _read_events(event_store) if event_store.path.parent.is_dir() else ([], None)
     if events is not None and bind:
         bound = bind_session(event_store, workflow_id, events, start=start)
         if bound is not None:

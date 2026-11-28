@@ -27,7 +27,7 @@ LIST_CAP = 10
 OPEN_CAP = 5
 OPEN_DAYS = 14
 CALL_TIMEOUT = 4.0  # the shipped check that runs before the round, when no flag or session names the workflow
-ROUND_TIMEOUT = 10.0  # the round's jobs in a row, and each Beads call in it; 4 + 10 s stays under the hook's 15 s
+ROUND_TIMEOUT = 9.0  # the round's jobs in a row, and each Beads call in it; 4 + 9 s plus start-up stays under 15 s
 TEXT_CAP = 160  # one list item, cut with "..." beyond it
 _GATE_EVENTS = frozenset({"requirement.confirmed", "approval.recorded", "orchestration.ready"})
 _LOCAL_STAGES = (("discuss", "requirement_confirmed"), ("plan", "plan_approved"), ("orchestrate", "orchestration_ready"))
@@ -254,7 +254,10 @@ def _state(ctx: Context, workflow_id: str) -> dict[str, Any]:
     return lifecycle_cli.state_payload(ctx.root, workflow_id, start=ctx.start, bind=False, warnings=False)[0]
 
 
-def workflow_lines(ctx: Context, found: Found, recent: Sequence[str], shipped: set[str] | None) -> list[str]:
+def workflow_lines(ctx: Context, found: Found, recent: Sequence[str], shipped: set[str] | None,
+                   shipped_cause: str | None = None) -> list[str]:
+    """The card of one workflow. `shipped` comes from the check before the round, None when it did not run;
+    `shipped_cause` is why that check failed."""
     wf = found.workflow_id or ""
     epic = lifecycle_cli._recorded_epic(ctx.events, wf)
     spec, plan = artifact_paths(ctx.events, wf)
@@ -270,12 +273,16 @@ def workflow_lines(ctx: Context, found: Found, recent: Sequence[str], shipped: s
         jobs["kind"] = lambda: epic_kind.lookup(ctx.root, wf, spec or None)
     got = bounded(jobs, ROUND_TIMEOUT)
     state, state_cause = got["state"]
+    kind_cause = None
     if kind is None:
-        looked_up, kind_error = got["kind"][0] or (None, None)
-        kind = None if kind_error else looked_up
+        looked_up, kind_cause = got["kind"]
+        if looked_up is not None:
+            kind, kind_cause = (None, looked_up[1]) if looked_up[1] else (looked_up[0], None)
     detail = [f"epic {epic}"] if epic else []
     if kind:
         detail.append(f"kind {kind}")
+    elif kind_cause:
+        detail.append(f"kind unknown ({kind_cause})")
     lines = [f"gin state card (workflow found by: {found.how})",
              f"Workflow: {wf}" + (f" ({', '.join(detail)})" if detail else "")]
     if state_cause:
@@ -297,7 +304,7 @@ def workflow_lines(ctx: Context, found: Found, recent: Sequence[str], shipped: s
         command = next_command(wf, state, [str(row.get("id")) for row in ready or ()])
         if command:
             lines.append(f"Next: {command}")
-    done, done_cause = (shipped, None) if shipped is not None else got.get("shipped", (set(), None))
+    done, done_cause = (shipped, shipped_cause) if shipped is not None else got.get("shipped", (set(), None))
     still_open = [other for other in others if other not in (done or set())]
     if done_cause:
         lines.append(f"Other open workflows: unknown ({done_cause})")
@@ -307,8 +314,11 @@ def workflow_lines(ctx: Context, found: Found, recent: Sequence[str], shipped: s
     return lines
 
 
-def no_workflow_lines(ctx: Context, open_ids: Sequence[str]) -> list[str]:
+def no_workflow_lines(ctx: Context, open_ids: Sequence[str], shipped_cause: str | None = None) -> list[str]:
+    """The card without a workflow: the open workflows, or `unknown (<cause>)` when the shipped check failed."""
     lines = ["gin state card: no workflow is bound to this session or this folder"]
+    if shipped_cause:
+        return [*lines, f"Open workflows: unknown ({shipped_cause})"]
     if not open_ids:
         return [*lines, "Open workflows: none; start one with /gin:discuss"]
     shown = list(open_ids[:OPEN_CAP])
@@ -330,11 +340,12 @@ def finish(lines: Sequence[str]) -> str:
     return "\n".join(lines)[:CARD_CAP]
 
 
-def render(ctx: Context, found: Found, recent: Sequence[str], shipped: set[str] | None) -> str:
+def render(ctx: Context, found: Found, recent: Sequence[str], shipped: set[str] | None,
+           shipped_cause: str | None = None) -> str:
     if found.workflow_id is None:
-        lines = no_workflow_lines(ctx, [wf for wf in recent if wf not in (shipped or set())])
+        lines = no_workflow_lines(ctx, [wf for wf in recent if wf not in (shipped or set())], shipped_cause)
     else:
-        lines = workflow_lines(ctx, found, recent, shipped)
+        lines = workflow_lines(ctx, found, recent, shipped, shipped_cause)
     return finish(lines)
 
 
@@ -399,7 +410,7 @@ def _run(args: argparse.Namespace, start: Path) -> str:
     root = repository_root(args.repository)
     if not (root / ".agent-workflow/config.yaml").is_file():
         return ""
-    session_id = _session_id(_hook_input(sys.stdin) if args.hook else {})
+    session_id = _session_id(_hook_input(sys.stdin) if args.hook or args.pre_compact else {})
     events, cause = _events(root)
     if cause:
         return f"gin state card: {cause}"
@@ -410,17 +421,19 @@ def _run(args: argparse.Namespace, start: Path) -> str:
     ctx = Context(root, start, events, project_settings(config), load_team(config), _uses_beads(root))
     recent = recent_workflows(events, datetime.now(timezone.utc))
     found = resolve(events, flag=args.workflow_id, session_id=session_id, folder=folder, shipped=None)
-    shipped = None
+    shipped, shipped_cause = None, None
     if found.workflow_id is None:
         candidates = [*(event.workflow_id for event in folder_workflows(events, folder)), *recent]
         candidates = list(dict.fromkeys(candidates))
         try:
             shipped = shipped_among(root, events, candidates, timeout=CALL_TIMEOUT)
-        except SourceError:
-            # simplified: the folder lookup then counts only `delivery.shipped` events
-            shipped = local_shipped(events, candidates)
+        except SourceError as error:
+            # simplified: when the check fails, the folder lookup counts only `delivery.shipped` events, so it may
+            # pick a workflow whose epic is closed; the open-workflow lines read unknown. Upgrade: run the check
+            # again as the first job of the round and resolve the folder workflow from its answer.
+            shipped, shipped_cause = local_shipped(events, candidates), str(error)
         found = resolve(events, flag=None, session_id="", folder=folder, shipped=shipped)
-    return render(ctx, found, recent, shipped)
+    return render(ctx, found, recent, shipped, shipped_cause)
 
 
 def main(argv: Sequence[str]) -> int:
@@ -430,7 +443,7 @@ def main(argv: Sequence[str]) -> int:
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--hook", action="store_true", help="read the hook input JSON on stdin; always exit 0")
     mode.add_argument("--pre-compact", action="store_true",
-                      help="print what the compaction summary keeps; no Beads call")
+                      help="read the hook input JSON on stdin; print what the compaction summary keeps; no Beads call")
     try:
         args = parser.parse_args(list(argv))
     except SystemExit as error:

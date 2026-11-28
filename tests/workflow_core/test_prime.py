@@ -8,6 +8,7 @@ import io
 import json
 import os
 from pathlib import Path
+import shutil
 import tempfile
 import threading
 import time
@@ -145,6 +146,37 @@ class ResolveTests(PrimeCase):
     def test_bad_hook_input_is_ignored(self):
         self.assertEqual(0, self.prime("--hook", stdin="not json")[0])
 
+    def test_an_invalid_session_id_in_the_hook_input_is_ignored(self):
+        self.bind("wf-folder", OTHER)
+        for bad in ("../x", "a" * 200):
+            with self.subTest(session_id=bad[:10]):
+                self.add("session.bound", "wf-bad", {"session_id": bad, "cwd": "/elsewhere"})
+                out = self.prime("--hook", stdin=json.dumps({"session_id": bad}))[1]
+                self.assertIn("workflow found by: last session in this folder", out)
+                self.assertIn("Workflow: wf-folder", out)
+                self.assertNotIn("wf-bad", out)
+
+    def test_a_failed_folder_check_marks_the_other_workflows_unknown(self):
+        self.bind("wf-folder", OTHER)
+        self.add("orchestration.ready", "wf-2", {"epic": "ep-2", "evidence": "plan.md"})
+
+        def answer(root, argv, timeout=30):
+            return (None, "bd timed out after 4s") if argv == ["show", "ep-2"] else ([], None)
+
+        with mock.patch("workflow_core.tasks.query_result", side_effect=answer):
+            out = self.prime("--hook", stdin=json.dumps({"session_id": SESSION}))[1]
+        self.assertIn("Workflow: wf-folder", out)
+        self.assertIn("Other open workflows: unknown (bd timed out after 4s)", out)
+        self.assertNotIn("wf-2", out)
+
+    def test_a_failed_folder_check_marks_the_open_list_unknown(self):
+        self.add("orchestration.ready", "wf-2", {"epic": "ep-2", "evidence": "plan.md"})
+        with mock.patch("workflow_core.tasks.query_result", return_value=(None, "bd timed out after 4s")):
+            out = self.prime("--hook", stdin=json.dumps({"session_id": SESSION}))[1]
+        self.assertIn("no workflow is bound", out)
+        self.assertIn("Open workflows: unknown (bd timed out after 4s)", out)
+        self.assertNotIn("wf-2", out)
+
 
 class CardTests(PrimeCase):
     def test_spec_and_plan_come_from_the_gate_events(self):
@@ -168,6 +200,14 @@ class CardTests(PrimeCase):
         for state, ready, expected in cases:
             with self.subTest(state=state, ready=ready):
                 self.assertEqual(expected, prime.next_command("wf", state, ready))
+
+    def test_the_card_creates_no_runtime_directory(self):
+        runtime = self.root / ".agent-workflow/runtime"
+        shutil.rmtree(runtime)
+        code, out, _ = self.prime("--workflow-id", "wf-x")
+        self.assertEqual(0, code)
+        self.assertIn("Gates: requirement_confirmed=unmet", out)
+        self.assertFalse(runtime.exists())
 
     def test_the_card_writes_nothing(self):
         self.bind("wf-1", OTHER)
@@ -227,6 +267,15 @@ class CardTests(PrimeCase):
         lookup.assert_not_called()
         self.assertIn("Workflow: wf-1 (kind technical)", out)
 
+    def test_a_kind_that_cannot_be_read_is_marked_unknown(self):
+        cases = [({"return_value": ("capability", "bd exited 1")}, "kind unknown (bd exited 1)"),
+                 ({"side_effect": prime.SourceError("bd timed out")}, "kind unknown (bd timed out)")]
+        self.add("requirement.confirmed", "wf-1", {"evidence": "spec.md"})
+        for behaviour, expected in cases:
+            with self.subTest(expected=expected), mock.patch.object(prime.epic_kind, "lookup", **behaviour):
+                out = self.prime("--workflow-id", "wf-1")[1]
+            self.assertIn(f"Workflow: wf-1 ({expected})", out)
+
     def test_without_a_kind_line_the_kind_comes_from_beads(self):
         (self.root / "spec.md").write_text("# X\n", encoding="utf-8")
         self.add("requirement.confirmed", "wf-1", {"evidence": "spec.md"})
@@ -263,6 +312,17 @@ class RoundTests(unittest.TestCase):
         self.assertEqual(1, len(threads))
         self.assertNotIn(threading.get_ident(), threads)
 
+    def test_both_budgets_leave_room_for_start_up_under_the_hook_timeout(self):
+        self.assertLessEqual(prime.CALL_TIMEOUT + prime.ROUND_TIMEOUT, 13)
+
+    def test_a_side_job_gives_its_value_its_error_or_a_timeout(self):
+        def fails():
+            raise prime.SourceError("host exited 1")
+
+        self.assertEqual((7, None), prime._Background(lambda: 7).result(1))
+        self.assertEqual((None, "host exited 1"), prime._Background(fails).result(1))
+        self.assertEqual((None, "timed out after 0.1s"), prime._Background(lambda: time.sleep(1)).result(0.1))
+
     def test_a_job_past_the_budget_times_out_and_earlier_ones_keep_their_results(self):
         def fails():
             raise prime.SourceError("bd exited 1")
@@ -276,6 +336,20 @@ class RoundTests(unittest.TestCase):
 
 
 class HookModeTests(PrimeCase):
+    def test_pre_compact_takes_the_session_from_the_hook_input(self):
+        self.bind("wf-folder", OTHER)
+        self.bind("wf-session", SESSION, cwd="/elsewhere")
+        out = self.prime("--pre-compact", stdin=json.dumps({"session_id": SESSION}))[1]
+        self.assertIn("wf-session", out)
+        self.assertNotIn("wf-folder", out)
+
+    def test_an_internal_error_is_silent_in_both_hook_modes(self):
+        for mode in ("--hook", "--pre-compact"):
+            with self.subTest(mode=mode), mock.patch.object(prime, "folder_key", side_effect=RuntimeError("boom")):
+                code, out, err = self.prime(mode, stdin="{}")
+            self.assertEqual((0, ""), (code, out))
+            self.assertIn("gin prime: boom", err)
+
     def test_pre_compact_makes_no_beads_call_and_fits(self):
         self.bind("wf-1", SESSION)
         with mock.patch("workflow_core.tasks.query_result", side_effect=AssertionError("no Beads call")), \
