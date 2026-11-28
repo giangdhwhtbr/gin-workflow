@@ -9,6 +9,7 @@ import json
 import os
 from pathlib import Path
 import tempfile
+import threading
 import time
 import unittest
 from unittest import mock
@@ -218,12 +219,60 @@ class CardTests(PrimeCase):
         self.assertNotIn("wf-3", out)
         self.assertIn("Workflow: wf-1 (epic ep-1", out)
 
+    def test_a_spec_with_a_kind_line_makes_no_beads_call_for_the_kind(self):
+        (self.root / "spec.md").write_text("# X\n\nKind: technical\n", encoding="utf-8")
+        self.add("requirement.confirmed", "wf-1", {"evidence": "spec.md"})
+        with mock.patch.object(prime.epic_kind, "lookup", side_effect=AssertionError("no Beads call")) as lookup:
+            out = self.prime("--workflow-id", "wf-1")[1]
+        lookup.assert_not_called()
+        self.assertIn("Workflow: wf-1 (kind technical)", out)
+
+    def test_without_a_kind_line_the_kind_comes_from_beads(self):
+        (self.root / "spec.md").write_text("# X\n", encoding="utf-8")
+        self.add("requirement.confirmed", "wf-1", {"evidence": "spec.md"})
+        with mock.patch.object(prime.epic_kind, "lookup", return_value=("parity", None)) as lookup:
+            out = self.prime("--workflow-id", "wf-1")[1]
+        lookup.assert_called_once_with(self.root, "wf-1", "spec.md")
+        self.assertIn("Workflow: wf-1 (kind parity)", out)
+
     def test_a_failed_ready_call_marks_only_its_line(self):
         self.add("orchestration.ready", "wf-1", {"epic": "ep-1", "evidence": "plan.md"})
         with mock.patch("workflow_core.tasks.query_result", return_value=(None, "bd exited 1")):
             out = self.prime("--workflow-id", "wf-1")[1]
         self.assertIn("Ready tracks: unknown (bd exited 1)", out)
         self.assertIn("Workflow: wf-1 (epic ep-1", out)
+
+
+class RoundTests(unittest.TestCase):
+    def test_the_round_runs_its_jobs_in_order_on_one_thread(self):
+        seen = []
+
+        def job(name):
+            def run():
+                seen.append(("start", name, threading.get_ident()))
+                time.sleep(0.02)
+                seen.append(("end", name, threading.get_ident()))
+                return name
+            return run
+
+        got = prime.bounded({"state": job("state"), "ready": job("ready"), "shipped": job("shipped")}, 5)
+        self.assertEqual({"state": ("state", None), "ready": ("ready", None), "shipped": ("shipped", None)}, got)
+        self.assertEqual([("start", "state"), ("end", "state"), ("start", "ready"), ("end", "ready"),
+                          ("start", "shipped"), ("end", "shipped")], [(step, name) for step, name, _ in seen])
+        threads = {ident for _, _, ident in seen}
+        self.assertEqual(1, len(threads))
+        self.assertNotIn(threading.get_ident(), threads)
+
+    def test_a_job_past_the_budget_times_out_and_earlier_ones_keep_their_results(self):
+        def fails():
+            raise prime.SourceError("bd exited 1")
+
+        got = prime.bounded({"state": lambda: 1, "ready": fails, "shipped": lambda: time.sleep(1),
+                             "kind": lambda: 4}, 0.2)
+        self.assertEqual((1, None), got["state"])
+        self.assertEqual((None, "bd exited 1"), got["ready"])
+        self.assertEqual((None, "timed out after 0.2s"), got["shipped"])
+        self.assertEqual((None, "timed out after 0.2s"), got["kind"])
 
 
 class HookModeTests(PrimeCase):

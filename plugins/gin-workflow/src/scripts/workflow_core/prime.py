@@ -26,8 +26,8 @@ PRE_COMPACT_CAP = 1_500
 LIST_CAP = 10
 OPEN_CAP = 5
 OPEN_DAYS = 14
-CALL_TIMEOUT = 4.0  # the shipped check that runs alone before the round, when no flag or session names the workflow
-ROUND_TIMEOUT = 8.0  # the concurrent round and each Beads call in it, since concurrent bd calls queue; 4 + 8 s < 15 s
+CALL_TIMEOUT = 4.0  # the shipped check that runs before the round, when no flag or session names the workflow
+ROUND_TIMEOUT = 10.0  # the round's jobs in a row, and each Beads call in it; 4 + 10 s stays under the hook's 15 s
 TEXT_CAP = 160  # one list item, cut with "..." beyond it
 _GATE_EVENTS = frozenset({"requirement.confirmed", "approval.recorded", "orchestration.ready"})
 _LOCAL_STAGES = (("discuss", "requirement_confirmed"), ("plan", "plan_approved"), ("orchestrate", "orchestration_ready"))
@@ -54,8 +54,16 @@ class Context:
     beads: bool
 
 
+def _attempt(job: Callable[[], Any]) -> tuple[Any, str | None]:
+    """(value, None), or (None, cause) when the job raised."""
+    try:
+        return job(), None
+    except Exception as error:  # broad on purpose: a failed source marks only its own line
+        return None, str(error) or type(error).__name__
+
+
 class _Background:
-    """One job on a daemon thread, joined later. A daemon thread, not an executor: the process exits without
+    """One side job on a daemon thread, joined later. A daemon thread, not an executor: the process exits without
     waiting for a stuck call."""
 
     def __init__(self, job: Callable[[], Any]):
@@ -65,10 +73,7 @@ class _Background:
         self._thread.start()
 
     def _run(self, job: Callable[[], Any]) -> None:
-        try:
-            self._out = (job(), None)
-        except Exception as error:  # broad on purpose: a failed source marks only its own line
-            self._out = (None, str(error) or type(error).__name__)
+        self._out = _attempt(job)
 
     def result(self, timeout: float) -> tuple[Any, str | None]:
         """(value, None), or (None, cause) when the job raised or ran past `timeout` seconds from its start."""
@@ -78,9 +83,24 @@ class _Background:
 
 def bounded(jobs: Mapping[str, Callable[[], Any]], timeout: float,
             timeouts: Mapping[str, float] | None = None) -> dict[str, tuple[Any, str | None]]:
-    """Run every job at once; each result as `_Background.result` gives it, with its own timeout when named."""
-    started = {name: _Background(job) for name, job in jobs.items()}
-    return {name: job.result((timeouts or {}).get(name, timeout)) for name, job in started.items()}
+    """Run the jobs one after another in dict order, most important first, on one daemon thread: concurrent bd
+    calls in one repository finish later than the same calls in a row. Each result is (value, None), or
+    (None, cause) when the job raised or had not finished `timeout` seconds (its own when named) after the start."""
+    limits = {name: (timeouts or {}).get(name, timeout) for name in jobs}
+    finished: dict[str, tuple[tuple[Any, str | None], float]] = {}
+    started = time.monotonic()
+
+    def run_all() -> None:
+        for name, job in jobs.items():
+            result = _attempt(job)
+            finished[name] = (result, time.monotonic() - started)
+
+    thread = threading.Thread(target=run_all, daemon=True)
+    thread.start()
+    thread.join(max(limits.values(), default=0.0))
+    done = dict(finished)
+    return {name: done[name][0] if name in done and done[name][1] <= limits[name]
+            else (None, f"timed out after {limits[name]:g}s") for name in jobs}
 
 
 def query(root: Path, argv: Sequence[str]) -> Any:
@@ -197,6 +217,17 @@ def artifact_paths(events: Sequence[WorkflowEvent], workflow_id: str) -> tuple[s
     return spec, plan
 
 
+def spec_kind_of(root: Path, spec: str) -> str | None:
+    """The `Kind:` line of the spec the gate events name, read with epic_kind's own reader; None without a readable
+    file or the line. With it, the card needs no Beads call for the kind."""
+    if not spec:
+        return None
+    try:
+        return epic_kind.spec_kind(epic_kind._kind_source(root / spec).read_text(encoding="utf-8", errors="replace"))
+    except OSError:
+        return None
+
+
 def ready_tracks(root: Path, epic: str) -> list[Mapping[str, Any]]:
     if not epic:
         return []
@@ -228,18 +259,22 @@ def workflow_lines(ctx: Context, found: Found, recent: Sequence[str], shipped: s
     epic = lifecycle_cli._recorded_epic(ctx.events, wf)
     spec, plan = artifact_paths(ctx.events, wf)
     others = [other for other in recent if other != wf]
-    jobs: dict[str, Callable[[], Any]] = {
+    kind = spec_kind_of(ctx.root, spec)
+    jobs: dict[str, Callable[[], Any]] = {  # in priority order: the round runs them in a row within one budget
         "state": lambda: _state(ctx, wf),
-        "kind": lambda: epic_kind.lookup(ctx.root, wf, spec or None),
         "ready": lambda: ready_tracks(ctx.root, epic),
     }
     if shipped is None and others:
         jobs["shipped"] = lambda: shipped_among(ctx.root, ctx.events, others, timeout=ROUND_TIMEOUT)
+    if kind is None:
+        jobs["kind"] = lambda: epic_kind.lookup(ctx.root, wf, spec or None)
     got = bounded(jobs, ROUND_TIMEOUT)
     state, state_cause = got["state"]
-    kind, kind_error = got["kind"][0] or (None, None)
+    if kind is None:
+        looked_up, kind_error = got["kind"][0] or (None, None)
+        kind = None if kind_error else looked_up
     detail = [f"epic {epic}"] if epic else []
-    if kind and not kind_error:
+    if kind:
         detail.append(f"kind {kind}")
     lines = [f"gin state card (workflow found by: {found.how})",
              f"Workflow: {wf}" + (f" ({', '.join(detail)})" if detail else "")]
