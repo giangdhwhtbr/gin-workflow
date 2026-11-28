@@ -27,7 +27,8 @@ Then:
 3. Obtain explicit native-harness approval for the proposal.
 4. Run one approved `init` with the same harness and same assignments. The CLI validates before any atomic write.
 5. When `verify.checks` is configured, run `gin hooks install` (quality checks run in `pre-commit`/`pre-push`). If it reports `occupied` or `missing`, show the user the printed instruction; never overwrite a hook.
-6. Report the structured result and stop. Do not invoke `discuss` or any other lifecycle stage.
+6. Claude Code main harness only: when `~/.claude/settings.json` has no `autoCompactWindow`, propose `200000` in one sentence: a session then compacts near 200K tokens instead of near its 1M window, and the `gin prime` card brings the workflow state back after it. Write the key only on yes, keep the file's other keys, never change an existing value, and never write project settings.
+7. Report the structured result and stop. Do not invoke `discuss` or any other lifecycle stage.
 
 Answers become `--set` assignments in `.agent-workflow/config.yaml`.
 

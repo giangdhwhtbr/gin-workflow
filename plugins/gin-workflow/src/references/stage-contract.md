@@ -8,7 +8,7 @@ Shared rules for every lifecycle stage skill. One stage invocation performs one 
 - Waive: `gin unblock --gate GATE --reason TEXT --actor ID [--follow-up TASK_ID]`
 `implementation_complete` is derived: every child of the recorded epic not labelled `prep` is closed in Beads. `shipped` is derived: the epic itself is closed. Neither can be waived.
 Quality checks run in git hooks (`gin hooks install`): lint and typecheck at pre-commit, the suite at pre-push (on the host CI with `project.run_at: host`).
-Standalone bead (no plan): use `--workflow-id <bead>` on every `state` and `record` call for it. `record orchestration-ready --workflow-id <bead> --epic <bead>` makes the bead its own epic; its description stands in for the spec and plan, so `requirement_confirmed` and `plan_approved` count as satisfied while it has no child beads. `implementation_complete` is then the bead closed, and `record shipped --workflow-id <bead> --evidence <merge commit> --actor <id>` marks it shipped after the merge.
+Standalone bead (no plan): use `--workflow-id <bead>` on every `state` and `record` call for it. `record orchestration-ready --workflow-id <bead> --epic <bead>` makes the bead its own epic; its description stands in for the spec and plan, so `requirement_confirmed` and `plan_approved` count as satisfied while it has no child beads. `implementation_complete` is then the bead closed, and `record shipped --evidence <merge commit>` marks it shipped after the merge.
 
 ## Evidence
 Valid: test/command output, the review ledger (`project.review_ledger`) or the reviewer's report, bead IDs, spec/plan paths. Never: self-assessment or summaries.
@@ -32,3 +32,6 @@ Load only the requirement, file scope, and validation intent. Look up symbols, t
 
 ## Git
 Commit only on a feature or worktree branch, never on `main`/`master`. `discuss` and `plan` commit on `feat/<topic>` (`<topic>` from `.planning/specs/<date>-<topic>-design.md`); SDD and team modes use their own `spec/...` branch. `quick` commits on the current feature branch, or on a new `quick/<slug>` from `main`/`master`, pushed only in team mode. `execute` pushes a lane branch only in team mode.
+
+## Handoff
+End the last message with one line, `Next: /clear, then <command>`: the next stage's command, as the `gin prime` card shows it; `Next: /clear` if none.
