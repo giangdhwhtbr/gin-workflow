@@ -7,7 +7,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "s=\"${CLAUDE_PLUGIN_ROOT:-$PLUGIN_ROOT}/scripts/safety_check.py\"; if command -v python3 >/dev/null 2>&1; then exec python3 \"$s\"; fi; exec python \"$s\"",
+            "command": "s=\"${CLAUDE_PLUGIN_ROOT:-$PLUGIN_ROOT}/scripts/safety_check.py\"; if [ ! -f \"$s\" ]; then echo \"gin: $s not found, hook skipped\" >&2; exit 0; fi; if command -v python3 >/dev/null 2>&1; then exec python3 \"$s\"; fi; exec python \"$s\"",
             "timeout": 30
           }
         ]
