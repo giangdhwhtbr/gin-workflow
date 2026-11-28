@@ -2,6 +2,21 @@
 
 This page lists what changed in each release of gin-workflow and its add-ons (gin-qa, gin-ba), newest first. Releases before 3.1.0 are on the [GitHub releases page](https://github.com/giangdhwhtbr/gin-workflow/releases).
 
+## [Unreleased]
+
+### Upgrade notes
+
+- Run `./install.sh` (or `install.ps1` on Windows) again on each machine: the Claude Code hooks file gains the `SessionStart` and `PreCompact` entries that run `gin prime`.
+- A `bd prime` hook installed by `bd setup claude` can go: the card already carries the Beads memories.
+
+### Added
+
+- `gin prime` prints a state card of the workflow. It shows the stage, gates, spec and plan, ready tracks, open questions, the next command, other open workflows, and the Beads memories. See [`gin prime`](reference/cli.md#gin-prime).
+- The Claude Code hooks file runs `gin prime --hook` on start, `/clear`, resume, and compaction, and `gin prime --pre-compact` before a compaction, on Linux, macOS, and Windows.
+- Each stage ends with `Next: /clear, then <command>`.
+- `/gin:setup` offers `autoCompactWindow: 200000` for Claude Code.
+- `session.bound` events carry `cwd`, the git top level the command ran in.
+
 ## [3.5.4] - 2026-11-27
 
 ### Upgrade notes

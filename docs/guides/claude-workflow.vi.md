@@ -43,7 +43,11 @@ Chia sẻ một bài học với nhóm qua `.planning/knowledge/` hoặc `bd rem
 Bắt đầu mỗi stage của vòng đời với một context nhỏ và liên quan. Một session dài mang các quyết định cũ vào công việc mới và tốn nhiều token hơn mỗi lượt.
 
 - Chọn model trước khi chạy một skill của stage. Xem [Dùng AI hiệu quả](ai-strategy.md#model-and-effort-by-stage).
-- Chạy `/clear` giữa các stage như `discuss`, `plan`, và `execute`. Mỗi stage đọc spec, plan, hoặc bead từ đĩa, nên không mất gì.
+- Chạy `/clear` giữa các stage như `discuss`, `plan`, và `execute`. Mỗi stage đọc spec, plan, hoặc bead từ đĩa, nên không mất gì. Mỗi stage kết thúc bằng một dòng `Next: /clear, then <command>` cho biết cần gõ gì sau khi clear.
+- File hooks do `install.sh` hoặc `install.ps1` tạo chạy `gin prime --hook` sau khi bắt đầu phiên, `/clear`, resume, hoặc compaction. Lệnh này đưa state card vào context: workflow, stage và các gate, spec và plan, các track sẵn sàng, câu hỏi còn mở, lệnh tiếp theo, và Beads memories. Một session chưa gắn với workflow nào sẽ nhận workflow làm gần nhất trong cùng thư mục, hoặc danh sách các workflow đang mở. Xem [`gin prime`](../reference/cli.md#gin-prime). Plugin chỉ cài từ marketplace không có hook này.
+- Trước khi compaction, hook `PreCompact` chạy `gin prime --pre-compact`, yêu cầu bản tóm tắt giữ nguyên văn các quyết định và câu trả lời đã đưa ra trong chat.
+- Card đã mang Beads memories, nên không cần `bd prime` hay hook của `bd setup claude` khi bắt đầu phiên; `bd prime --no-memories` in phần tham chiếu lệnh Beads.
+- `/gin:setup` đề xuất `autoCompactWindow: 200000` trong `~/.claude/settings.json` khi key này chưa có, để session compact ở khoảng 200K token thay vì gần cửa sổ 1M.
 - Chạy `/compact` khi bạn tiếp tục trong cùng một stage và session đã dài ra.
 - Tra cứu code bằng `codegraph explore "<symbols or question>"` trước khi grep. Xem [công cụ khuyến nghị](recommended-tools.md).
 - Với các track không có `Human gate:`, in một goal bằng `gin goal --workflow-id <id>` và đưa nó cho `/goal`. Goal liệt kê các track đang mở theo thứ tự dependency và bỏ qua các track đang chờ con người.

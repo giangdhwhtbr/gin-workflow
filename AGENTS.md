@@ -1,6 +1,6 @@
 # Agent Instructions
 
-Run `bd prime` at session start when Beads context is missing or stale.
+On Claude Code, the `gin prime` card at session start carries the Beads memories. Run `bd prime --no-memories` for the Beads command reference. Run `bd prime` when Beads context is missing or stale elsewhere.
 
 This repository separates responsibilities intentionally:
 

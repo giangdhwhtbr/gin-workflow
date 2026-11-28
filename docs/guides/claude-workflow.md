@@ -43,7 +43,11 @@ Share a lesson with the team through `.planning/knowledge/` or `bd remember`, no
 Start each lifecycle stage with a small, relevant context. A long session carries old decisions into new work and costs more tokens per turn.
 
 - Pick the model before you run a stage skill. See [Using AI effectively](ai-strategy.md#model-and-effort-by-stage).
-- Run `/clear` between stages such as `discuss`, `plan`, and `execute`. Each stage reads the spec, plan, or beads from disk, so it loses nothing.
+- Run `/clear` between stages such as `discuss`, `plan`, and `execute`. Each stage reads the spec, plan, or beads from disk, so it loses nothing. Each stage ends with one line, `Next: /clear, then <command>`, that says what to type after the clear.
+- The hooks file that `install.sh` or `install.ps1` writes runs `gin prime --hook` after a start, `/clear`, a resume, or a compaction. It adds the state card to the context: the workflow, its stage and gates, the spec and plan, the ready tracks, the open questions, the next command, and the Beads memories. A session not yet bound to a workflow gets the one last worked on in the same folder, or a list of the open ones. See [`gin prime`](../reference/cli.md#gin-prime). A plugin installed only from the marketplace has no such hook.
+- Before a compaction, the `PreCompact` hook runs `gin prime --pre-compact`, which tells the summary to keep the decisions and answers given in chat word for word.
+- The card carries the Beads memories, so neither `bd prime` nor a `bd setup claude` hook is needed at session start; `bd prime --no-memories` prints the Beads command reference.
+- `/gin:setup` offers `autoCompactWindow: 200000` in `~/.claude/settings.json` when the key is not set, so a session compacts near 200K tokens instead of near its 1M window.
 - Run `/compact` when you continue inside one stage and the session has grown long.
 - Look up code with `codegraph explore "<symbols or question>"` before you grep. See [recommended tools](recommended-tools.md).
 - For tracks with no `Human gate:`, print a goal with `gin goal --workflow-id <id>` and give it to `/goal`. The goal lists the open tracks in dependency order and leaves out tracks that wait for a human.
