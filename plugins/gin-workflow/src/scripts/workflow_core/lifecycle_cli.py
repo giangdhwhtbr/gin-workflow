@@ -462,7 +462,7 @@ def _record_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
             appended = tx.append(event)
     except (EventPersistenceError, RuntimeError, OSError) as error:
         return {"status": "error", "message": f"{args.gate} not recorded for {args.workflow_id}: {error}"}, 1
-    bind_session(store, args.workflow_id)
+    bind_session(store, args.workflow_id, start=getattr(args, "start", None))
     warning = None
     if team is not None and appended and (team_payload or args.gate == "orchestration-ready"):
         warning = _share_gate(Path(args.repository).resolve(), prior, args, actor, team_payload)
@@ -576,7 +576,7 @@ def _state_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
     warn_epic: str | None = None
     events, log_error = _read_events(event_store)
     if events is not None:
-        bound = bind_session(event_store, workflow_id, events)
+        bound = bind_session(event_store, workflow_id, events, start=getattr(args, "start", None))
         if bound is not None:
             events = [*events, bound]
     if events is None:
@@ -715,7 +715,7 @@ def _unblock_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
             actor=actor,
         )
         event_store.append(event)
-        bind_session(event_store, workflow_id)
+        bind_session(event_store, workflow_id, start=getattr(args, "start", None))
         return {
             "status": "success",
             "message": f"Blocker cleared. Recorded event {event.event_id}",
@@ -758,7 +758,7 @@ def _unblock_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
         )
         event = build_waiver_event(waiver, workflow_id=workflow_id)
         event_store.append(event)
-        bind_session(event_store, workflow_id)
+        bind_session(event_store, workflow_id, start=getattr(args, "start", None))
     except (ValueError, TypeError) as err:
         return {"status": "error", "message": str(err)}, 1
 
