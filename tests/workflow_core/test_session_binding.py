@@ -7,6 +7,8 @@ import io
 import json
 import os
 from pathlib import Path
+import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -16,7 +18,7 @@ SCRIPTS = Path(__file__).resolve().parents[2] / "plugins/gin-workflow/src/script
 sys.path.insert(0, str(SCRIPTS))
 
 from workflow_core import session_binding  # noqa: E402
-from workflow_core.events import WorkflowEventStore  # noqa: E402
+from workflow_core.events import WorkflowEvent, WorkflowEventStore  # noqa: E402
 from workflow_core.lifecycle_cli import main as lifecycle_main  # noqa: E402
 
 SESSION = "0a1b2c3d-1111-2222-3333-444455556666"
@@ -117,6 +119,29 @@ class SessionBindingTests(unittest.TestCase):
         self.assertEqual([("wf-1", SESSION)], self.bindings())
         self.assertEqual(before, after)
 
+
+    def test_binding_records_the_folder_it_ran_in(self):
+        with session():
+            self.state("--workflow-id", "wf-1")
+        bound = [event for event in WorkflowEventStore(self.log).read_all() if event.event_type == "session.bound"]
+        self.assertEqual(str(self.root.resolve()), bound[0].payload["cwd"])
+
+    @unittest.skipUnless(shutil.which("git"), "needs git")
+    def test_the_folder_is_the_git_top_level(self):
+        subprocess.run(["git", "init", "-q", str(self.root)], check=True)
+        inner = self.root / "a/b"
+        inner.mkdir(parents=True)
+        self.assertEqual(str(self.root.resolve()), session_binding.folder_key(inner))
+
+    def test_a_session_bound_before_the_cwd_key_is_listed_once(self):
+        old = WorkflowEvent.create(event_type="session.bound", workflow_id="wf-1",
+                                   payload={"session_id": SESSION}, idempotency_key=f"session:{SESSION}")
+        self.log.parent.mkdir(parents=True, exist_ok=True)
+        WorkflowEventStore(self.log).append(old)
+        with session():
+            _, payload, _ = self.state("--workflow-id", "wf-1")
+        self.assertEqual([("wf-1", SESSION), ("wf-1", SESSION)], self.bindings())
+        self.assertEqual([{"session_id": SESSION, "bound_at": old.timestamp}], payload["sessions"])
 
 if __name__ == "__main__":
     unittest.main()
