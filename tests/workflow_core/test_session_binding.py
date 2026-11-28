@@ -119,7 +119,6 @@ class SessionBindingTests(unittest.TestCase):
         self.assertEqual([("wf-1", SESSION)], self.bindings())
         self.assertEqual(before, after)
 
-
     def test_binding_records_the_folder_it_ran_in(self):
         with session():
             self.state("--workflow-id", "wf-1")
@@ -142,6 +141,7 @@ class SessionBindingTests(unittest.TestCase):
             _, payload, _ = self.state("--workflow-id", "wf-1")
         self.assertEqual([("wf-1", SESSION), ("wf-1", SESSION)], self.bindings())
         self.assertEqual([{"session_id": SESSION, "bound_at": old.timestamp}], payload["sessions"])
+
 
 if __name__ == "__main__":
     unittest.main()
