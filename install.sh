@@ -347,6 +347,27 @@ template_hooks_for_claude() {
             "timeout": 10
           }
         ]
+      },
+      {
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if command -v gin >/dev/null 2>&1; then gin prime --hook; fi; exit 0",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if command -v gin >/dev/null 2>&1; then gin prime --pre-compact; fi; exit 0",
+            "timeout": 15
+          }
+        ]
       }
     ]
   }
