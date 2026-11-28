@@ -561,8 +561,10 @@ def _knowledge_warning(repo_path: Path, config: Any, events: Sequence[WorkflowEv
     return f"no commit changed {shown} since orchestration-ready ({since}); reconcile knowledge (learn) before ship"
 
 
-def _state_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
-    repo_path = Path(args.repository).resolve()
+def state_payload(repo_path: Path, workflow_id: str, *, start: Path | None = None, scope_hash: str | None = None,
+                  bind: bool = True, warnings: bool = True) -> tuple[dict[str, Any], int]:
+    """The payload of `gin state` and its exit code. `gin prime` passes bind=False, because it never writes, and
+    warnings=False, which skips the knowledge and learn-comment checks."""
     resolved_config = resolve_effective_config(repo_path, write=False)
     config = resolved_config.config
 
@@ -570,13 +572,12 @@ def _state_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
     unshared: list[str] = []
 
     event_store = _get_event_store(repo_path)
-    workflow_id = getattr(args, "workflow_id", None) or "default-workflow"
-    scope_hash = getattr(args, "scope_hash", None) or _resolve_scope_hash(repo_path)
+    scope_hash = scope_hash or _resolve_scope_hash(repo_path)
 
     warn_epic: str | None = None
     events, log_error = _read_events(event_store)
-    if events is not None:
-        bound = bind_session(event_store, workflow_id, events, start=getattr(args, "start", None))
+    if events is not None and bind:
+        bound = bind_session(event_store, workflow_id, events, start=start)
         if bound is not None:
             events = [*events, bound]
     if events is None:
@@ -660,11 +661,11 @@ def _state_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
         "remedies": list(decision.remedies),
         "project": {**project_settings(config.to_dict()).to_dict(),
                     "team": team_summary(repo_path, team)},
-        "workspace": workspace.summary(workspace.locate(getattr(args, "start", repo_path))),
+        "workspace": workspace.summary(workspace.locate(start or repo_path)),
         "warnings": [w for w in ((RETIRED_KEYS_NOTICE if retired_keys(config.to_dict()) else None),
                                  (USAGE_IGNORED_NOTICE if "usage" in config.to_dict() else None), *causes, *unshared,
-                                 _knowledge_warning(repo_path, config, events, workflow_id, gates_state,
-                                                    epic=warn_epic)) if w],
+                                 (_knowledge_warning(repo_path, config, events, workflow_id, gates_state,
+                                                     epic=warn_epic) if warnings else None)) if w],
         "recent_quick": [
             {"timestamp": event.timestamp, "evidence": event.payload.get("evidence", "")}
             for event in events or ()
@@ -680,6 +681,11 @@ def _state_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
 
     exit_code = 0 if decision.decision == "route" else 1
     return payload, exit_code
+
+
+def _state_command(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
+    return state_payload(Path(args.repository).resolve(), getattr(args, "workflow_id", None) or "default-workflow",
+                         start=getattr(args, "start", None), scope_hash=getattr(args, "scope_hash", None))
 
 
 

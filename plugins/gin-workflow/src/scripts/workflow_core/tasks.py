@@ -154,7 +154,7 @@ def _ready(executable: str, argv: Sequence[str], root: Path) -> int:
     return 0
 
 
-def query_result(root: Path, argv: Sequence[str]) -> tuple[Any, str | None]:
+def query_result(root: Path, argv: Sequence[str], timeout: float = 30) -> tuple[Any, str | None]:
     """Run one read-only query: (JSON, None), or (None, cause) when the backend is unavailable or fails."""
     try:
         name = backend(root)
@@ -170,10 +170,10 @@ def query_result(root: Path, argv: Sequence[str]) -> tuple[Any, str | None]:
         argv = [*argv, "--exclude-type", "milestone"]
     try:
         completed = subprocess.run(
-            [executable, *argv, "--json"], cwd=root, text=True, capture_output=True, check=False, timeout=30
+            [executable, *argv, "--json"], cwd=root, text=True, capture_output=True, check=False, timeout=timeout
         )
     except subprocess.TimeoutExpired:
-        return None, "bd timed out after 30s"
+        return None, f"bd timed out after {timeout:g}s"
     except (OSError, subprocess.SubprocessError) as error:
         return None, f"bd failed: {error}"
     if completed.returncode != 0:
