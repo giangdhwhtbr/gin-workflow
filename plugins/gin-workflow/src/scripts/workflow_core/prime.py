@@ -15,7 +15,7 @@ import threading
 import time
 from typing import Any, Callable, Mapping, Sequence
 
-from . import epic_kind, lifecycle_cli, tasks
+from . import epic_kind, lifecycle_cli, specs, tasks
 from .checkout import main_checkout
 from .events import WorkflowEvent, WorkflowEventStore
 from .prep import is_prep
@@ -59,7 +59,7 @@ def _attempt(job: Callable[[], Any]) -> tuple[Any, str | None]:
     try:
         return job(), None
     except Exception as error:  # broad on purpose: a failed source marks only its own line
-        return None, str(error) or type(error).__name__
+        return None, _cut(str(error) or type(error).__name__)
 
 
 class _Background:
@@ -235,6 +235,80 @@ def ready_tracks(root: Path, epic: str) -> list[Mapping[str, Any]]:
     return [row for row in data or () if isinstance(row, Mapping) and not is_prep(row)]
 
 
+REFERENCE = "Beads command reference: bd prime --no-memories"
+_QUESTION, _ANSWER = "[gin question]", "[gin answer]"
+
+
+def comments_target(root: Path, events: Sequence[WorkflowEvent], workflow_id: str, spec: str) -> str:
+    """The bead whose comments hold the questions: the epic recorded at orchestration-ready, else the `Epic:` line
+    of the workflow's spec when that is a readable local file, else "" (no comments call)."""
+    epic = lifecycle_cli._recorded_epic(events, workflow_id)
+    if epic or not spec:
+        return epic
+    try:
+        text = epic_kind._kind_source(root / spec).read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return ""
+    found = specs._EPIC_LINE.search(text)
+    return found.group(1) if found else ""
+
+
+def epic_comments(root: Path, target: str) -> list[Mapping[str, Any]]:
+    """The comments on the bead `target`; raises SourceError with the cause when the call fails."""
+    data, cause = tasks.query_result(root, ["comments", target], timeout=ROUND_TIMEOUT)
+    if cause:
+        raise SourceError(cause)
+    return [item for item in data or () if isinstance(item, Mapping)]
+
+
+def open_questions(comments: Sequence[Mapping[str, Any]]) -> list[str]:
+    """`<track>: <question>` for each `[gin question] <track>:` comment with no newer `[gin answer] <track>:` one."""
+    asked: dict[str, str] = {}
+    for item in sorted(comments, key=lambda item: str(item.get("created_at") or "")):
+        text = str(item.get("text") or "").strip()
+        for marker in (_QUESTION, _ANSWER):
+            if text.startswith(marker):
+                rest = text[len(marker):].strip()
+                track = rest.split(":", 1)[0].strip()
+                if marker == _QUESTION:
+                    asked[track] = rest
+                else:
+                    asked.pop(track, None)
+    return list(asked.values())
+
+
+def technical_questions(root: Path, workflow_id: str) -> list[str]:
+    return [label for label, _ in lifecycle_cli._open_questions(root, workflow_id)]
+
+
+def review_cycles(root: Path, epic: str, default_max: int) -> list[str]:
+    """`<bead> <cycles>/<max>` for each in-progress track of `epic` whose review ledger holds no live approval."""
+    from review_ledger.cli import load_ledger
+    from review_ledger.events import WorkflowIntegrityError
+
+    rows = query(root, ["list", "--parent", epic, "--status", "in_progress"])
+    found: list[str] = []
+    for row in rows if isinstance(rows, list) else ():
+        bead = str(row.get("id") or "") if isinstance(row, Mapping) else ""
+        if not bead:
+            continue
+        try:
+            _, projection = load_ledger(bead, str(root))
+        except FileNotFoundError:
+            continue
+        except (WorkflowIntegrityError, OSError, ValueError) as error:
+            found.append(f"{bead} ledger unreadable ({error})")
+            continue
+        if projection.active_approval is None:
+            found.append(f"{bead} {projection.cycles}/{projection.max_cycles or default_max}")
+    return found
+
+
+def memories(root: Path) -> dict[str, str]:
+    data = query(root, ["memories"])
+    return {str(key): str(value) for key, value in data.items()} if isinstance(data, Mapping) else {}
+
+
 def _cut(text: str) -> str:
     text = " ".join(str(text).split())
     return text if len(text) <= TEXT_CAP else text[:TEXT_CAP - 3] + "..."
@@ -255,15 +329,16 @@ def _state(ctx: Context, workflow_id: str) -> dict[str, Any]:
 
 
 def workflow_lines(ctx: Context, found: Found, recent: Sequence[str], shipped: set[str] | None,
-                   shipped_cause: str | None = None) -> list[str]:
-    """The card of one workflow. `shipped` comes from the check before the round, None when it did not run;
-    `shipped_cause` is why that check failed."""
+                   shipped_cause: str | None = None) -> tuple[list[str], tuple[Any, str | None] | None]:
+    """The card of one workflow and the memories result of its round (None outside Beads). `shipped` comes from
+    the check before the round, None when it did not run; `shipped_cause` is why that check failed."""
     wf = found.workflow_id or ""
     epic = lifecycle_cli._recorded_epic(ctx.events, wf)
     spec, plan = artifact_paths(ctx.events, wf)
     others = [other for other in recent if other != wf]
     kind = spec_kind_of(ctx.root, spec)
     jobs: dict[str, Callable[[], Any]] = {  # in priority order: the round runs them in a row within one budget
+        "tq": lambda: technical_questions(ctx.root, wf),  # a local file, no Beads call: first, it is quick
         "state": lambda: _state(ctx, wf),
         "ready": lambda: ready_tracks(ctx.root, epic),
     }
@@ -271,13 +346,20 @@ def workflow_lines(ctx: Context, found: Found, recent: Sequence[str], shipped: s
         jobs["shipped"] = lambda: shipped_among(ctx.root, ctx.events, others, timeout=ROUND_TIMEOUT)
     if kind is None:
         jobs["kind"] = lambda: epic_kind.lookup(ctx.root, wf, spec or None)
+    target = comments_target(ctx.root, ctx.events, wf, spec) if ctx.beads else ""
+    if target:
+        jobs["comments"] = lambda: open_questions(epic_comments(ctx.root, target))
+    if ctx.beads and epic and ctx.settings.review_ledger:
+        jobs["cycles"] = lambda: review_cycles(ctx.root, epic, ctx.settings.max_cycles)
+    if ctx.beads:
+        jobs["memories"] = lambda: memories(ctx.root)
     got = bounded(jobs, ROUND_TIMEOUT)
     state, state_cause = got["state"]
     kind_cause = None
     if kind is None:
         looked_up, kind_cause = got["kind"]
         if looked_up is not None:
-            kind, kind_cause = (None, looked_up[1]) if looked_up[1] else (looked_up[0], None)
+            kind, kind_cause = (None, _cut(looked_up[1])) if looked_up[1] else (looked_up[0], None)
     detail = [f"epic {epic}"] if epic else []
     if kind:
         detail.append(f"kind {kind}")
@@ -300,6 +382,21 @@ def workflow_lines(ctx: Context, found: Found, recent: Sequence[str], shipped: s
         lines.append(f"Ready tracks: unknown ({ready_cause})")
     elif ready:
         lines += ["Ready tracks:", *_items([f"{row.get('id')} {row.get('title', '')}" for row in ready])]
+    tq, tq_cause = got["tq"]
+    comments, comments_cause = got.get("comments", ([], None))
+    questions = [*(tq or ()), *(comments or ())]
+    if tq_cause:
+        questions.append(f"design doc unknown ({tq_cause})")
+    if comments_cause:
+        questions.append(f"bead comments unknown ({comments_cause})")
+    if questions:
+        lines += ["Open questions:", *_items(questions)]
+    if "cycles" in got:
+        cycles, cycles_cause = got["cycles"]
+        if cycles_cause:
+            lines.append(f"Review cycles: unknown ({cycles_cause})")
+        elif cycles:
+            lines.append("Review cycles: " + _inline(cycles))
     if state is not None:
         command = next_command(wf, state, [str(row.get("id")) for row in ready or ()])
         if command:
@@ -311,21 +408,27 @@ def workflow_lines(ctx: Context, found: Found, recent: Sequence[str], shipped: s
     elif still_open:
         lines.append("Other open workflows: " + _inline([f"{other} ({local_stage(ctx.events, other)})"
                                                           for other in still_open]))
-    return lines
+    return lines, got.get("memories")
 
 
-def no_workflow_lines(ctx: Context, open_ids: Sequence[str], shipped_cause: str | None = None) -> list[str]:
-    """The card without a workflow: the open workflows, or `unknown (<cause>)` when the shipped check failed."""
+def no_workflow_lines(ctx: Context, open_ids: Sequence[str], shipped_cause: str | None = None
+                      ) -> tuple[list[str], tuple[Any, str | None] | None]:
+    """The card without a workflow and the memories result of its round (None outside Beads): the open
+    workflows, or `unknown (<cause>)` when the shipped check failed. Memories are the last job of the round."""
     lines = ["gin state card: no workflow is bound to this session or this folder"]
+    shown = [] if shipped_cause else list(open_ids[:OPEN_CAP])
+    jobs: dict[str, Callable[[], Any]] = {f"wf:{wf}": (lambda wf=wf: _state(ctx, wf)) for wf in shown}
+    if ctx.beads:
+        jobs["memories"] = lambda: memories(ctx.root)
+    got = bounded(jobs, ROUND_TIMEOUT) if jobs else {}
+    memo = got.get("memories")
     if shipped_cause:
-        return [*lines, f"Open workflows: unknown ({shipped_cause})"]
+        return [*lines, f"Open workflows: unknown ({shipped_cause})"], memo
     if not open_ids:
-        return [*lines, "Open workflows: none; start one with /gin:discuss"]
-    shown = list(open_ids[:OPEN_CAP])
-    got = bounded({wf: (lambda wf=wf: _state(ctx, wf)) for wf in shown}, ROUND_TIMEOUT)
+        return [*lines, "Open workflows: none; start one with /gin:discuss"], memo
     lines.append("Open workflows:")
     for wf in shown:
-        state, cause = got[wf]
+        state, cause = got[f"wf:{wf}"]
         if cause:
             lines.append(f"  - {wf}: unknown ({cause})")
             continue
@@ -333,20 +436,41 @@ def no_workflow_lines(ctx: Context, open_ids: Sequence[str], shipped_cause: str 
         lines.append(f"  - {wf}: {state['stage']}" + (f", next: {command}" if command else ""))
     if len(open_ids) > OPEN_CAP:
         lines.append(f"  +{len(open_ids) - OPEN_CAP} more")
-    return lines
+    return lines, memo
 
 
-def finish(lines: Sequence[str]) -> str:
-    return "\n".join(lines)[:CARD_CAP]
+def finish(lines: Sequence[str], memo: tuple[Any, str | None] | None = None) -> str:
+    """The card within CARD_CAP. `memo` is the memories result, None outside Beads: the memories fill the room the
+    card leaves, then `+N more: bd memories`, and REFERENCE ends the card."""
+    head = "\n".join(lines) + "\n"
+    if memo is None:
+        return head.rstrip("\n")[:CARD_CAP]
+    found, cause = memo
+    if cause:
+        return (head + f"\nBeads memories: unknown ({_cut(cause)})\n" + REFERENCE)[:CARD_CAP]
+    items = [f"- {key}: {' '.join(value.split())}" for key, value in (found or {}).items()]
+    if not items:
+        return (head + "\n" + REFERENCE)[:CARD_CAP]
+    head += "\nBeads memories\n"
+    room = CARD_CAP - len(head) - len(REFERENCE) - len(f"+{len(items)} more: bd memories\n")
+    kept: list[str] = []
+    for item in items:
+        if len(item) + 1 > room:
+            break
+        kept.append(item)
+        room -= len(item) + 1
+    rest = len(items) - len(kept)
+    more = f"+{rest} more: bd memories\n" if rest else ""
+    return (head + "".join(f"{item}\n" for item in kept) + more + REFERENCE)[:CARD_CAP]
 
 
 def render(ctx: Context, found: Found, recent: Sequence[str], shipped: set[str] | None,
            shipped_cause: str | None = None) -> str:
     if found.workflow_id is None:
-        lines = no_workflow_lines(ctx, [wf for wf in recent if wf not in (shipped or set())], shipped_cause)
+        lines, memo = no_workflow_lines(ctx, [wf for wf in recent if wf not in (shipped or set())], shipped_cause)
     else:
-        lines = workflow_lines(ctx, found, recent, shipped, shipped_cause)
-    return finish(lines)
+        lines, memo = workflow_lines(ctx, found, recent, shipped, shipped_cause)
+    return finish(lines, memo)
 
 
 def pre_compact_text(events: Sequence[WorkflowEvent], flag: str | None, session_id: str, folder: str) -> str:
@@ -410,7 +534,8 @@ def _run(args: argparse.Namespace, start: Path) -> str:
     root = repository_root(args.repository)
     if not (root / ".agent-workflow/config.yaml").is_file():
         return ""
-    session_id = _session_id(_hook_input(sys.stdin) if args.hook or args.pre_compact else {})
+    reads_input = (args.hook or args.pre_compact) and not sys.stdin.isatty()  # a manual run must not wait on a terminal
+    session_id = _session_id(_hook_input(sys.stdin) if reads_input else {})
     events, cause = _events(root)
     if cause:
         return f"gin state card: {cause}"
@@ -431,7 +556,7 @@ def _run(args: argparse.Namespace, start: Path) -> str:
             # simplified: when the check fails, the folder lookup counts only `delivery.shipped` events, so it may
             # pick a workflow whose epic is closed; the open-workflow lines read unknown. Upgrade: run the check
             # again as the first job of the round and resolve the folder workflow from its answer.
-            shipped, shipped_cause = local_shipped(events, candidates), str(error)
+            shipped, shipped_cause = local_shipped(events, candidates), _cut(str(error))
         found = resolve(events, flag=None, session_id="", folder=folder, shipped=shipped)
     return render(ctx, found, recent, shipped, shipped_cause)
 
