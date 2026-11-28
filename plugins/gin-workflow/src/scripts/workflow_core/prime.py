@@ -26,8 +26,8 @@ PRE_COMPACT_CAP = 1_500
 LIST_CAP = 10
 OPEN_CAP = 5
 OPEN_DAYS = 14
-CALL_TIMEOUT = 4.0  # one Beads call
-ROUND_TIMEOUT = 8.0  # the concurrent sources of one card; with the folder check first, under the hook's 15 s
+CALL_TIMEOUT = 4.0  # the shipped check that runs alone before the round, when no flag or session names the workflow
+ROUND_TIMEOUT = 8.0  # the concurrent round and each Beads call in it, since concurrent bd calls queue; 4 + 8 s < 15 s
 TEXT_CAP = 160  # one list item, cut with "..." beyond it
 _GATE_EVENTS = frozenset({"requirement.confirmed", "approval.recorded", "orchestration.ready"})
 _LOCAL_STAGES = (("discuss", "requirement_confirmed"), ("plan", "plan_approved"), ("orchestrate", "orchestration_ready"))
@@ -84,8 +84,8 @@ def bounded(jobs: Mapping[str, Callable[[], Any]], timeout: float,
 
 
 def query(root: Path, argv: Sequence[str]) -> Any:
-    """One read-only task query within CALL_TIMEOUT; raises SourceError with the cause when it fails."""
-    data, cause = tasks.query_result(root, list(argv), timeout=CALL_TIMEOUT)
+    """One read-only task query of the round within ROUND_TIMEOUT; raises SourceError with the cause when it fails."""
+    data, cause = tasks.query_result(root, list(argv), timeout=ROUND_TIMEOUT)
     if cause:
         raise SourceError(cause)
     return data
@@ -126,9 +126,11 @@ def local_shipped(events: Sequence[WorkflowEvent], workflow_ids: Sequence[str]) 
             if event.workflow_id in wanted and event.event_type == "delivery.shipped"}
 
 
-def shipped_among(root: Path, events: Sequence[WorkflowEvent], workflow_ids: Sequence[str]) -> set[str]:
+def shipped_among(root: Path, events: Sequence[WorkflowEvent], workflow_ids: Sequence[str], *,
+                  timeout: float) -> set[str]:
     """The shipped workflows of `workflow_ids`: a `delivery.shipped` event, or the epic of their
-    `orchestration.ready` event closed. One task query for all the epics; when it fails, only the events count."""
+    `orchestration.ready` event closed. One task query for all the epics, within `timeout` seconds; raises
+    SourceError with the cause when it fails."""
     done = local_shipped(events, workflow_ids)
     epics = {wf: lifecycle_cli._recorded_epic(events, wf) for wf in workflow_ids if wf not in done}
     epics = {wf: epic for wf, epic in epics.items() if epic}
@@ -138,9 +140,11 @@ def shipped_among(root: Path, events: Sequence[WorkflowEvent], workflow_ids: Seq
     # bd show takes about a second per id; bd list --id answers for all ids at once. The markdown list has no --id.
     argv = (["list", "--status", "closed", "--limit", "0", "--id", ",".join(ids)] if _uses_beads(root)
             else ["show", *ids])
-    data, cause = tasks.query_result(root, argv, timeout=CALL_TIMEOUT)
-    if cause or not isinstance(data, list):
-        return done
+    data, cause = tasks.query_result(root, argv, timeout=timeout)
+    if cause:
+        raise SourceError(cause)
+    if not isinstance(data, list):
+        raise SourceError("the task query did not return a list")
     closed = {str(row.get("id")) for row in data if isinstance(row, Mapping) and row.get("status") == "closed"}
     return done | {wf for wf, epic in epics.items() if epic in closed}
 
@@ -230,7 +234,7 @@ def workflow_lines(ctx: Context, found: Found, recent: Sequence[str], shipped: s
         "ready": lambda: ready_tracks(ctx.root, epic),
     }
     if shipped is None and others:
-        jobs["shipped"] = lambda: shipped_among(ctx.root, ctx.events, others)
+        jobs["shipped"] = lambda: shipped_among(ctx.root, ctx.events, others, timeout=ROUND_TIMEOUT)
     got = bounded(jobs, ROUND_TIMEOUT)
     state, state_cause = got["state"]
     kind, kind_error = got["kind"][0] or (None, None)
@@ -258,9 +262,11 @@ def workflow_lines(ctx: Context, found: Found, recent: Sequence[str], shipped: s
         command = next_command(wf, state, [str(row.get("id")) for row in ready or ()])
         if command:
             lines.append(f"Next: {command}")
-    done = shipped if shipped is not None else (got.get("shipped", (None, None))[0] or local_shipped(ctx.events, others))
-    still_open = [other for other in others if other not in done]
-    if still_open:
+    done, done_cause = (shipped, None) if shipped is not None else got.get("shipped", (set(), None))
+    still_open = [other for other in others if other not in (done or set())]
+    if done_cause:
+        lines.append(f"Other open workflows: unknown ({done_cause})")
+    elif still_open:
         lines.append("Other open workflows: " + _inline([f"{other} ({local_stage(ctx.events, other)})"
                                                           for other in still_open]))
     return lines
@@ -372,7 +378,12 @@ def _run(args: argparse.Namespace, start: Path) -> str:
     shipped = None
     if found.workflow_id is None:
         candidates = [*(event.workflow_id for event in folder_workflows(events, folder)), *recent]
-        shipped = shipped_among(root, events, list(dict.fromkeys(candidates)))
+        candidates = list(dict.fromkeys(candidates))
+        try:
+            shipped = shipped_among(root, events, candidates, timeout=CALL_TIMEOUT)
+        except SourceError:
+            # simplified: the folder lookup then counts only `delivery.shipped` events
+            shipped = local_shipped(events, candidates)
         found = resolve(events, flag=None, session_id="", folder=folder, shipped=shipped)
     return render(ctx, found, recent, shipped)
 

@@ -118,9 +118,23 @@ class ResolveTests(PrimeCase):
 
         with mock.patch.object(prime, "_uses_beads", return_value=True), \
                 mock.patch("workflow_core.tasks.query_result", side_effect=answer):
-            shipped = prime.shipped_among(self.root, prime._events(self.root)[0], ["wf-a", "wf-b"])
+            shipped = prime.shipped_among(self.root, prime._events(self.root)[0], ["wf-a", "wf-b"], timeout=3)
         self.assertEqual({"wf-a"}, shipped)
         self.assertEqual([["list", "--status", "closed", "--limit", "0", "--id", "ep-a,ep-b"]], calls)
+
+    def test_the_folder_check_before_the_round_has_the_short_timeout(self):
+        self.bind("wf-folder", OTHER)
+        self.add("orchestration.ready", "wf-folder", {"epic": "ep-f", "evidence": "plan.md"})
+        timeouts = {}
+
+        def answer(root, argv, timeout=30):
+            timeouts.setdefault(argv[0], timeout)
+            return [], None
+
+        with mock.patch("workflow_core.tasks.query_result", side_effect=answer):
+            out = self.prime("--hook", stdin=json.dumps({"session_id": SESSION}))[1]
+        self.assertIn("Workflow: wf-folder", out)
+        self.assertEqual(prime.CALL_TIMEOUT, timeouts["show"])
 
     def test_a_workflow_idle_for_more_than_14_days_is_not_listed(self):
         self.add("requirement.confirmed", "wf-stale", {"evidence": "spec.md"}, days_ago=30)
@@ -173,6 +187,36 @@ class CardTests(PrimeCase):
         self.assertIn("Stage: unknown (timed out after 0.1s)", out)
         self.assertIn("Workflow: wf-1", out)
         self.assertNotIn("Next:", out)
+
+    def test_beads_calls_in_the_round_wait_for_the_whole_round(self):
+        # concurrent bd calls queue, so one call's timeout must cover the round
+        self.add("orchestration.ready", "wf-1", {"epic": "ep-1", "evidence": "plan.md"})
+        self.add("orchestration.ready", "wf-2", {"epic": "ep-2", "evidence": "plan.md"})
+        timeouts = []
+
+        def answer(root, argv, timeout=30):
+            if argv[0] == "ready" or argv == ["show", "ep-2"]:
+                timeouts.append((argv[0], timeout))
+            return [], None
+
+        with mock.patch("workflow_core.tasks.query_result", side_effect=answer):
+            self.prime("--workflow-id", "wf-1")
+        self.assertEqual([("ready", prime.ROUND_TIMEOUT), ("show", prime.ROUND_TIMEOUT)], sorted(timeouts))
+
+    def test_a_failed_shipped_check_marks_the_other_workflows_unknown(self):
+        self.add("orchestration.ready", "wf-1", {"epic": "ep-1", "evidence": "plan.md"})
+        self.add("orchestration.ready", "wf-2", {"epic": "ep-2", "evidence": "plan.md"})
+        self.add("requirement.confirmed", "wf-3", {"evidence": "spec.md"})
+
+        def answer(root, argv, timeout=30):
+            return (None, "bd exited 1") if argv == ["show", "ep-2"] else ([], None)
+
+        with mock.patch("workflow_core.tasks.query_result", side_effect=answer):
+            out = self.prime("--workflow-id", "wf-1")[1]
+        self.assertIn("Other open workflows: unknown (bd exited 1)", out)
+        self.assertNotIn("wf-2", out)
+        self.assertNotIn("wf-3", out)
+        self.assertIn("Workflow: wf-1 (epic ep-1", out)
 
     def test_a_failed_ready_call_marks_only_its_line(self):
         self.add("orchestration.ready", "wf-1", {"epic": "ep-1", "evidence": "plan.md"})
