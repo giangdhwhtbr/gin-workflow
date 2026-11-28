@@ -10,7 +10,8 @@ Epic `gin-workflow-cost-binding` (2026-11-26, spec `.planning/specs/2026-11-26-c
 - Nothing is bound for `default-workflow`, without the variable, or for a value outside `[A-Za-z0-9_.-]{1,128}`.
 - The binding never changes a command's result: a store it cannot read or write prints `gin: session not bound: <cause>` on stderr. `gin state` binds only after it read the log, passes the events it read so an existing binding costs no lock, and never writes to a log it could not read.
 - `gin record` binds after its transaction has released the store's lock, because the lock is not re-entrant.
-- `gin state --format json` adds `sessions` (`session_id`, `bound_at`) for the requested workflow, oldest first.
+- `gin state --format json` adds `sessions` (`session_id`, `bound_at`) for the requested workflow, oldest first, one entry per session at its first binding.
+- Since epic `gin-workflow-context-boundaries` (2026-11-28) the payload also has `cwd`, the git top level of the folder the command ran in (`folder_key`). The event id hashes the payload, so a session bound from two folders has two events; `gin prime` uses `cwd` to find the last workflow bound in a folder ([state-card](state-card.md)). Events without `cwd` stay valid and are skipped by that lookup.
 
 **Consequences**
 - `gin state` is no longer read-only: the first call of a session for a workflow rewrites `.agent-workflow/runtime/events.jsonl` once, as every append does.
@@ -23,7 +24,7 @@ Epic `gin-workflow-cost-binding` (2026-11-26, spec `.planning/specs/2026-11-26-c
 - `plugins/gin-workflow/src/scripts/workflow_core/{session_binding,lifecycle_cli,routes}.py`, `tests/conftest.py`
 - Tests: `tests/workflow_core/test_session_binding.py`, `tests/workflow_core/test_routes_cli.py`
 - Docs: `docs/concepts/state-model.md` (Event store), `docs/reference/cli.md` (`gin state`)
-- Spec and plan: `.planning/specs/2026-11-26-cost-binding-design.md`, `.planning/plans/2026-11-26-cost-binding.md`
+- Spec and plan: `.planning/specs/2026-11-26-cost-binding-design.md`, `.planning/plans/2026-11-26-cost-binding.md`; `cwd`: `.planning/specs/2026-11-28-context-boundaries-design.md`
 - Beads: `gin-workflow-cost-binding`, `gin-workflow-cost-binding.1`
 
 **Scope**
