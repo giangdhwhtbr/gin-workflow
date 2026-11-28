@@ -11,6 +11,7 @@ SCRIPTS = Path(__file__).resolve().parents[2] / "plugins/gin-workflow/src/script
 sys.path.insert(0, str(SCRIPTS))
 
 from workflow_core import cli, routes
+from workflow_core.session_binding import folder_key
 from workflow_core.setup_service import refresh
 
 
@@ -285,7 +286,8 @@ class TestRoutesCLI(unittest.TestCase):
         events_file = self.root / ".agent-workflow/runtime/events.jsonl"
         events = [json.loads(line) for line in events_file.read_text(encoding="utf-8").splitlines() if line.strip()]
         bound = [event for event in events if event["event_type"] == "session.bound"]
-        self.assertEqual([("wf-bind", {"session_id": "session-a"})],
+        # routes binds without a start folder, so `cwd` is the folder key of the directory dispatch ran in
+        self.assertEqual([("wf-bind", {"session_id": "session-a", "cwd": folder_key()})],
                          [(event["workflow_id"], event["payload"]) for event in bound])
 
     def test_dispatch_escalate_haiku_low_gives_sonnet_low(self):
