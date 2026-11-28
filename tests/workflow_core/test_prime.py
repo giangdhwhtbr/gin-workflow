@@ -360,14 +360,52 @@ class BeadsLinesTests(PrimeCase):
         ]
         self.assertEqual(["t-2: keep the old flag?"], prime.open_questions(comments))
 
-    def test_a_workflow_id_that_is_no_bead_has_no_comments(self):
-        with mock.patch("workflow_core.tasks.query_result", return_value=(None, "issue not found: wf-1")):
-            self.assertEqual([], prime.epic_comments(self.root, "wf-1"))
-        with mock.patch("workflow_core.tasks.query_result", return_value=(None, "bd not found")):
-            with self.assertRaises(prime.SourceError):
-                prime.epic_comments(self.root, "wf-1")
+    def comment_calls(self, **answers):
+        calls = []
+
+        def answer(root, argv, timeout=30):
+            calls.append(list(argv))
+            value = answers.get(argv[0], [])
+            return (None, value[1]) if isinstance(value, tuple) else (value, None)
+
+        with mock.patch("workflow_core.tasks.backend", return_value="beads"), \
+                mock.patch("workflow_core.tasks.query_result", side_effect=answer):
+            out = self.prime("--workflow-id", "wf-1")[1]
+        return [call for call in calls if call[0] == "comments"], out
+
+    def test_the_comments_come_from_the_recorded_epic(self):
+        self.add("orchestration.ready", "wf-1", {"epic": "ep-1", "evidence": "plan.md"})
+        calls, _ = self.comment_calls()
+        self.assertEqual([["comments", "ep-1"]], calls)
+
+    def test_without_a_recorded_epic_the_comments_come_from_the_spec_epic_line(self):
+        (self.root / "spec.md").write_text("# Spec\nEpic: ep-9\nKind: technical\n", encoding="utf-8")
+        self.add("requirement.confirmed", "wf-1", {"evidence": "spec.md"})
+        calls, _ = self.comment_calls()
+        self.assertEqual([["comments", "ep-9"]], calls)
+
+    def test_with_neither_there_is_no_comments_call(self):
+        self.add("requirement.confirmed", "wf-1", {"evidence": "missing.md"})
+        calls, out = self.comment_calls()
+        self.assertEqual([], calls)
+        self.assertNotIn("bead comments unknown", out)
+
+    def test_a_failed_comments_call_is_a_real_unknown(self):
+        self.add("orchestration.ready", "wf-1", {"epic": "ep-1", "evidence": "plan.md"})
+        _, out = self.comment_calls(comments=(None, "bd exited 1"))
+        self.assertIn("bead comments unknown (bd exited 1)", out)
+
+    def test_a_huge_cause_still_leaves_a_card_within_the_cap_ending_with_the_reference(self):
+        self.add("orchestration.ready", "wf-1", {"epic": "ep-1", "evidence": "plan.md"})
+        cause = "x" * 20_000
+        out = self.run_with("--workflow-id", "wf-1", comments=(None, cause), memories=(None, cause),
+                            ready=(None, cause), state=(None, cause))
+        self.assertLessEqual(len(out.rstrip("\n")), prime.CARD_CAP)
+        self.assertTrue(out.rstrip("\n").endswith(prime.REFERENCE))
+        self.assertIn("Beads memories: unknown (", out)
 
     def test_the_card_lists_bead_questions_and_open_design_questions(self):
+        self.add("orchestration.ready", "wf-1", {"epic": "ep-1", "evidence": "plan.md"})
         with mock.patch("workflow_core.lifecycle_cli._open_questions",
                         return_value=[(".planning/specs/x-design.md:40: TQ-1", "")]):
             out = self.run_with("--workflow-id", "wf-1",

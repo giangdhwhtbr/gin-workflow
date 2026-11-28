@@ -15,7 +15,7 @@ import threading
 import time
 from typing import Any, Callable, Mapping, Sequence
 
-from . import epic_kind, lifecycle_cli, tasks
+from . import epic_kind, lifecycle_cli, specs, tasks
 from .checkout import main_checkout
 from .events import WorkflowEvent, WorkflowEventStore
 from .prep import is_prep
@@ -59,7 +59,7 @@ def _attempt(job: Callable[[], Any]) -> tuple[Any, str | None]:
     try:
         return job(), None
     except Exception as error:  # broad on purpose: a failed source marks only its own line
-        return None, str(error) or type(error).__name__
+        return None, _cut(str(error) or type(error).__name__)
 
 
 class _Background:
@@ -239,12 +239,24 @@ REFERENCE = "Beads command reference: bd prime --no-memories"
 _QUESTION, _ANSWER = "[gin question]", "[gin answer]"
 
 
+def comments_target(root: Path, events: Sequence[WorkflowEvent], workflow_id: str, spec: str) -> str:
+    """The bead whose comments hold the questions: the epic recorded at orchestration-ready, else the `Epic:` line
+    of the workflow's spec when that is a readable local file, else "" (no comments call)."""
+    epic = lifecycle_cli._recorded_epic(events, workflow_id)
+    if epic or not spec:
+        return epic
+    try:
+        text = epic_kind._kind_source(root / spec).read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return ""
+    found = specs._EPIC_LINE.search(text)
+    return found.group(1) if found else ""
+
+
 def epic_comments(root: Path, target: str) -> list[Mapping[str, Any]]:
-    """The comments on `target`; none when it names no bead (a workflow id that is not a bead id)."""
+    """The comments on the bead `target`; raises SourceError with the cause when the call fails."""
     data, cause = tasks.query_result(root, ["comments", target], timeout=ROUND_TIMEOUT)
     if cause:
-        if "not found" in cause.lower() and cause != "bd not found":
-            return []
         raise SourceError(cause)
     return [item for item in data or () if isinstance(item, Mapping)]
 
@@ -334,8 +346,9 @@ def workflow_lines(ctx: Context, found: Found, recent: Sequence[str], shipped: s
         jobs["shipped"] = lambda: shipped_among(ctx.root, ctx.events, others, timeout=ROUND_TIMEOUT)
     if kind is None:
         jobs["kind"] = lambda: epic_kind.lookup(ctx.root, wf, spec or None)
-    if ctx.beads:
-        jobs["comments"] = lambda: open_questions(epic_comments(ctx.root, epic or wf))
+    target = comments_target(ctx.root, ctx.events, wf, spec) if ctx.beads else ""
+    if target:
+        jobs["comments"] = lambda: open_questions(epic_comments(ctx.root, target))
     if ctx.beads and epic and ctx.settings.review_ledger:
         jobs["cycles"] = lambda: review_cycles(ctx.root, epic, ctx.settings.max_cycles)
     if ctx.beads:
@@ -346,7 +359,7 @@ def workflow_lines(ctx: Context, found: Found, recent: Sequence[str], shipped: s
     if kind is None:
         looked_up, kind_cause = got["kind"]
         if looked_up is not None:
-            kind, kind_cause = (None, looked_up[1]) if looked_up[1] else (looked_up[0], None)
+            kind, kind_cause = (None, _cut(looked_up[1])) if looked_up[1] else (looked_up[0], None)
     detail = [f"epic {epic}"] if epic else []
     if kind:
         detail.append(f"kind {kind}")
@@ -434,7 +447,7 @@ def finish(lines: Sequence[str], memo: tuple[Any, str | None] | None = None) -> 
         return head.rstrip("\n")[:CARD_CAP]
     found, cause = memo
     if cause:
-        return (head + f"\nBeads memories: unknown ({cause})\n" + REFERENCE)[:CARD_CAP]
+        return (head + f"\nBeads memories: unknown ({_cut(cause)})\n" + REFERENCE)[:CARD_CAP]
     items = [f"- {key}: {' '.join(value.split())}" for key, value in (found or {}).items()]
     if not items:
         return (head + "\n" + REFERENCE)[:CARD_CAP]
@@ -543,7 +556,7 @@ def _run(args: argparse.Namespace, start: Path) -> str:
             # simplified: when the check fails, the folder lookup counts only `delivery.shipped` events, so it may
             # pick a workflow whose epic is closed; the open-workflow lines read unknown. Upgrade: run the check
             # again as the first job of the round and resolve the folder workflow from its answer.
-            shipped, shipped_cause = local_shipped(events, candidates), str(error)
+            shipped, shipped_cause = local_shipped(events, candidates), _cut(str(error))
         found = resolve(events, flag=None, session_id="", folder=folder, shipped=shipped)
     return render(ctx, found, recent, shipped, shipped_cause)
 
