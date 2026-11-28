@@ -1,7 +1,7 @@
 ---
 name: e2e-tester
 description: Builds and verifies one Playwright spec for one e2e test case (a `.e2e.md` case file) against the running application.
-tools: ["view_file", "grep_search", "list_dir", "run_command", "write_to_file", "replace_file_content"]
+tools: ["Read", "Grep", "Glob", "Bash", "Write", "Edit"]
 ---
 
 # E2E Tester

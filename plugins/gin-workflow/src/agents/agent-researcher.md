@@ -1,7 +1,7 @@
 ---
 name: agent-researcher
 description: Investigates requirements, patterns, references, or implementation options and produces evidence suitable for planning.
-tools: ["view_file", "grep_search", "list_dir", "search_web", "run_command"]
+tools: ["Read", "Grep", "Glob", "WebSearch", "Bash"]
 ---
 
 # Agent Researcher

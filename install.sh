@@ -251,16 +251,16 @@ if key in plugins:
 PYEOF
 }
 
-template_agents_for_claude() {
+template_agents_for_antigravity() {
   local src="$1"
   local dest="$2"
-  sed -e 's/"view_file"/"Read"/g' \
-      -e 's/"grep_search"/"Grep"/g' \
-      -e 's/"list_dir"/"Glob"/g' \
-      -e 's/"search_web"/"WebSearch"/g' \
-      -e 's/"run_command"/"Bash"/g' \
-      -e 's/"replace_file_content"/"Edit"/g' \
-      -e 's/"write_to_file"/"Write"/g' \
+  sed -e 's/"Read"/"view_file"/g' \
+      -e 's/"Grep"/"grep_search"/g' \
+      -e 's/"Glob"/"list_dir"/g' \
+      -e 's/"WebSearch"/"search_web"/g' \
+      -e 's/"Bash"/"run_command"/g' \
+      -e 's/"Edit"/"replace_file_content"/g' \
+      -e 's/"Write"/"write_to_file"/g' \
       "$src" > "$dest"
 }
 
@@ -274,13 +274,13 @@ template_agents_for_copilot() {
   local src="$1"
   local dest="$2"
   sed -e '/^tools:/ {' \
-      -e 's/"view_file"/"view"/g' \
-      -e 's/"grep_search"/"grep"/g' \
-      -e 's/"list_dir"/"glob"/g' \
-      -e 's/"search_web"/"web_fetch"/g' \
-      -e 's/"run_command"/"bash"/g' \
-      -e 's/"replace_file_content"/"edit"/g' \
-      -e 's/"write_to_file"/"edit"/g' \
+      -e 's/"Read"/"view"/g' \
+      -e 's/"Grep"/"grep"/g' \
+      -e 's/"Glob"/"glob"/g' \
+      -e 's/"WebSearch"/"web_fetch"/g' \
+      -e 's/"Bash"/"bash"/g' \
+      -e 's/"Edit"/"edit"/g' \
+      -e 's/"Write"/"edit"/g' \
       -e ':a' \
       -e 's/"edit",[[:space:]]*"edit"/"edit"/g' \
       -e 'ta' \
@@ -543,12 +543,13 @@ install_platform() {
       codex)     template_hooks_for_codex "$target_dir/hooks/hooks.json" "$hooks_root" ;;
     esac
   fi
-  if [ "$platform" = "claude" ]; then
+  if [ "$platform" = "antigravity" ]; then
     for f in "$target_dir/agents"/*.md; do
       [ -e "$f" ] || continue
       local tmp_file
       tmp_file=$(mktemp)
-      template_agents_for_claude "$f" "$tmp_file"
+      template_agents_for_antigravity "$f" "$tmp_file"
+      rm -f "$f"
       mv "$tmp_file" "$f"
     done
   fi

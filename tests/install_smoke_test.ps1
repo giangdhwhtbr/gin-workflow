@@ -197,7 +197,7 @@ try {
         $sourceSnapshots[$sourceAgent.FullName] = [IO.File]::ReadAllBytes($sourceAgent.FullName)
     }
     try {
-        $linkOutput = Invoke-Installer @{ Platform = 'claude'; Project = $linkProject; Link = $true } 3>&1 | Out-String
+        $linkOutput = Invoke-Installer @{ Platform = 'both'; Project = $linkProject; Link = $true } 3>&1 | Out-String
         foreach ($snapshot in $sourceSnapshots.GetEnumerator()) {
             $sourceAfter = [IO.File]::ReadAllBytes($snapshot.Key)
             Assert-True `
@@ -213,10 +213,14 @@ try {
             Assert-True ($null -ne $linkedSkill.LinkType) 'Linked installation copied a non-templated skill instead of linking it'
         }
         $linkedAgent = Join-Path $linkProject '.claude/agents/developer.md'
-        Assert-True ($null -eq (Get-Item -LiteralPath $linkedAgent).LinkType) 'Templated Claude agent remained a source symlink'
         $linkedContent = [IO.File]::ReadAllText($linkedAgent)
         Assert-Contains $linkedContent '"Read"'
-        Assert-True (-not $linkedContent.Contains('"view_file"', [StringComparison]::Ordinal)) 'Claude agent was not templated'
+        Assert-True (-not $linkedContent.Contains('"view_file"', [StringComparison]::Ordinal)) 'Claude agent was templated'
+        $antigravityAgent = Join-Path $linkProject '.agents/agents/developer.md'
+        Assert-True ($null -eq (Get-Item -LiteralPath $antigravityAgent).LinkType) 'Templated Antigravity agent remained a source symlink'
+        $antigravityContent = [IO.File]::ReadAllText($antigravityAgent)
+        Assert-Contains $antigravityContent '"view_file"'
+        Assert-True (-not $antigravityContent.Contains('"Read"', [StringComparison]::Ordinal)) 'Antigravity agent was not templated'
     }
     finally {
         foreach ($snapshot in $sourceSnapshots.GetEnumerator()) {

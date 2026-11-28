@@ -251,6 +251,10 @@ class HarnessPackagingTests(unittest.TestCase):
                     result = subprocess.run(["bash", "-c", pre], input=json.dumps(payload), capture_output=True,
                                             text=True, env=env)
                     self.assertEqual(code, result.returncode, result.stderr)
+        missing = subprocess.run(["bash", "-c", pre], input=json.dumps(danger), capture_output=True,
+                                 text=True, env=base)
+        self.assertEqual(0, missing.returncode, missing.stderr)
+        self.assertIn("hook skipped", missing.stderr)
 
     def test_every_skill_frontmatter_is_strict_yaml(self):
         # Copilot CLI skips a skill whose frontmatter is not valid YAML.

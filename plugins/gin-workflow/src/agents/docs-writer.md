@@ -1,7 +1,7 @@
 ---
 name: docs-writer
 description: Writes authorized technical documentation from verified repository evidence.
-tools: ["view_file", "grep_search", "list_dir", "run_command", "replace_file_content", "write_to_file"]
+tools: ["Read", "Grep", "Glob", "Bash", "Edit", "Write"]
 ---
 
 # Docs Writer
