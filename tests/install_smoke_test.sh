@@ -282,6 +282,9 @@ assert_exists "plugins/gin-workflow/dist/antigravity/plugin.json"
 assert_exists "plugins/gin-workflow/dist/antigravity/hooks/hooks.json"
 assert_not_exists "plugins/gin-workflow/dist/antigravity/skills/report"
 assert_workflow_v22_layout "plugins/gin-workflow/dist/antigravity"
+assert_contains "plugins/gin-workflow/dist/antigravity/agents/developer.md" '"run_command"'
+assert_not_contains "plugins/gin-workflow/dist/antigravity/agents/developer.md" '"Bash"'
+assert_contains "plugins/gin-workflow/dist/claude-code/agents/developer.md" '"Bash"'
 
 ./install.sh --platform opencode --dry-run >"$output_file"
 
@@ -411,6 +414,17 @@ mkdir -p "$opencode_link_home"
 HOME="$opencode_link_home" ./install.sh --platform opencode --link >/dev/null
 assert_exists "$opencode_link_home/.config/opencode/skills/gin/skills/setup/SKILL.md"
 assert_exists "$opencode_link_home/.config/opencode/skills/gin/skills/gin-learn/SKILL.md"
+
+# A --link project install links Claude agents and converts Antigravity ones without touching source.
+link_project="$MOCK_HOME/link-project"
+mkdir -p "$link_project" "$MOCK_HOME/link-home"
+source_sum="$(cat plugins/*/src/agents/*.md | cksum)"
+HOME="$MOCK_HOME/link-home" ./install.sh --platform both --project "$link_project" --link >/dev/null
+[ -L "$link_project/.claude/agents/developer.md" ] || { echo "Claude agent is not a symlink" >&2; exit 1; }
+[ ! -L "$link_project/.agents/agents/developer.md" ] || { echo "Antigravity agent is still a symlink" >&2; exit 1; }
+assert_contains "$link_project/.agents/agents/developer.md" '"run_command"'
+assert_not_contains "$link_project/.agents/agents/developer.md" '"Bash"'
+[ "$source_sum" = "$(cat plugins/*/src/agents/*.md | cksum)" ] || { echo "Install changed a source agent" >&2; exit 1; }
 
 # Project-level OpenCode install writes into the repository without touching the
 # repository's own .opencode/agents or .opencode/commands files.

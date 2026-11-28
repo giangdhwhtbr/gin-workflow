@@ -10,6 +10,29 @@ import unittest
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "plugins/gin-workflow/src/scripts"))
 
+CLAUDE_TO_ANTIGRAVITY = {
+    "Read": "view_file",
+    "Grep": "grep_search",
+    "Glob": "list_dir",
+    "WebSearch": "search_web",
+    "Bash": "run_command",
+    "Edit": "replace_file_content",
+    "Write": "write_to_file",
+}
+
+def _tools(path: Path) -> list[str]:
+    m = re.search(r"^tools:\s*(\[[^\]]+\])", path.read_text(encoding="utf-8"), re.MULTILINE)
+    assert m, f"{path} missing tools declaration"
+    return re.findall(r'"([^"]+)"', m.group(1))
+
+def _sed_args(function: str) -> list[str]:
+    body = re.search(function + r"\(\)\s*\{([\s\S]*?)\n\}", (ROOT / "install.sh").read_text(encoding="utf-8"))
+    assert body, f"{function} not found in install.sh"
+    args = []
+    for flag in re.findall(r"-e\s+('[^']+'|\"[^\"]+\")", body.group(1)):
+        args.extend(["-e", flag[1:-1]])
+    return args
+
 
 class AgentFilesTests(unittest.TestCase):
     def test_no_agent_has_model_in_frontmatter(self):
@@ -37,74 +60,47 @@ class AgentFilesTests(unittest.TestCase):
             "solution-architect.md should not exist under plugins/gin-workflow/src/agents/",
         )
 
+    def test_source_agents_list_claude_code_tool_names(self):
+        agents = sorted(ROOT.glob("plugins/*/src/agents/*.md"))
+        self.assertTrue(agents)
+        for path in agents:
+            with self.subTest(agent=path.relative_to(ROOT).as_posix()):
+                tools = _tools(path)
+                self.assertTrue(tools)
+                self.assertLessEqual(set(tools), set(CLAUDE_TO_ANTIGRAVITY))
+
     def test_agent_tools_declared(self):
-        def get_tools(filename: str):
-            path = ROOT / "plugins/gin-workflow/src/agents" / filename
-            text = path.read_text(encoding="utf-8")
-            m = re.search(r"^tools:\s*(\[[^\]]+\])", text, re.MULTILINE)
-            self.assertIsNotNone(m, f"{filename} missing tools declaration")
-            raw = m.group(1)
-            return set(re.findall(r'"([^"]+)"', raw))
-
-        dev_tools = get_tools("developer.md")
-        self.assertIn("replace_file_content", dev_tools)
-        self.assertIn("write_to_file", dev_tools)
-
-        researcher_tools = get_tools("agent-researcher.md")
-        self.assertIn("run_command", researcher_tools)
-
-        docs_tools = get_tools("docs-writer.md")
-        self.assertIn("run_command", docs_tools)
-        self.assertIn("replace_file_content", docs_tools)
-        self.assertIn("write_to_file", docs_tools)
-
-        reviewer_tools = get_tools("code-reviewer.md")
-        self.assertIn("list_dir", reviewer_tools)
+        agents = ROOT / "plugins/gin-workflow/src/agents"
+        self.assertLessEqual({"Edit", "Write"}, set(_tools(agents / "developer.md")))
+        self.assertIn("Bash", _tools(agents / "agent-researcher.md"))
+        self.assertLessEqual({"Bash", "Edit", "Write"}, set(_tools(agents / "docs-writer.md")))
+        self.assertIn("Glob", _tools(agents / "code-reviewer.md"))
 
     @unittest.skipIf(os.name == "nt", "runs the install.sh expressions through sed, a POSIX tool")
-    def test_claude_template_agents_maps_tools_for_developer(self):
-        install_sh = (ROOT / "install.sh").read_text(encoding="utf-8")
-        m = re.search(
-            r"template_agents_for_claude\(\)\s*\{([\s\S]*?)\n\}",
-            install_sh,
-        )
-        self.assertIsNotNone(m, "template_agents_for_claude not found in install.sh")
-        body = m.group(1)
+    def test_antigravity_template_round_trips_every_source_agent(self):
+        forward = _sed_args("template_agents_for_antigravity")
+        self.assertEqual(len(CLAUDE_TO_ANTIGRAVITY), len(forward) // 2)
+        inverse = []
+        for claude, antigravity in CLAUDE_TO_ANTIGRAVITY.items():
+            inverse.extend(["-e", f's/"{antigravity}"/"{claude}"/g'])
+        for path in sorted(ROOT.glob("plugins/*/src/agents/*.md")):
+            source = path.read_text(encoding="utf-8")
+            with self.subTest(agent=path.relative_to(ROOT).as_posix()):
+                converted = subprocess.run(["sed", *forward], input=source, text=True,
+                                           capture_output=True, check=True).stdout
+                for claude, antigravity in CLAUDE_TO_ANTIGRAVITY.items():
+                    self.assertNotIn(f'"{claude}"', converted)
+                self.assertIn('"run_command"', converted)
+                back = subprocess.run(["sed", *inverse], input=converted, text=True,
+                                      capture_output=True, check=True).stdout
+                self.assertEqual(source, back)
 
-        sed_flags = re.findall(r"-e\s+('[^']+'|\"[^\"]+\")", body)
-        self.assertTrue(len(sed_flags) > 0, "No sed -e expressions found in template_agents_for_claude")
-
-        sed_args = []
-        for flag in sed_flags:
-            expr = flag[1:-1]
-            sed_args.extend(["-e", expr])
-
-        dev_file = ROOT / "plugins/gin-workflow/src/agents/developer.md"
-        dev_content = dev_file.read_text(encoding="utf-8")
-
-        result = subprocess.run(
-            ["sed"] + sed_args,
-            input=dev_content,
-            text=True,
-            capture_output=True,
-            check=True,
-        )
-        templated = result.stdout
-
-        self.assertIn('"Edit"', templated)
-        self.assertIn('"Write"', templated)
-
-        source_tools = [
-            "view_file",
-            "grep_search",
-            "list_dir",
-            "search_web",
-            "run_command",
-            "replace_file_content",
-            "write_to_file",
-        ]
-        for src_tool in source_tools:
-            self.assertNotIn(f'"{src_tool}"', templated)
+    @unittest.skipIf(os.name == "nt", "runs the install.sh expressions through sed, a POSIX tool")
+    def test_copilot_template_maps_claude_code_names(self):
+        source = (ROOT / "plugins/gin-workflow/src/agents/developer.md").read_text(encoding="utf-8")
+        converted = subprocess.run(["sed", *_sed_args("template_agents_for_copilot")], input=source, text=True,
+                                   capture_output=True, check=True).stdout
+        self.assertIn('tools: ["view", "grep", "glob", "bash", "edit"]', converted)
 
 
 if __name__ == "__main__":
