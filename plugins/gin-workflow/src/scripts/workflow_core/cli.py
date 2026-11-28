@@ -12,8 +12,8 @@ from typing import Any, Sequence
 CLI_VERSION = "3.5.4"
 TOP_COMMANDS = ("setup", "state", "unblock", "record", "quick-check", "rules", "specs", "docs", "team",
                 "reviewer", "hooks", "evidence", "task", "routes", "paths", "goal", "commit", "worktree", "workspace", "milestone",
-                "points", "attach", "version")
-UNPINNED = ("paths", "version")  # commands that run whatever .ginrc says
+                "points", "attach", "version", "prime")
+UNPINNED = ("paths", "version", "prime")  # commands that run whatever .ginrc says; prime checks it itself
 
 
 ACTIONS = {
@@ -148,6 +148,9 @@ def main(arguments: Sequence[str] | None = None) -> int:
             return 2
     from . import workspace
     try:
+        if argv[0] == "prime":
+            from .prime import main as prime_main
+            return prime_main(argv[1:])
         if argv[0] == "routes":
             from .routes import main as routes_main
             return routes_main(argv[1:])
