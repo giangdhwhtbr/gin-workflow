@@ -201,20 +201,20 @@ function New-CopilotHooksFile {
     Write-Utf8File -Path $OutputPath -Content $content
 }
 
-function Convert-ClaudeAgents {
+function Convert-AntigravityAgents {
     param([Parameter(Mandatory)][string]$AgentsDirectory)
     if (-not (Test-Path -LiteralPath $AgentsDirectory -PathType Container)) {
         return
     }
     foreach ($agent in Get-ChildItem -LiteralPath $AgentsDirectory -Filter '*.md' -File) {
         $content = Get-Content -LiteralPath $agent.FullName -Raw
-        $content = $content.Replace('"view_file"', '"Read"')
-        $content = $content.Replace('"grep_search"', '"Grep"')
-        $content = $content.Replace('"list_dir"', '"Glob"')
-        $content = $content.Replace('"search_web"', '"WebSearch"')
-        $content = $content.Replace('"run_command"', '"Bash"')
-        $content = $content.Replace('"replace_file_content"', '"Edit"')
-        $content = $content.Replace('"write_to_file"', '"Write"')
+        $content = $content.Replace('"Read"', '"view_file"')
+        $content = $content.Replace('"Grep"', '"grep_search"')
+        $content = $content.Replace('"Glob"', '"list_dir"')
+        $content = $content.Replace('"WebSearch"', '"search_web"')
+        $content = $content.Replace('"Bash"', '"run_command"')
+        $content = $content.Replace('"Edit"', '"replace_file_content"')
+        $content = $content.Replace('"Write"', '"write_to_file"')
         if ($Link -and $null -ne $agent.LinkType) {
             Remove-Item -LiteralPath $agent.FullName -Force
         }
@@ -247,13 +247,13 @@ function Convert-CopilotAgents {
         $content = [regex]::Replace($content, '(?m)^tools:.*$', {
             param($match)
             $toolsLine = $match.Value
-            $toolsLine = $toolsLine.Replace('"view_file"', '"view"')
-            $toolsLine = $toolsLine.Replace('"grep_search"', '"grep"')
-            $toolsLine = $toolsLine.Replace('"list_dir"', '"glob"')
-            $toolsLine = $toolsLine.Replace('"search_web"', '"web_fetch"')
-            $toolsLine = $toolsLine.Replace('"run_command"', '"bash"')
-            $toolsLine = $toolsLine.Replace('"replace_file_content"', '"edit"')
-            $toolsLine = $toolsLine.Replace('"write_to_file"', '"edit"')
+            $toolsLine = $toolsLine.Replace('"Read"', '"view"')
+            $toolsLine = $toolsLine.Replace('"Grep"', '"grep"')
+            $toolsLine = $toolsLine.Replace('"Glob"', '"glob"')
+            $toolsLine = $toolsLine.Replace('"WebSearch"', '"web_fetch"')
+            $toolsLine = $toolsLine.Replace('"Bash"', '"bash"')
+            $toolsLine = $toolsLine.Replace('"Edit"', '"edit"')
+            $toolsLine = $toolsLine.Replace('"Write"', '"edit"')
             while ($toolsLine -match '"edit",\s*"edit"') {
                 $toolsLine = [regex]::Replace($toolsLine, '"edit",\s*"edit"', '"edit"')
             }
@@ -422,8 +422,8 @@ function Install-PlatformLayout {
     if (Test-Path -LiteralPath (Join-Path $PluginDirectory 'src/hooks') -PathType Container) {
         New-HooksFile -Harness $Harness -OutputPath (Join-Path $Destination 'hooks/hooks.json') -HooksRoot $HooksRoot
     }
-    if ($Harness -eq 'claude') {
-        Convert-ClaudeAgents -AgentsDirectory (Join-Path $Destination 'agents')
+    if ($Harness -eq 'antigravity') {
+        Convert-AntigravityAgents -AgentsDirectory (Join-Path $Destination 'agents')
     }
     if ($Harness -eq 'codex') {
         Convert-CodexAgents -AgentsDirectory (Join-Path $Destination 'agents')
