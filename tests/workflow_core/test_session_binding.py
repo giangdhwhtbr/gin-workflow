@@ -1,4 +1,4 @@
-"""`session.bound`: gin records once which Claude Code session worked on which workflow."""
+"""`session.bound`: gin records which Claude Code session worked on which workflow, each time it moves to one."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ from unittest import mock
 SCRIPTS = Path(__file__).resolve().parents[2] / "plugins/gin-workflow/src/scripts"
 sys.path.insert(0, str(SCRIPTS))
 
-from workflow_core import session_binding  # noqa: E402
+from workflow_core import prime, session_binding  # noqa: E402
 from workflow_core.events import WorkflowEvent, WorkflowEventStore  # noqa: E402
 from workflow_core.lifecycle_cli import main as lifecycle_main  # noqa: E402
 
@@ -75,6 +75,35 @@ class SessionBindingTests(unittest.TestCase):
         self.assertEqual([("wf-1", SESSION), ("wf-2", SESSION), ("wf-1", "second-session")], self.bindings())
         self.assertEqual([SESSION, "second-session"], [row["session_id"] for row in payload["sessions"]])
 
+    def test_returning_to_an_earlier_workflow_binds_it_again(self):
+        with session():
+            for workflow_id in ("wf-a", "wf-b", "wf-a", "wf-a"):
+                payload = self.state("--workflow-id", workflow_id)[1]
+        self.assertEqual([("wf-a", SESSION), ("wf-b", SESSION), ("wf-a", SESSION)], self.bindings())
+        self.assertEqual([SESSION], [row["session_id"] for row in payload["sessions"]])
+        events = WorkflowEventStore(self.log).read_all()
+        found = prime.resolve(events, flag=None, session_id=SESSION, folder=str(self.root.resolve()), shipped=None)
+        self.assertEqual("wf-a", found.workflow_id)
+
+    def test_the_binding_is_computed_again_under_the_lock(self):
+        store = WorkflowEventStore(self.log)
+        self.log.parent.mkdir(parents=True)
+        with session():
+            session_binding.bind_session(store, "wf-1", [], start=self.root)
+            session_binding.bind_session(store, "wf-2", store.read_all(), start=self.root)
+            stale = session_binding.bind_session(store, "wf-2", [], start=self.root)
+        self.assertIsNone(stale)
+        self.assertEqual([("wf-1", SESSION), ("wf-2", SESSION)], self.bindings())
+
+    def test_a_matching_newest_binding_takes_no_lock(self):
+        store = WorkflowEventStore(self.log)
+        self.log.parent.mkdir(parents=True)
+        with session():
+            session_binding.bind_session(store, "wf-1", start=self.root)
+            events = store.read_all()
+            with mock.patch.object(WorkflowEventStore, "transaction", side_effect=AssertionError("locked")):
+                self.assertIsNone(session_binding.bind_session(store, "wf-1", events, start=self.root))
+
     def test_nothing_is_bound_without_a_usable_session_or_an_explicit_workflow(self):
         named = ("--workflow-id", "wf-1")
         for value, argv in ((None, named), ("", named), ("bad id; rm", named), ("x" * 129, named),
@@ -97,7 +126,7 @@ class SessionBindingTests(unittest.TestCase):
     def test_a_failed_write_warns_and_leaves_state_unchanged(self):
         with session(None):
             expected = self.state("--workflow-id", "wf-1")[:2]
-        with session(), mock.patch.object(WorkflowEventStore, "append", side_effect=OSError("read-only")):
+        with session(), mock.patch.object(WorkflowEventStore, "transaction", side_effect=OSError("read-only")):
             code, payload, err = self.state("--workflow-id", "wf-1")
         self.assertEqual(expected, (code, payload))
         self.assertIn("gin: session not bound: read-only", err)
