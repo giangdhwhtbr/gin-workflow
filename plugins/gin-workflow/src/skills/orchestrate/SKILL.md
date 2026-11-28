@@ -29,4 +29,4 @@ Turn an approved plan into durable Beads state. Beads is the only source of stat
 
 Return `orchestration_ready`. Do not begin execution.
 
-End with `Next commands:`, the ready tracks (`/gin:execute <id>`), and what `gin goal --workflow-id <workflow>` prints, verbatim: a Claude Code `/goal` (suggest auto mode) over only the tracks the agent can finish unattended, or why there is none.
+Show what `gin goal --workflow-id <workflow>` prints, verbatim: a Claude Code `/goal` (suggest auto mode) over only the tracks the agent can finish unattended, or why there is none. End with `Next: /clear, then /gin:execute <id-1> <id-2>` for the ready tracks.
