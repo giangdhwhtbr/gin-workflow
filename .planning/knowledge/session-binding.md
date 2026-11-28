@@ -6,15 +6,15 @@ Epic `gin-workflow-cost-binding` (2026-11-26, spec `.planning/specs/2026-11-26-c
 **Decision/Solution**
 - `workflow_core/session_binding.py` holds the rules: `binding_event`, `bind_session`, `bound_sessions`.
 - The session id comes from `CLAUDE_CODE_SESSION_ID`, which Claude Code sets in the subprocesses of its Bash and PowerShell tools and of its hooks. Checked on 2026-11-26 with Claude Code 2.1.322: it equals the transcript file name, a subagent's shell sees the parent's id, and the id changes after `/clear`. No skill text changes.
-- `gin state`, `gin record`, `gin unblock`, and `gin routes dispatch` append one `session.bound` event per session and workflow (`workflow_id` the command's workflow, `payload` `{"session_id"}`, `idempotency_key` `session:<id>`). The event id is a hash of those fields, so the store's duplicate check makes a repeat a no-op.
+- `gin state`, `gin record`, `gin unblock`, and `gin routes dispatch` append a `session.bound` event (`workflow_id` the command's workflow, `payload` `{"session_id", "cwd"}`) when the session's newest binding names another workflow or folder; a repeat on the same workflow and folder writes nothing. The first binding of a session has `idempotency_key` `session:<id>`, a later one `session:<id>:after:<event id of the newest binding>`, so a return to an earlier workflow is a new event (`gin-workflow-8cqo`, 2026-11-28: before it, the key alone made that return a no-op and `gin prime` showed the later workflow). `bind_session` computes the event again inside `store.transaction()`, so two concurrent commands of one session write it once.
 - Nothing is bound for `default-workflow`, without the variable, or for a value outside `[A-Za-z0-9_.-]{1,128}`.
-- The binding never changes a command's result: a store it cannot read or write prints `gin: session not bound: <cause>` on stderr. `gin state` binds only after it read the log, passes the events it read so an existing binding costs no lock, and never writes to a log it could not read.
+- The binding never changes a command's result: a store it cannot read or write prints `gin: session not bound: <cause>` on stderr. `gin state` binds only after it read the log, passes the events it read so a session whose newest binding matches costs no lock, and never writes to a log it could not read.
 - `gin record` binds after its transaction has released the store's lock, because the lock is not re-entrant.
 - `gin state --format json` adds `sessions` (`session_id`, `bound_at`) for the requested workflow, oldest first, one entry per session at its first binding.
 - Since epic `gin-workflow-context-boundaries` (2026-11-28) the payload also has `cwd`, the git top level of the folder the command ran in (`folder_key`). The event id hashes the payload, so a session bound from two folders has two events; `gin prime` uses `cwd` to find the last workflow bound in a folder ([state-card](state-card.md)). Events without `cwd` stay valid and are skipped by that lookup.
 
 **Consequences**
-- `gin state` is no longer read-only: the first call of a session for a workflow rewrites `.agent-workflow/runtime/events.jsonl` once, as every append does.
+- `gin state` is no longer read-only: a call that moves a session to another workflow or folder rewrites `.agent-workflow/runtime/events.jsonl` once, as every append does.
 - Every command run from a Claude Code session inherits the variable, the local pre-push hook included. Tests that read the last event of the log (`test_team_gates.py`, `test_hosts_gitea.py`, `test_hosts_codecommit.py`) failed there and not on CI. `tests/conftest.py` clears the variable for the whole pytest run; a test that needs it sets it with `mock.patch.dict`. A plain `python -m unittest` run does not load the conftest.
 - A tool started inside a Claude Code session, such as a gin-console backend, binds that session to every epic it polls with `gin state --workflow-id`. Such a caller must drop the variable from the environment it gives `gin`.
 - Bindings are local to a machine, like the transcripts, so a team's cost is per member.
@@ -25,7 +25,7 @@ Epic `gin-workflow-cost-binding` (2026-11-26, spec `.planning/specs/2026-11-26-c
 - Tests: `tests/workflow_core/test_session_binding.py`, `tests/workflow_core/test_routes_cli.py`
 - Docs: `docs/concepts/state-model.md` (Event store), `docs/reference/cli.md` (`gin state`)
 - Spec and plan: `.planning/specs/2026-11-26-cost-binding-design.md`, `.planning/plans/2026-11-26-cost-binding.md`; `cwd`: `.planning/specs/2026-11-28-context-boundaries-design.md`
-- Beads: `gin-workflow-cost-binding`, `gin-workflow-cost-binding.1`
+- Beads: `gin-workflow-cost-binding`, `gin-workflow-cost-binding.1`, `gin-workflow-8cqo`
 
 **Scope**
 The event log, the four commands that bind a session, the `sessions` key of `gin state`, and how the test suite treats the session variable.

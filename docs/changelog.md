@@ -17,6 +17,10 @@ This page lists what changed in each release of gin-workflow and its add-ons (gi
 - `/gin:setup` offers `autoCompactWindow: 200000` for Claude Code.
 - `session.bound` events carry `cwd`, the git top level the command ran in.
 
+### Fixed
+
+- A session that returns to an earlier workflow binds it again, so `gin prime` shows that workflow after a resume or compaction.
+
 ## [3.5.4] - 2026-11-27
 
 ### Upgrade notes
