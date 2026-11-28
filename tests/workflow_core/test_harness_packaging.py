@@ -167,14 +167,25 @@ class HarnessPackagingTests(unittest.TestCase):
                 root = self.dist / harness
                 self.assertTrue(all((root / relative).is_file() for relative in relatives))
 
-    def test_only_the_claude_hooks_file_has_a_session_start_hook_for_the_version_pin(self):
+    def test_only_the_claude_hooks_file_has_session_start_and_pre_compact_hooks(self):
         claude = json.loads((self.dist / "claude-code/hooks/hooks.json").read_text(encoding="utf-8"))
-        self.assertEqual({"PreToolUse", "SessionStart"}, set(claude["hooks"]))
-        command = claude["hooks"]["SessionStart"][0]["hooks"][0]["command"]
-        self.assertIn("gin version --hook", command)
+        self.assertEqual({"PreToolUse", "SessionStart", "PreCompact"}, set(claude["hooks"]))
+        version, card = claude["hooks"]["SessionStart"]
+        self.assertIn("gin version --hook", version["hooks"][0]["command"])
+        self.assertNotIn("matcher", version)
+        self.assertEqual("startup|resume|clear|compact", card["matcher"])
+        self.assertEqual("if command -v gin >/dev/null 2>&1; then gin prime --hook; fi; exit 0",
+                         card["hooks"][0]["command"])
+        self.assertEqual(15, card["hooks"][0]["timeout"])
+        compact = claude["hooks"]["PreCompact"][0]["hooks"][0]
+        self.assertEqual("if command -v gin >/dev/null 2>&1; then gin prime --pre-compact; fi; exit 0",
+                         compact["command"])
+        self.assertEqual(15, compact["timeout"])
         for relative in ("codex/hooks/hooks.json", "antigravity/hooks/hooks.json", "copilot/gin/hooks/hooks.json"):
             with self.subTest(file=relative):
-                self.assertNotIn("SessionStart", (self.dist / relative).read_text(encoding="utf-8"))
+                text = (self.dist / relative).read_text(encoding="utf-8")
+                self.assertNotIn("SessionStart", text)
+                self.assertNotIn("PreCompact", text)
 
     def test_copilot_layout_is_a_claude_manifest_bundle_with_copilot_hooks(self):
         # Copilot CLI reads .claude-plugin/plugin.json, skills/<name>/SKILL.md,

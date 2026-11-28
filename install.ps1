@@ -167,12 +167,31 @@ function New-HooksFile {
         if ($Harness -eq 'claude') {
             # PowerShell syntax, so the hook sets its shell: the default is Git Bash when it is installed.
             # gin.cmd, not gin: PowerShell resolves gin to its built-in Get-ComputerInfo alias.
-            $hooks.hooks['SessionStart'] = @([ordered]@{
+            $hooks.hooks['SessionStart'] = @(
+                [ordered]@{
+                    hooks = @([ordered]@{
+                        type = 'command'
+                        shell = 'powershell'
+                        command = 'if (Get-Command gin.cmd -ErrorAction SilentlyContinue) { gin.cmd version --hook }; exit 0'
+                        timeout = 10
+                    })
+                },
+                [ordered]@{
+                    matcher = 'startup|resume|clear|compact'
+                    hooks = @([ordered]@{
+                        type = 'command'
+                        shell = 'powershell'
+                        command = 'if (Get-Command gin.cmd -ErrorAction SilentlyContinue) { gin.cmd prime --hook }; exit 0'
+                        timeout = 15
+                    })
+                }
+            )
+            $hooks.hooks['PreCompact'] = @([ordered]@{
                 hooks = @([ordered]@{
                     type = 'command'
                     shell = 'powershell'
-                    command = 'if (Get-Command gin.cmd -ErrorAction SilentlyContinue) { gin.cmd version --hook }; exit 0'
-                    timeout = 10
+                    command = 'if (Get-Command gin.cmd -ErrorAction SilentlyContinue) { gin.cmd prime --pre-compact }; exit 0'
+                    timeout = 15
                 })
             })
         }

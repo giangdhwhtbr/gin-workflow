@@ -41,7 +41,7 @@ Unclear requirements never raise the model or effort.
 ## Approach Options
 
 ### Option 1: one `gin prime` module that reuses the `gin state` computation
-- Summary: extract the body of `_state_command` into `state_payload(..., bind=False, warnings=False)`; `prime.py` resolves the workflow from the event log, runs `state_payload` and the card's own Beads calls on daemon threads with per-call timeouts, and renders the card under the size cap.
+- Summary: extract the body of `_state_command` into `state_payload(..., bind=False, warnings=False)`; `prime.py` resolves the workflow from the event log, runs `state_payload` and the card's own Beads calls one after another on one daemon thread within one time budget, and renders the card under the size cap.
 - Pros: the card's gates equal `gin state`'s, team shared gates included (requirement 19), with no second gate model; no cache to go stale; the hook adds no Python dependency.
 - Cons: a card costs about two rounds of Beads calls (0.7–2.7 s each here); the 3-second target is measured, not enforced.
 
@@ -69,6 +69,15 @@ execution_strategy:
     mode: parallel
   rationale: Tracks 1, 5, and 6 touch disjoint files and start together; tracks 2, 3, and 4 build `prime.py` in sequence after track 1; track 7 documents the result last.
 ```
+
+## Change during execute (2026-11-28, user decision)
+
+Concurrent `bd` calls in one repository finish later than the same calls in a row (track 2 trace: 4 calls ended about 7.5 s after start against 5.1 s serially), so the card hit its 8 s round and lines read `unknown` on about half the runs. Spec requirement 6 now reads: the Beads calls run one after another in one background job within one budget, most important line first, and the kind comes from the spec's `Kind:` line without a Beads call when the spec has one. For the code below this means:
+
+- `bounded(jobs, timeout)` keeps its signature but runs the jobs in dict order on one daemon thread; a job not finished when the budget ends reads `timed out after <budget>s`. Jobs are listed in priority order: `state`, `ready`, `shipped`, then track 3's `comments`, `cycles`, and `memories`.
+- `ROUND_TIMEOUT` is 10 s; the folder check before the round keeps `CALL_TIMEOUT` (4 s), so the worst case is 14 s, under the hook's 15 s.
+- Track 3: `memories` is the last job of the round (both card forms), not a separate `_Background` in `render`; `tq` reads a local file and stays a job of the round.
+- Track 4: the host call (`team_pending`) still runs beside the round on its own `_Background` with `TEAM_TIMEOUT`; the member and lane jobs, which call Beads, join the round just before `memories`.
 
 ## Tasks
 

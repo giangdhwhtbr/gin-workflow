@@ -166,6 +166,10 @@ try {
     $claudeHooksText = [IO.File]::ReadAllText((Join-Path $project '.claude/hooks/hooks.json'))
     Assert-Contains $claudeHooksText '"SessionStart"'
     Assert-Contains $claudeHooksText 'gin.cmd version --hook'
+    Assert-Contains $claudeHooksText 'gin.cmd prime --hook'
+    Assert-Contains $claudeHooksText 'gin.cmd prime --pre-compact'
+    Assert-Contains $claudeHooksText '"PreCompact"'
+    Assert-Contains $claudeHooksText 'startup|resume|clear|compact'
     Assert-Exists (Join-Path $TestHome ".local/lib/gin/$ReleaseVersion/workflow_core/cli.py")
     Assert-Exists (Join-Path $TestHome ".local/lib/gin/$ReleaseVersion/.gin-workflow-src.json")
     Assert-Exists (Join-Path $TestHome ".local/lib/gin/$ReleaseVersion/rules/core.md")
