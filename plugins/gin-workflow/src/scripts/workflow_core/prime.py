@@ -309,6 +309,57 @@ def memories(root: Path) -> dict[str, str]:
     return {str(key): str(value) for key, value in data.items()} if isinstance(data, Mapping) else {}
 
 
+TEAM_TIMEOUT = 4.0  # the host's answer for the waiting pull requests, counted from its start before the round
+
+
+def team_jobs(ctx: Context) -> dict[str, Callable[[], Any]]:
+    """The member and lane sources of team mode, for the round just before `memories`: `ready` calls Beads.
+    `require_member` is local; it stays a job so a failure marks only the `Member:` line."""
+    from . import team as team_core, team_beads
+
+    def lanes() -> tuple[Any, list[dict[str, Any]]]:
+        member = team_core.require_member(ctx.root, ctx.team)
+        return member, team_beads.ready(ctx.root, ctx.team, member)
+
+    return {"team_member": lambda: team_core.require_member(ctx.root, ctx.team), "team_lanes": lanes}
+
+
+def team_pending_job(ctx: Context) -> _Background | None:
+    """The host call for the waiting pull requests, on its own thread beside the round; None outside team mode."""
+    from . import team_pending
+
+    return _Background(lambda: team_pending.pending(ctx.root, ctx.team)) if ctx.team is not None else None
+
+
+def team_lines(got: Mapping[str, tuple[Any, str | None]], pending: _Background | None) -> list[str]:
+    """`Member:`, `Claimed lane:`, and `Pull requests waiting:`; none outside team mode."""
+    if pending is None:
+        return []
+    member, cause = got["team_member"]
+    if cause:
+        lines = [f"Member: unknown ({cause})"]
+    else:
+        lines = [f"Member: {member.login or member.email} (roles: {', '.join(member.roles) or '-'})"]
+    found, cause = got["team_lanes"]
+    if cause:
+        lines.append(f"Claimed lane: unknown ({cause})")
+    else:
+        mine, rows = found
+        claimed = [f"{row['lane']} ({row['branch']})" if row.get("lane") and row.get("branch")
+                   else str(row.get("lane") or row.get("branch"))
+                   for row in rows if row.get("assignee") == mine.email and (row.get("lane") or row.get("branch"))]
+        if claimed:
+            lines.append("Claimed lane: " + _inline(list(dict.fromkeys(claimed))))
+    rows, cause = pending.result(TEAM_TIMEOUT)
+    if cause:
+        lines.append(f"Pull requests waiting: not checked ({_cut(cause)}); run gin team pending")
+    elif rows:
+        lines += ["Pull requests waiting:", *_items([
+            f"{row.get('gate') or 'track'} {row.get('url') or row.get('branch')}"
+            + (f" missing: {', '.join(row['missing'])}" if row.get("missing") else "") for row in rows])]
+    return lines
+
+
 def _cut(text: str) -> str:
     text = " ".join(str(text).split())
     return text if len(text) <= TEXT_CAP else text[:TEXT_CAP - 3] + "..."
@@ -329,7 +380,7 @@ def _state(ctx: Context, workflow_id: str) -> dict[str, Any]:
 
 
 def workflow_lines(ctx: Context, found: Found, recent: Sequence[str], shipped: set[str] | None,
-                   shipped_cause: str | None = None) -> tuple[list[str], tuple[Any, str | None] | None]:
+                   shipped_cause: str | None = None, pending: _Background | None = None) -> tuple[list[str], tuple[Any, str | None] | None]:
     """The card of one workflow and the memories result of its round (None outside Beads). `shipped` comes from
     the check before the round, None when it did not run; `shipped_cause` is why that check failed."""
     wf = found.workflow_id or ""
@@ -351,6 +402,8 @@ def workflow_lines(ctx: Context, found: Found, recent: Sequence[str], shipped: s
         jobs["comments"] = lambda: open_questions(epic_comments(ctx.root, target))
     if ctx.beads and epic and ctx.settings.review_ledger:
         jobs["cycles"] = lambda: review_cycles(ctx.root, epic, ctx.settings.max_cycles)
+    if pending is not None:
+        jobs.update(team_jobs(ctx))
     if ctx.beads:
         jobs["memories"] = lambda: memories(ctx.root)
     got = bounded(jobs, ROUND_TIMEOUT)
@@ -408,24 +461,27 @@ def workflow_lines(ctx: Context, found: Found, recent: Sequence[str], shipped: s
     elif still_open:
         lines.append("Other open workflows: " + _inline([f"{other} ({local_stage(ctx.events, other)})"
                                                           for other in still_open]))
-    return lines, got.get("memories")
+    return lines + team_lines(got, pending), got.get("memories")
 
 
-def no_workflow_lines(ctx: Context, open_ids: Sequence[str], shipped_cause: str | None = None
-                      ) -> tuple[list[str], tuple[Any, str | None] | None]:
+def no_workflow_lines(ctx: Context, open_ids: Sequence[str], shipped_cause: str | None = None,
+                      pending: _Background | None = None) -> tuple[list[str], tuple[Any, str | None] | None]:
     """The card without a workflow and the memories result of its round (None outside Beads): the open
     workflows, or `unknown (<cause>)` when the shipped check failed. Memories are the last job of the round."""
     lines = ["gin state card: no workflow is bound to this session or this folder"]
     shown = [] if shipped_cause else list(open_ids[:OPEN_CAP])
     jobs: dict[str, Callable[[], Any]] = {f"wf:{wf}": (lambda wf=wf: _state(ctx, wf)) for wf in shown}
+    if pending is not None:
+        jobs.update(team_jobs(ctx))
     if ctx.beads:
         jobs["memories"] = lambda: memories(ctx.root)
     got = bounded(jobs, ROUND_TIMEOUT) if jobs else {}
     memo = got.get("memories")
+    team = team_lines(got, pending)
     if shipped_cause:
-        return [*lines, f"Open workflows: unknown ({shipped_cause})"], memo
+        return [*lines, f"Open workflows: unknown ({shipped_cause})", *team], memo
     if not open_ids:
-        return [*lines, "Open workflows: none; start one with /gin:discuss"], memo
+        return [*lines, "Open workflows: none; start one with /gin:discuss", *team], memo
     lines.append("Open workflows:")
     for wf in shown:
         state, cause = got[f"wf:{wf}"]
@@ -436,7 +492,7 @@ def no_workflow_lines(ctx: Context, open_ids: Sequence[str], shipped_cause: str 
         lines.append(f"  - {wf}: {state['stage']}" + (f", next: {command}" if command else ""))
     if len(open_ids) > OPEN_CAP:
         lines.append(f"  +{len(open_ids) - OPEN_CAP} more")
-    return lines, memo
+    return lines + team, memo
 
 
 def finish(lines: Sequence[str], memo: tuple[Any, str | None] | None = None) -> str:
@@ -466,10 +522,12 @@ def finish(lines: Sequence[str], memo: tuple[Any, str | None] | None = None) -> 
 
 def render(ctx: Context, found: Found, recent: Sequence[str], shipped: set[str] | None,
            shipped_cause: str | None = None) -> str:
+    pending = team_pending_job(ctx)  # started before the round: the host answers beside it
     if found.workflow_id is None:
-        lines, memo = no_workflow_lines(ctx, [wf for wf in recent if wf not in (shipped or set())], shipped_cause)
+        lines, memo = no_workflow_lines(ctx, [wf for wf in recent if wf not in (shipped or set())], shipped_cause,
+                                        pending)
     else:
-        lines, memo = workflow_lines(ctx, found, recent, shipped, shipped_cause)
+        lines, memo = workflow_lines(ctx, found, recent, shipped, shipped_cause, pending)
     return finish(lines, memo)
 
 

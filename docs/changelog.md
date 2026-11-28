@@ -11,7 +11,7 @@ This page lists what changed in each release of gin-workflow and its add-ons (gi
 
 ### Added
 
-- `gin prime` prints a state card of the workflow. It shows the stage, gates, spec and plan, ready tracks, open questions, the next command, other open workflows, and the Beads memories. See [`gin prime`](reference/cli.md#gin-prime).
+- `gin prime` prints a state card of the workflow. It shows the stage, gates, spec and plan, ready tracks, open questions, review cycles, the next command, other open workflows, and the Beads memories. The card stays under 9,500 characters. In team mode it adds the member, the claimed lane, and the waiting pull requests. See [`gin prime`](reference/cli.md#gin-prime).
 - The Claude Code hooks file runs `gin prime --hook` on start, `/clear`, resume, and compaction, and `gin prime --pre-compact` before a compaction, on Linux, macOS, and Windows.
 - Each stage ends with `Next: /clear, then <command>`.
 - `/gin:setup` offers `autoCompactWindow: 200000` for Claude Code.
